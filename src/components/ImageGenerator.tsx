@@ -127,7 +127,7 @@ export default function ImageGenerator() {
     deletePreset,
     migrateFromLocalStorage 
   } = useFirestore();
-  const { uploadReferenceImage, uploading, uploadProgress } = useStorage();
+  const { uploadReferenceImage, uploadFile, uploading, uploadProgress } = useStorage();
 
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -221,6 +221,19 @@ export default function ImageGenerator() {
       }
     }
   }, [user, migrateFromLocalStorage, migrationComplete]);
+
+  // Cleanup blob URLs when component unmounts or images change
+  useEffect(() => {
+    return () => {
+      // Clean up any blob URLs to prevent memory leaks
+      generatedImages.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+          console.log("Cleaned up blob URL:", url);
+        }
+      });
+    };
+  }, []);
 
   // Helper function to convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -465,7 +478,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.2.0", // Updated version
+            app_version: "1.2.1", // Updated version
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -559,14 +572,28 @@ export default function ImageGenerator() {
         // Handle the response and add to history
         if (result.is_binary && result.blob) {
           // Handle binary PNG response from N8N webhook
-          console.log("Processing binary PNG response...");
+          console.log("Processing binary PNG response...", result.blob.size, "bytes");
           
           const imageId = generateImageId();
           const currentDims = getCurrentDimensions();
           
+          // Create temporary blob URL for immediate display
+          const tempImageUrl = URL.createObjectURL(result.blob);
+          console.log("Created temporary blob URL:", tempImageUrl);
+          
+          // Show image immediately
+          setGeneratedImages(prev => [...prev, tempImageUrl]);
+          toast.success("🎨 Image generated! Uploading to storage...");
+          
           try {
-            // Upload binary image to Firebase Storage
+            // Upload binary image to Firebase Storage in background
             const firebaseImageUrl = await uploadImageToStorage(result.blob, imageId);
+            console.log("Upload successful, replacing temp URL with Firebase URL");
+            
+            // Replace temporary URL with Firebase URL
+            setGeneratedImages(prev => 
+              prev.map(url => url === tempImageUrl ? firebaseImageUrl : url)
+            );
             
             // Create image data with Firebase Storage URL
             const newImageData: GeneratedImageData = {
@@ -590,14 +617,19 @@ export default function ImageGenerator() {
               }
             };
             
-            // Add to generated images display and history
-            setGeneratedImages(prev => [...prev, firebaseImageUrl]);
+            // Save to history with Firebase URL
             await addImageToHistory(newImageData);
-            toast.success("🎨 Image generated and saved successfully!");
+            toast.success("💾 Image saved to your collection!");
+            
+            // Clean up temporary blob URL
+            URL.revokeObjectURL(tempImageUrl);
             
           } catch (uploadError) {
             console.error("Failed to upload image:", uploadError);
             toast.error(`Failed to save generated image: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+            
+            // Keep the temporary URL if upload fails, so user can still see the image
+            console.log("Upload failed, keeping temporary blob URL for user to see image");
           }
           
         } else if (result.image_url || result.imageUrl || result.url) {
@@ -661,12 +693,26 @@ export default function ImageGenerator() {
           
           // If we have a blob but it wasn't detected as binary, try to handle it
           if (imageBlob && imageBlob.size > 0) {
-            console.log("Attempting to handle undetected binary data...");
+            console.log("Attempting to handle undetected binary data...", imageBlob.size, "bytes");
             const imageId = generateImageId();
             const currentDims = getCurrentDimensions();
             
+            // Create temporary blob URL for immediate display
+            const tempImageUrl = URL.createObjectURL(imageBlob);
+            console.log("Created temporary blob URL for fallback:", tempImageUrl);
+            
+            // Show image immediately
+            setGeneratedImages(prev => [...prev, tempImageUrl]);
+            toast.success("🎨 Image detected! Processing...");
+            
             try {
               const firebaseImageUrl = await uploadImageToStorage(imageBlob, imageId);
+              
+              // Replace temporary URL with Firebase URL
+              setGeneratedImages(prev => 
+                prev.map(url => url === tempImageUrl ? firebaseImageUrl : url)
+              );
+              
               const newImageData: GeneratedImageData = {
                 id: imageId,
                 url: firebaseImageUrl,
@@ -687,12 +733,18 @@ export default function ImageGenerator() {
                 }
               };
               
-              setGeneratedImages(prev => [...prev, firebaseImageUrl]);
               await addImageToHistory(newImageData);
-              toast.success("🎨 Image processed successfully!");
+              toast.success("💾 Image processed and saved!");
+              
+              // Clean up temporary blob URL
+              URL.revokeObjectURL(tempImageUrl);
+              
             } catch (uploadError) {
               console.error("Failed to process binary data:", uploadError);
-              toast.error("❌ Failed to process generated image.");
+              toast.error(`❌ Failed to save image: ${uploadError instanceof Error ? uploadError.message : 'Upload error'}`);
+              
+              // Keep the temporary URL if upload fails
+              console.log("Fallback upload failed, keeping temporary blob URL");
             }
           } else {
             toast.warning("⚠️ Generation completed but no recognizable image data received.");

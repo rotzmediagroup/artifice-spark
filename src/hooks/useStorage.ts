@@ -51,6 +51,37 @@ export const useStorage = () => {
     }
   };
 
+  const uploadFile = async (blob: Blob, filePath: string): Promise<string> => {
+    if (!user) {
+      throw new Error('User must be authenticated to upload files');
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Create reference to the file path in Firebase Storage
+      const fileRef = ref(storage, filePath);
+
+      // Upload the blob
+      const snapshot = await uploadBytes(fileRef, blob);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setUploadProgress(100);
+      console.log('File uploaded to Firebase Storage:', downloadURL);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
   const deleteReferenceImage = async (imageUrl: string): Promise<void> => {
     if (!user) {
       throw new Error('User must be authenticated to delete images');
@@ -70,6 +101,7 @@ export const useStorage = () => {
 
   return {
     uploadReferenceImage,
+    uploadFile,
     deleteReferenceImage,
     uploading,
     uploadProgress
