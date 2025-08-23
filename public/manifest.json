@@ -1,0 +1,36 @@
+{
+  "name": "AI Image Generator",
+  "short_name": "AI Gen",
+  "description": "Professional AI image generation service with advanced styling options",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#8b5cf6",
+  "orientation": "any",
+  "categories": ["productivity", "graphics", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "placeholder.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "placeholder.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "placeholder.svg",
+      "type": "image/svg+xml",
+      "sizes": "1280x720",
+      "form_factor": "wide"
+    }
+  ]
+}
