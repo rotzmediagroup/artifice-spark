@@ -7,10 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2 } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2, LogIn, TestTube } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFirestore";
+import { useStorage } from "@/hooks/useStorage";
+import UserMenu from "@/components/UserMenu";
+import AuthModal from "@/components/AuthModal";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
@@ -43,11 +49,26 @@ const artStyles = [
 ];
 
 const aspectRatios = [
-  { label: "Square (1:1)", value: "1:1", width: 1024, height: 1024 },
-  { label: "Portrait (4:5)", value: "4:5", width: 1024, height: 1280 },
-  { label: "Landscape (16:9)", value: "16:9", width: 1344, height: 768 },
-  { label: "Wide (21:9)", value: "21:9", width: 1536, height: 640 },
-  { label: "Phone (9:16)", value: "9:16", width: 768, height: 1344 },
+  // Standard Dimensions
+  { label: "Square (1:1)", value: "1:1", width: 1024, height: 1024, category: "standard" },
+  { label: "Portrait (4:5)", value: "4:5", width: 1024, height: 1280, category: "standard" },
+  { label: "Landscape (16:9)", value: "16:9", width: 1344, height: 768, category: "standard" },
+  { label: "Wide (21:9)", value: "21:9", width: 1536, height: 640, category: "standard" },
+  { label: "Phone (9:16)", value: "9:16", width: 768, height: 1344, category: "standard" },
+  
+  // Large Dimensions
+  { label: "Large Square (1600x1600)", value: "1:1", width: 1600, height: 1600, category: "large" },
+  { label: "Large Portrait (1280x1600)", value: "4:5", width: 1280, height: 1600, category: "large" },
+  { label: "Large Landscape (1600x1280)", value: "5:4", width: 1600, height: 1280, category: "large" },
+  { label: "Large Widescreen (1920x1080)", value: "16:9", width: 1920, height: 1080, category: "large" },
+  
+  // Ultra High Resolution
+  { label: "Ultra Square (2000x2000)", value: "1:1", width: 2000, height: 2000, category: "ultra" },
+  { label: "Ultra Portrait (1600x2000)", value: "4:5", width: 1600, height: 2000, category: "ultra" },
+  { label: "Ultra Landscape (2000x1600)", value: "5:4", width: 2000, height: 1600, category: "ultra" },
+  
+  // Custom option
+  { label: "Custom Dimensions", value: "custom", width: 1024, height: 1024, category: "custom" },
 ];
 
 const promptTemplates = [
@@ -94,57 +115,89 @@ interface GeneratedImageData {
 }
 
 export default function ImageGenerator() {
+  const { user, loading: authLoading } = useAuth();
+  const { 
+    imageHistory, 
+    presets, 
+    loading: firestoreLoading, 
+    addImageToHistory, 
+    updateImageInHistory, 
+    deleteImageFromHistory, 
+    addPreset, 
+    deletePreset,
+    migrateFromLocalStorage 
+  } = useFirestore();
+  const { uploadReferenceImage, uploading, uploadProgress } = useStorage();
+
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("");
   const [aspectRatio, setAspectRatio] = useState(aspectRatios[0]);
+  const [customWidth, setCustomWidth] = useState(1024);
+  const [customHeight, setCustomHeight] = useState(1024);
+  const [useCustomDimensions, setUseCustomDimensions] = useState(false);
   const [steps, setSteps] = useState([30]);
   const [cfgScale, setCfgScale] = useState([7]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [referenceImage, setReferenceImage] = useState<File | null>(null);
-  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
-  const [imageHistory, setImageHistory] = useState<GeneratedImageData[]>([]);
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [batchCount, setBatchCount] = useState(1);
-  const [selectedHistoryImage, setSelectedHistoryImage] = useState<GeneratedImageData | null>(null);
-  const [savedPresets, setSavedPresets] = useState<any[]>([]);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [migrationComplete, setMigrationComplete] = useState(false);
 
-  // Load saved data from localStorage on component mount
+  // Helper function to get current dimensions
+  const getCurrentDimensions = () => {
+    if (useCustomDimensions || aspectRatio.value === "custom") {
+      return {
+        width: customWidth,
+        height: customHeight,
+        is_custom: true,
+        aspect_ratio: calculateAspectRatio(customWidth, customHeight),
+        aspect_ratio_label: `Custom (${customWidth}x${customHeight})`,
+        total_pixels: customWidth * customHeight,
+        megapixels: Math.round((customWidth * customHeight) / 1000000 * 100) / 100
+      };
+    } else {
+      return {
+        width: aspectRatio.width,
+        height: aspectRatio.height,
+        is_custom: false,
+        aspect_ratio: aspectRatio.value,
+        aspect_ratio_label: aspectRatio.label,
+        total_pixels: aspectRatio.width * aspectRatio.height,
+        megapixels: Math.round((aspectRatio.width * aspectRatio.height) / 1000000 * 100) / 100
+      };
+    }
+  };
+  
+  // Helper function to calculate aspect ratio from dimensions
+  const calculateAspectRatio = (width: number, height: number) => {
+    const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+    const divisor = gcd(width, height);
+    return `${width / divisor}:${height / divisor}`;
+  };
+
+  // Migrate data from localStorage when user first signs in
   useEffect(() => {
-    const savedHistory = localStorage.getItem('imageHistory');
-    const savedPresets = localStorage.getItem('savedPresets');
-    
-    if (savedHistory) {
-      try {
-        const parsedHistory = JSON.parse(savedHistory).map((item: any) => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        }));
-        setImageHistory(parsedHistory);
-      } catch (error) {
-        console.error('Error loading image history:', error);
+    if (user && !migrationComplete) {
+      const hasLocalData = localStorage.getItem('imageHistory') || localStorage.getItem('savedPresets');
+      if (hasLocalData) {
+        migrateFromLocalStorage()
+          .then(() => {
+            toast.success('Your data has been migrated to the cloud!');
+            setMigrationComplete(true);
+          })
+          .catch((error) => {
+            console.error('Migration failed:', error);
+            toast.error('Failed to migrate your data. Please try refreshing the page.');
+          });
+      } else {
+        setMigrationComplete(true);
       }
     }
-    
-    if (savedPresets) {
-      try {
-        setSavedPresets(JSON.parse(savedPresets));
-      } catch (error) {
-        console.error('Error loading saved presets:', error);
-      }
-    }
-  }, []);
-
-  // Save to localStorage whenever history changes
-  useEffect(() => {
-    localStorage.setItem('imageHistory', JSON.stringify(imageHistory));
-  }, [imageHistory]);
-
-  useEffect(() => {
-    localStorage.setItem('savedPresets', JSON.stringify(savedPresets));
-  }, [savedPresets]);
+  }, [user, migrateFromLocalStorage, migrationComplete]);
 
   // Helper function to convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -156,32 +209,33 @@ export default function ImageGenerator() {
     });
   };
 
-  const handleImageUpload = (file: File) => {
+  const handleImageUpload = async (file: File) => {
+    if (!user) {
+      toast.error("Please sign in to upload reference images");
+      setAuthModalOpen(true);
+      return;
+    }
+
     if (!file.type.startsWith('image/')) {
       toast.error("Please upload a valid image file");
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
       toast.error("Image size should be less than 10MB");
       return;
     }
 
-    setReferenceImage(file);
-    
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    setReferenceImagePreview(previewUrl);
-    
-    toast.success("Reference image uploaded successfully!");
+    try {
+      const downloadURL = await uploadReferenceImage(file);
+      setReferenceImageUrl(downloadURL);
+    } catch (error) {
+      console.error('Upload error:', error);
+    }
   };
 
   const handleRemoveImage = () => {
-    setReferenceImage(null);
-    if (referenceImagePreview) {
-      URL.revokeObjectURL(referenceImagePreview);
-      setReferenceImagePreview(null);
-    }
+    setReferenceImageUrl(null);
     toast.success("Reference image removed");
   };
 
@@ -197,36 +251,60 @@ export default function ImageGenerator() {
     e.preventDefault();
   };
 
-  const applyTemplate = (template: any) => {
+  const applyTemplate = (template: { name: string; prompt: string; category: string }) => {
     setPositivePrompt(template.prompt);
     setSelectedTemplate(template.name);
     toast.success(`Applied template: ${template.name}`);
   };
 
-  const saveCurrentPreset = () => {
-    const preset = {
-      id: Date.now().toString(),
-      name: `Preset ${savedPresets.length + 1}`,
-      positivePrompt,
-      negativePrompt,
-      selectedStyle,
-      aspectRatio,
-      steps: steps[0],
-      cfgScale: cfgScale[0],
-      timestamp: new Date()
-    };
-    
-    setSavedPresets([...savedPresets, preset]);
-    toast.success("Preset saved!");
+  const saveCurrentPreset = async () => {
+    if (!user) {
+      toast.error("Please sign in to save presets");
+      setAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      const preset = {
+        name: `Preset ${presets.length + 1}`,
+        positivePrompt,
+        negativePrompt,
+        selectedStyle,
+        aspectRatio,
+        steps: steps[0],
+        cfgScale: cfgScale[0],
+        timestamp: new Date(),
+        // Include custom dimension data
+        customWidth,
+        customHeight,
+        useCustomDimensions
+      };
+      
+      await addPreset(preset);
+      toast.success("Preset saved!");
+    } catch (error) {
+      console.error('Error saving preset:', error);
+      toast.error("Failed to save preset");
+    }
   };
 
-  const loadPreset = (preset: any) => {
+  const loadPreset = (preset: PresetData) => {
     setPositivePrompt(preset.positivePrompt);
     setNegativePrompt(preset.negativePrompt);
     setSelectedStyle(preset.selectedStyle);
     setAspectRatio(preset.aspectRatio);
     setSteps([preset.steps]);
     setCfgScale([preset.cfgScale]);
+    
+    // Restore custom dimensions if they exist
+    if (preset.useCustomDimensions && preset.customWidth && preset.customHeight) {
+      setCustomWidth(preset.customWidth);
+      setCustomHeight(preset.customHeight);
+      setUseCustomDimensions(true);
+    } else {
+      setUseCustomDimensions(false);
+    }
+    
     toast.success(`Loaded preset: ${preset.name}`);
   };
 
@@ -262,17 +340,30 @@ export default function ImageGenerator() {
     }
   };
 
-  const toggleLike = (imageId: string) => {
-    setImageHistory(prev => 
-      prev.map(img => 
-        img.id === imageId ? { ...img, liked: !img.liked } : img
-      )
-    );
+  const toggleLike = async (imageId: string) => {
+    if (!user) return;
+    
+    const image = imageHistory.find(img => img.id === imageId);
+    if (image) {
+      try {
+        await updateImageInHistory(imageId, { liked: !image.liked });
+      } catch (error) {
+        console.error('Error updating like:', error);
+        toast.error("Failed to update like");
+      }
+    }
   };
 
-  const deleteFromHistory = (imageId: string) => {
-    setImageHistory(prev => prev.filter(img => img.id !== imageId));
-    toast.success("Image removed from history");
+  const deleteFromHistory = async (imageId: string) => {
+    if (!user) return;
+    
+    try {
+      await deleteImageFromHistory(imageId);
+      toast.success("Image removed from history");
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error("Failed to delete image");
+    }
   };
 
   const generateVariations = (originalImage: GeneratedImageData) => {
@@ -292,6 +383,12 @@ export default function ImageGenerator() {
       return;
     }
 
+    if (!user) {
+      toast.error("Please sign in to generate images");
+      setAuthModalOpen(true);
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationProgress(0);
     
@@ -308,24 +405,85 @@ export default function ImageGenerator() {
     
     try {
       for (let i = 0; i < batchCount; i++) {
-        // Prepare the payload for the webhook
-        const payload: any = {
+        // Prepare comprehensive payload for the webhook
+        const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+        const currentDimensions = getCurrentDimensions();
+        
+        const payload = {
+          // Generation settings - primary parameters
+          generation_settings: {
+            prompt: positivePrompt.trim(),
+            negative_prompt: negativePrompt.trim() || undefined,
+            style: selectedStyle || undefined,
+            steps: steps[0],
+            cfg_scale: cfgScale[0],
+            batch_count: 1, // Always 1 per API call in the loop
+            template_used: selectedTemplate || null,
+            reference_image: referenceImageUrl || null,
+            seed: null // Could be added later for reproducibility
+          },
+          
+          // Dimension information - comprehensive size data
+          dimensions: {
+            width: currentDimensions.width,
+            height: currentDimensions.height,
+            is_custom: currentDimensions.is_custom,
+            aspect_ratio: currentDimensions.aspect_ratio,
+            aspect_ratio_label: currentDimensions.aspect_ratio_label,
+            total_pixels: currentDimensions.total_pixels,
+            megapixels: currentDimensions.megapixels,
+            category: aspectRatio.category || "standard"
+          },
+          
+          // User context - authentication and tracking
+          user_context: {
+            user_id: user?.uid || null,
+            user_email: user?.email || null,
+            user_display_name: user?.displayName || null,
+            request_id: requestId,
+            timestamp: new Date().toISOString(),
+            app_version: "1.1.0", // Updated version
+            generation_mode: referenceImageUrl ? "img2img" : "text2img",
+            batch_info: {
+              total_batch_count: batchCount,
+              batch_index: i + 1,
+              is_batch: batchCount > 1
+            }
+          },
+          
+          // UI state - complete interface context
+          ui_state: {
+            selected_template: selectedTemplate || null,
+            custom_dimensions_enabled: useCustomDimensions || aspectRatio.value === "custom",
+            available_styles: artStyles,
+            selected_style_index: artStyles.indexOf(selectedStyle),
+            available_aspect_ratios: aspectRatios.filter(ar => ar.category !== "custom"),
+            selected_aspect_ratio_index: aspectRatios.findIndex(ar => 
+              ar.width === currentDimensions.width && ar.height === currentDimensions.height
+            ),
+            parameter_ranges: {
+              steps_range: [1, 50],
+              cfg_scale_range: [1, 20],
+              custom_width_range: [256, 2000],
+              custom_height_range: [256, 2000]
+            },
+            quality_preset: "standard",
+            prompt_templates: promptTemplates.map(t => ({
+              name: t.name,
+              category: t.category,
+              active: t.name === selectedTemplate
+            }))
+          },
+          
+          // Legacy compatibility - maintain backward compatibility
+          width: currentDimensions.width,
+          height: currentDimensions.height,
           prompt: positivePrompt.trim(),
           negative_prompt: negativePrompt.trim() || undefined,
           style: selectedStyle || undefined,
-          width: aspectRatio.width,
-          height: aspectRatio.height,
           steps: steps[0],
-          cfg_scale: cfgScale[0],
-          timestamp: new Date().toISOString()
+          cfg_scale: cfgScale[0]
         };
-
-        // Add reference image if uploaded
-        if (referenceImage) {
-          const base64Image = await fileToBase64(referenceImage);
-          payload.reference_image = base64Image;
-          payload.image_prompt = true;
-        }
 
         console.log("Sending request to webhook:", payload);
         
@@ -347,6 +505,7 @@ export default function ImageGenerator() {
         // Handle the response and add to history
         if (result.image_url || result.imageUrl || result.url) {
           const imageUrl = result.image_url || result.imageUrl || result.url;
+          const currentDims = getCurrentDimensions();
           const newImageData: GeneratedImageData = {
             id: Date.now().toString() + i,
             url: imageUrl,
@@ -357,18 +516,25 @@ export default function ImageGenerator() {
             settings: {
               steps: steps[0],
               cfgScale: cfgScale[0],
-              aspectRatio: aspectRatio.label,
-              negativePrompt: negativePrompt.trim()
+              aspectRatio: currentDims.aspect_ratio_label,
+              negativePrompt: negativePrompt.trim(),
+              // Enhanced dimension data
+              width: currentDims.width,
+              height: currentDims.height,
+              isCustomDimensions: currentDims.is_custom,
+              totalPixels: currentDims.total_pixels,
+              megapixels: currentDims.megapixels
             }
           };
           
           setGeneratedImages(prev => [...prev, imageUrl]);
-          setImageHistory(prev => [newImageData, ...prev]);
+          await addImageToHistory(newImageData);
           toast.success("🎨 Image generated successfully!");
         } else if (result.images && Array.isArray(result.images)) {
-          result.images.forEach((imageUrl: string, index: number) => {
+          const currentDims = getCurrentDimensions();
+          for (const imageUrl of result.images) {
             const newImageData: GeneratedImageData = {
-              id: Date.now().toString() + i + index,
+              id: Date.now().toString() + i + Math.random(),
               url: imageUrl,
               prompt: positivePrompt.trim(),
               style: selectedStyle,
@@ -377,12 +543,18 @@ export default function ImageGenerator() {
               settings: {
                 steps: steps[0],
                 cfgScale: cfgScale[0],
-                aspectRatio: aspectRatio.label,
-                negativePrompt: negativePrompt.trim()
+                aspectRatio: currentDims.aspect_ratio_label,
+                negativePrompt: negativePrompt.trim(),
+                // Enhanced dimension data
+                width: currentDims.width,
+                height: currentDims.height,
+                isCustomDimensions: currentDims.is_custom,
+                totalPixels: currentDims.total_pixels,
+                megapixels: currentDims.megapixels
               }
             };
-            setImageHistory(prev => [newImageData, ...prev]);
-          });
+            await addImageToHistory(newImageData);
+          }
           
           setGeneratedImages(result.images);
           toast.success(`🎨 ${result.images.length} images generated successfully!`);
@@ -403,6 +575,17 @@ export default function ImageGenerator() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-6 relative">
       {/* Animated Background Elements */}
@@ -413,8 +596,18 @@ export default function ImageGenerator() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Enhanced Header with Logo */}
-        <div className="text-center mb-12 animate-fade-in">
+        {/* Enhanced Header with Logo and User Menu */}
+        <div className="text-center mb-12 animate-fade-in relative">
+          <div className="absolute top-0 right-0 flex gap-2">
+            <a href="/test" className="inline-flex">
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <TestTube className="h-4 w-4" />
+                Database Test
+              </Button>
+            </a>
+            <UserMenu />
+          </div>
+          
           <div className="flex items-center justify-center mb-6">
             <img 
               src={rotzLogo} 
@@ -428,6 +621,12 @@ export default function ImageGenerator() {
           <p className="text-muted-foreground text-xl animate-fade-in" style={{animationDelay: '0.2s'}}>
             Create stunning images with professional AI technology
           </p>
+          {user && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span>Welcome back, {user.displayName || user.email}</span>
+              <Badge variant="secondary" className="animate-pulse">Cloud Synced</Badge>
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -439,6 +638,25 @@ export default function ImageGenerator() {
               </div>
               <h2 className="text-2xl font-bold text-gradient">Generation Controls</h2>
             </div>
+
+            {!user && (
+              <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                <div className="flex items-center gap-3 mb-2">
+                  <LogIn className="h-5 w-5 text-amber-500" />
+                  <h3 className="font-medium text-amber-500">Sign in for full experience</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Sign in to save your images, presets, and sync across devices
+                </p>
+                <Button 
+                  onClick={() => setAuthModalOpen(true)}
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  Sign In
+                </Button>
+              </div>
+            )}
 
             {/* Enhanced Positive Prompt */}
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.1s'}}>
@@ -486,32 +704,42 @@ export default function ImageGenerator() {
                 <Badge variant="outline" className="text-xs">Optional</Badge>
               </Label>
               
-              {!referenceImagePreview ? (
+              {!referenceImageUrl ? (
                 <div
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   className="border-2 border-dashed border-accent/30 rounded-lg p-8 text-center hover:border-accent/50 transition-colors duration-300 cursor-pointer glass"
-                  onClick={() => document.getElementById('image-upload')?.click()}
+                  onClick={() => user ? document.getElementById('image-upload')?.click() : setAuthModalOpen(true)}
                 >
-                  <Upload className="h-12 w-12 mx-auto mb-4 text-accent/60" />
-                  <p className="text-muted-foreground mb-2">
-                    Drag & drop an image here, or click to browse
-                  </p>
-                  <p className="text-sm text-muted-foreground/70">
-                    Supports JPG, PNG, WEBP up to 10MB
-                  </p>
+                  {uploading ? (
+                    <div className="space-y-4">
+                      <div className="w-12 h-12 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto"></div>
+                      <p className="text-muted-foreground">Uploading... {uploadProgress}%</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-accent/60" />
+                      <p className="text-muted-foreground mb-2">
+                        {user ? "Drag & drop an image here, or click to browse" : "Sign in to upload reference images"}
+                      </p>
+                      <p className="text-sm text-muted-foreground/70">
+                        Supports JPG, PNG, WEBP up to 10MB
+                      </p>
+                    </>
+                  )}
                   <input
                     id="image-upload"
                     type="file"
                     accept="image/*"
                     onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
                     className="hidden"
+                    disabled={!user}
                   />
                 </div>
               ) : (
                 <div className="relative rounded-lg overflow-hidden glass border border-accent/30">
                   <img
-                    src={referenceImagePreview}
+                    src={referenceImageUrl}
                     alt="Reference"
                     className="w-full h-40 object-cover"
                   />
@@ -581,27 +809,121 @@ export default function ImageGenerator() {
               </Select>
             </div>
 
-            {/* Aspect Ratio */}
+            {/* Dimensions Selector */}
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.5s'}}>
               <Label className="flex items-center gap-3 text-lg font-medium">
                 <div className="p-1 rounded bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
                   <Image className="h-5 w-5 text-primary animate-pulse" />
                 </div>
-                Aspect Ratio
+                Image Dimensions
               </Label>
-              <div className="grid grid-cols-2 gap-2">
-                {aspectRatios.map((ratio) => (
-                  <Button
-                    key={ratio.value}
-                    variant={aspectRatio.value === ratio.value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setAspectRatio(ratio)}
-                    className="text-xs"
-                  >
-                    {ratio.label}
-                  </Button>
-                ))}
-              </div>
+              
+              <Tabs defaultValue="presets" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="presets">Presets</TabsTrigger>
+                  <TabsTrigger value="large">Large</TabsTrigger>
+                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                </TabsList>
+                
+                {/* Standard & Large Presets */}
+                <TabsContent value="presets" className="space-y-2 mt-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {aspectRatios.filter(ar => ar.category === "standard").map((ratio) => (
+                      <Button
+                        key={`${ratio.value}-${ratio.width}`}
+                        variant={aspectRatio.width === ratio.width && aspectRatio.height === ratio.height && !useCustomDimensions ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setAspectRatio(ratio);
+                          setUseCustomDimensions(false);
+                        }}
+                        className="text-xs"
+                      >
+                        {ratio.label}
+                      </Button>
+                    ))}
+                  </div>
+                </TabsContent>
+                
+                {/* Large & Ultra Presets */}
+                <TabsContent value="large" className="space-y-2 mt-3">
+                  <div className="grid grid-cols-1 gap-2">
+                    {aspectRatios.filter(ar => ar.category === "large" || ar.category === "ultra").map((ratio) => (
+                      <Button
+                        key={`${ratio.value}-${ratio.width}`}
+                        variant={aspectRatio.width === ratio.width && aspectRatio.height === ratio.height && !useCustomDimensions ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setAspectRatio(ratio);
+                          setUseCustomDimensions(false);
+                        }}
+                        className="text-xs justify-between"
+                      >
+                        <span>{ratio.label}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round((ratio.width * ratio.height) / 1000000 * 100) / 100}MP
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </TabsContent>
+                
+                {/* Custom Dimensions */}
+                <TabsContent value="custom" className="space-y-3 mt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-sm mb-1 block">Width</Label>
+                      <Input
+                        type="number"
+                        min={256}
+                        max={2000}
+                        value={customWidth}
+                        onChange={(e) => {
+                          const width = parseInt(e.target.value) || 256;
+                          setCustomWidth(Math.min(2000, Math.max(256, width)));
+                          setUseCustomDimensions(true);
+                        }}
+                        className="text-sm"
+                        placeholder="Width (256-2000)"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm mb-1 block">Height</Label>
+                      <Input
+                        type="number"
+                        min={256}
+                        max={2000}
+                        value={customHeight}
+                        onChange={(e) => {
+                          const height = parseInt(e.target.value) || 256;
+                          setCustomHeight(Math.min(2000, Math.max(256, height)));
+                          setUseCustomDimensions(true);
+                        }}
+                        className="text-sm"
+                        placeholder="Height (256-2000)"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Custom Dimension Info */}
+                  {(useCustomDimensions) && (
+                    <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>Aspect Ratio: {calculateAspectRatio(customWidth, customHeight)}</span>
+                        <Badge variant="outline">{Math.round((customWidth * customHeight) / 1000000 * 100) / 100}MP</Badge>
+                      </div>
+                      <div className="text-muted-foreground mt-1">
+                        {customWidth} × {customHeight} pixels ({(customWidth * customHeight).toLocaleString()} total)
+                      </div>
+                      {(customWidth * customHeight > 2000000) && (
+                        <div className="text-amber-600 text-xs mt-2">
+                          ⚠️ Large dimensions may take longer to generate
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Batch Generation */}
@@ -665,11 +987,11 @@ export default function ImageGenerator() {
                 />
               </div>
 
-              {savedPresets.length > 0 && (
+              {presets.length > 0 && user && (
                 <div className="space-y-2">
                   <Label className="text-sm">Saved Presets</Label>
                   <div className="grid grid-cols-2 gap-1">
-                    {savedPresets.slice(-4).map((preset) => (
+                    {presets.slice(-4).map((preset) => (
                       <Button
                         key={preset.id}
                         variant="outline"
@@ -899,6 +1221,8 @@ export default function ImageGenerator() {
             </Tabs>
           </Card>
         </div>
+
+        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       </div>
     </div>
   );
