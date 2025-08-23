@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star } from "lucide-react";
 import { toast } from "sonner";
-import rotzLogo from "@/assets/rotz-logo.png";
+import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
   "Photorealistic", "Digital Art", "Oil Painting", "Watercolor", "Pencil Sketch", "Charcoal Drawing",
@@ -144,11 +144,6 @@ export default function ImageGenerator() {
           <p className="text-muted-foreground text-xl animate-fade-in" style={{animationDelay: '0.2s'}}>
             Create stunning images with professional AI technology
           </p>
-          <div className="flex items-center justify-center gap-2 mt-4 animate-fade-in" style={{animationDelay: '0.4s'}}>
-            <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
-            <span className="text-sm text-muted-foreground">100+ Art Styles Available</span>
-            <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
-          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -271,17 +266,17 @@ export default function ImageGenerator() {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !positivePrompt.trim()}
-              className="w-full h-14 text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 glow pulse-glow transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed animate-bounce-in"
+              className="w-full h-14 text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 glow pulse-glow transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed animate-bounce-in text-white"
               size="lg"
             >
               {isGenerating ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 text-white">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
                   <span>Generating Magic...</span>
                   <Zap className="h-5 w-5 animate-pulse" />
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 text-white">
                   <Sparkles className="h-6 w-6 animate-pulse" />
                   <span>Generate Images</span>
                   <Zap className="h-5 w-5" />
