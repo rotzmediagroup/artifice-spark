@@ -178,6 +178,29 @@ export default function ImageGenerator() {
     const divisor = gcd(width, height);
     return `${width / divisor}:${height / divisor}`;
   };
+  
+  // Helper function to generate unique image ID
+  const generateImageId = () => {
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 11);
+    return `img_${timestamp}_${randomStr}`;
+  };
+  
+  // Helper function to upload image blob to Firebase Storage
+  const uploadImageToStorage = async (blob: Blob, imageId: string): Promise<string> => {
+    try {
+      const fileName = `generated-images/${user?.uid}/${imageId}.png`;
+      
+      // Upload the blob to Firebase Storage using the uploadFile function from useStorage hook
+      const downloadUrl = await uploadFile(blob, fileName);
+      console.log("Image uploaded to Firebase Storage:", downloadUrl);
+      
+      return downloadUrl;
+    } catch (error) {
+      console.error("Error uploading to Firebase Storage:", error);
+      throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   // Migrate data from localStorage when user first signs in
   useEffect(() => {
@@ -442,7 +465,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.1.0", // Updated version
+            app_version: "1.2.0", // Updated version
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -499,15 +522,90 @@ export default function ImageGenerator() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const result = await response.json();
-        console.log("Webhook response:", result);
+        // Check if response is binary (PNG) or JSON
+        const contentType = response.headers.get('content-type');
+        console.log("Response content-type:", contentType);
+        
+        let result: any;
+        let imageBlob: Blob | null = null;
+        
+        if (contentType && contentType.includes('image/png')) {
+          // Handle binary PNG response
+          imageBlob = await response.blob();
+          console.log("Received binary PNG response, size:", imageBlob.size);
+          
+          result = {
+            is_binary: true,
+            blob: imageBlob,
+            size: imageBlob.size
+          };
+        } else {
+          // Handle JSON response (fallback)
+          try {
+            result = await response.json();
+            console.log("Webhook JSON response:", result);
+          } catch (jsonError) {
+            // If JSON parsing fails, try to handle as binary anyway
+            console.warn("JSON parsing failed, attempting binary handling:", jsonError);
+            imageBlob = await response.blob();
+            result = {
+              is_binary: true,
+              blob: imageBlob,
+              size: imageBlob.size
+            };
+          }
+        }
         
         // Handle the response and add to history
-        if (result.image_url || result.imageUrl || result.url) {
+        if (result.is_binary && result.blob) {
+          // Handle binary PNG response from N8N webhook
+          console.log("Processing binary PNG response...");
+          
+          const imageId = generateImageId();
+          const currentDims = getCurrentDimensions();
+          
+          try {
+            // Upload binary image to Firebase Storage
+            const firebaseImageUrl = await uploadImageToStorage(result.blob, imageId);
+            
+            // Create image data with Firebase Storage URL
+            const newImageData: GeneratedImageData = {
+              id: imageId,
+              url: firebaseImageUrl,
+              prompt: positivePrompt.trim(),
+              style: selectedStyle,
+              timestamp: new Date(),
+              liked: false,
+              settings: {
+                steps: steps[0],
+                cfgScale: cfgScale[0],
+                aspectRatio: currentDims.aspect_ratio_label,
+                negativePrompt: negativePrompt.trim(),
+                // Enhanced dimension data
+                width: currentDims.width,
+                height: currentDims.height,
+                isCustomDimensions: currentDims.is_custom,
+                totalPixels: currentDims.total_pixels,
+                megapixels: currentDims.megapixels
+              }
+            };
+            
+            // Add to generated images display and history
+            setGeneratedImages(prev => [...prev, firebaseImageUrl]);
+            await addImageToHistory(newImageData);
+            toast.success("🎨 Image generated and saved successfully!");
+            
+          } catch (uploadError) {
+            console.error("Failed to upload image:", uploadError);
+            toast.error(`Failed to save generated image: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          }
+          
+        } else if (result.image_url || result.imageUrl || result.url) {
+          // Handle JSON response with image URL (legacy support)
           const imageUrl = result.image_url || result.imageUrl || result.url;
           const currentDims = getCurrentDimensions();
           const newImageData: GeneratedImageData = {
-            id: Date.now().toString() + i,
+            id: generateImageId(),
             url: imageUrl,
             prompt: positivePrompt.trim(),
             style: selectedStyle,
@@ -534,7 +632,7 @@ export default function ImageGenerator() {
           const currentDims = getCurrentDimensions();
           for (const imageUrl of result.images) {
             const newImageData: GeneratedImageData = {
-              id: Date.now().toString() + i + Math.random(),
+              id: generateImageId(),
               url: imageUrl,
               prompt: positivePrompt.trim(),
               style: selectedStyle,
@@ -560,7 +658,45 @@ export default function ImageGenerator() {
           toast.success(`🎨 ${result.images.length} images generated successfully!`);
         } else {
           console.log("Unexpected response format:", result);
-          toast.success("✨ Generation completed! Check the response format.");
+          
+          // If we have a blob but it wasn't detected as binary, try to handle it
+          if (imageBlob && imageBlob.size > 0) {
+            console.log("Attempting to handle undetected binary data...");
+            const imageId = generateImageId();
+            const currentDims = getCurrentDimensions();
+            
+            try {
+              const firebaseImageUrl = await uploadImageToStorage(imageBlob, imageId);
+              const newImageData: GeneratedImageData = {
+                id: imageId,
+                url: firebaseImageUrl,
+                prompt: positivePrompt.trim(),
+                style: selectedStyle,
+                timestamp: new Date(),
+                liked: false,
+                settings: {
+                  steps: steps[0],
+                  cfgScale: cfgScale[0],
+                  aspectRatio: currentDims.aspect_ratio_label,
+                  negativePrompt: negativePrompt.trim(),
+                  width: currentDims.width,
+                  height: currentDims.height,
+                  isCustomDimensions: currentDims.is_custom,
+                  totalPixels: currentDims.total_pixels,
+                  megapixels: currentDims.megapixels
+                }
+              };
+              
+              setGeneratedImages(prev => [...prev, firebaseImageUrl]);
+              await addImageToHistory(newImageData);
+              toast.success("🎨 Image processed successfully!");
+            } catch (uploadError) {
+              console.error("Failed to process binary data:", uploadError);
+              toast.error("❌ Failed to process generated image.");
+            }
+          } else {
+            toast.warning("⚠️ Generation completed but no recognizable image data received.");
+          }
         }
       }
       
