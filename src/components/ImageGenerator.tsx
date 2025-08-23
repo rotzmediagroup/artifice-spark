@@ -66,21 +66,54 @@ export default function ImageGenerator() {
     setIsGenerating(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Prepare the payload for the webhook
+      const payload = {
+        prompt: positivePrompt.trim(),
+        negative_prompt: negativePrompt.trim() || undefined,
+        style: selectedStyle || undefined,
+        width: aspectRatio.width,
+        height: aspectRatio.height,
+        steps: steps[0],
+        cfg_scale: cfgScale[0],
+        // Add timestamp for uniqueness
+        timestamp: new Date().toISOString()
+      };
+
+      console.log("Sending request to webhook:", payload);
       
-      // Mock generated images
-      const mockImages = [
-        "https://images.unsplash.com/photo-1706885093487-7eda37f48a60?w=500&h=500&fit=crop",
-        "https://images.unsplash.com/photo-1706885093385-b6b87b72f15a?w=500&h=500&fit=crop",
-        "https://images.unsplash.com/photo-1706885093480-e3d2b9c38e84?w=500&h=500&fit=crop",
-        "https://images.unsplash.com/photo-1706885093294-8ddf4a4c4cb3?w=500&h=500&fit=crop"
-      ];
+      const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Webhook response:", result);
       
-      setGeneratedImages(mockImages);
-      toast.success("Images generated successfully!");
+      // Handle the response - adjust based on your webhook's response format
+      if (result.image_url || result.imageUrl || result.url) {
+        const imageUrl = result.image_url || result.imageUrl || result.url;
+        setGeneratedImages([imageUrl]);
+        toast.success("🎨 Image generated successfully!");
+      } else if (result.images && Array.isArray(result.images)) {
+        // Handle multiple images if your webhook returns an array
+        setGeneratedImages(result.images);
+        toast.success(`🎨 ${result.images.length} images generated successfully!`);
+      } else {
+        // If the response format is different, log it and show a generic success
+        console.log("Unexpected response format:", result);
+        toast.success("✨ Generation completed! Check the response format.");
+      }
+      
     } catch (error) {
-      toast.error("Failed to generate images");
+      console.error("Error generating image:", error);
+      toast.error(`Failed to generate image: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
