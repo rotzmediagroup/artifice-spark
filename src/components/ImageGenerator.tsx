@@ -17,7 +17,25 @@ const artStyles = [
   "Gothic", "Medieval", "Japanese Ink", "Chinese Painting", "Indian Miniature", "African Art",
   "Blueprint", "Technical Drawing", "Architectural", "Isometric", "3D Render", "Low Poly",
   "Voxel Art", "Papercraft", "Origami", "Clay Model", "Bronze Sculpture", "Marble Sculpture",
-  "Neon", "Holographic", "Glitch Art", "Vaporwave", "Synthwave", "Retro", "Vintage", "Film Noir"
+  "Neon", "Holographic", "Glitch Art", "Vaporwave", "Synthwave", "Retro", "Vintage", "Film Noir",
+  // Unique & Creative Styles
+  "Biomechanical", "Fractals", "Kaleidoscope", "Double Exposure", "Tilt-Shift", "Cross-Hatching",
+  "Stippling", "Mosaic", "Stained Glass", "Embroidery", "Quilt Pattern", "Batik", "Tie-Dye",
+  "Sand Art", "Ice Sculpture", "Latte Art", "Food Art", "Shadow Play", "Light Painting",
+  "Macro Photography", "Infrared", "X-Ray", "Thermal Imaging", "Satellite View", "Microscopic",
+  "Cel Shading", "Toon Shading", "Wireframe", "Point Cloud", "Particle System", "Fluid Dynamics",
+  "Crystalline", "Organic", "Geometric", "Tessellation", "Voronoi", "Mandelbrot",
+  "Paper Cut-out", "Pop-up Book", "Diorama", "Shadow Box", "Layered Paper", "Kirigami",
+  "Grunge", "Distressed", "Weathered", "Rust Texture", "Patina", "Aged Paper",
+  "Neon Signs", "LED Display", "Circuit Board", "Binary Code", "Matrix Style", "Hologram",
+  "Aurora Borealis", "Galaxy", "Nebula", "Solar Flare", "Cosmic Dust", "Planetary",
+  "Underwater", "Volcanic", "Desert Dunes", "Forest Canopy", "Mountain Peaks", "Ocean Waves",
+  "Typography Art", "Calligraphy", "Illuminated Manuscript", "Bookbinding", "Letter Press",
+  "Chalk Art", "Sidewalk Art", "Cave Painting", "Hieroglyphics", "Petroglyphs", "Runes",
+  "Dieselpunk", "Solarpunk", "Biopunk", "Atompunk", "Clockwork", "Victorian",
+  "Art Brut", "Outsider Art", "Folk Art", "Tribal Art", "Primitive", "Shamanic",
+  "Psychedelic", "Optical Illusion", "Anamorphic", "Impossible Objects", "M.C. Escher Style",
+  "Pointillism", "Fauvism", "Dadaism", "Constructivism", "Suprematism", "Bauhaus"
 ];
 
 const aspectRatios = [
