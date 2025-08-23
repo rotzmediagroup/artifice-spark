@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Download, Settings, Wand2, Image, Palette } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star } from "lucide-react";
 import { toast } from "sonner";
+import rotzLogo from "@/assets/rotz-logo.png";
 
 const artStyles = [
   "Photorealistic", "Digital Art", "Oil Painting", "Watercolor", "Pencil Sketch", "Charcoal Drawing",
@@ -86,53 +87,80 @@ export default function ImageGenerator() {
   };
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gradient mb-4">
+    <div className="min-h-screen p-6 relative">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-full blur-xl animate-float"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-full blur-xl animate-float" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-32 left-32 w-40 h-40 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full blur-xl animate-float" style={{animationDelay: '2s'}}></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Enhanced Header with Logo */}
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="flex items-center justify-center mb-6">
+            <img 
+              src={rotzLogo} 
+              alt="ROTZ.AI Logo" 
+              className="h-16 w-auto float animate-bounce-in"
+            />
+          </div>
+          <h1 className="text-5xl font-bold text-gradient mb-4 animate-slide-up">
             AI Image Generator
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Create stunning images with advanced AI technology
+          <p className="text-muted-foreground text-xl animate-fade-in" style={{animationDelay: '0.2s'}}>
+            Create stunning images with professional AI technology
           </p>
+          <div className="flex items-center justify-center gap-2 mt-4 animate-fade-in" style={{animationDelay: '0.4s'}}>
+            <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
+            <span className="text-sm text-muted-foreground">100+ Art Styles Available</span>
+            <Star className="h-5 w-5 text-yellow-400 animate-pulse" />
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Controls Panel */}
-          <Card className="glass p-6 space-y-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Wand2 className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">Generation Controls</h2>
+          {/* Enhanced Controls Panel */}
+          <Card className="glass p-8 space-y-8 glow hover:scale-[1.02] transition-all duration-500 animate-scale-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 animate-pulse-glow">
+                <Wand2 className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-gradient">Generation Controls</h2>
             </div>
 
-            {/* Positive Prompt */}
-            <div className="space-y-2">
-              <Label htmlFor="positive-prompt" className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
+            {/* Enhanced Positive Prompt */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.1s'}}>
+              <Label htmlFor="positive-prompt" className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-purple-500/20 to-cyan-500/20">
+                  <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+                </div>
                 Positive Prompt
+                <Badge variant="secondary" className="text-xs animate-bounce">Required</Badge>
               </Label>
               <Textarea
                 id="positive-prompt"
-                placeholder="Describe what you want to create..."
+                placeholder="Describe your vision... e.g., 'A majestic dragon flying over a cyberpunk city at sunset'"
                 value={positivePrompt}
                 onChange={(e) => setPositivePrompt(e.target.value)}
-                className="min-h-[100px] glass border-primary/20 focus:border-primary/50"
+                className="min-h-[120px] glass border-primary/30 focus:border-primary/60 hover:border-primary/40 transition-all duration-300 text-base leading-relaxed"
               />
             </div>
 
-            {/* Negative Prompt */}
-            <div className="space-y-2">
-              <Label htmlFor="negative-prompt" className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-secondary" />
+            {/* Enhanced Negative Prompt */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
+              <Label htmlFor="negative-prompt" className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-red-500/20 to-orange-500/20">
+                  <Settings className="h-5 w-5 text-secondary animate-spin" style={{animationDuration: '3s'}} />
+                </div>
                 Negative Prompt
+                <Badge variant="outline" className="text-xs">Optional</Badge>
               </Label>
               <Textarea
                 id="negative-prompt"
-                placeholder="What to avoid in the image..."
+                placeholder="What to avoid... e.g., 'blurry, low quality, distorted'"
                 value={negativePrompt}
                 onChange={(e) => setNegativePrompt(e.target.value)}
-                className="min-h-[80px] glass border-secondary/20 focus:border-secondary/50"
+                className="min-h-[100px] glass border-secondary/30 focus:border-secondary/60 hover:border-secondary/40 transition-all duration-300"
               />
             </div>
 
@@ -206,64 +234,74 @@ export default function ImageGenerator() {
               </div>
             </div>
 
-            {/* Generate Button */}
+            {/* Enhanced Generate Button */}
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !positivePrompt.trim()}
-              className="w-full h-12 text-lg font-medium glow animate-glow-pulse"
+              className="w-full h-14 text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 glow pulse-glow transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed animate-bounce-in"
               size="lg"
             >
               {isGenerating ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground" />
-                  Generating...
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                  <span>Generating Magic...</span>
+                  <Zap className="h-5 w-5 animate-pulse" />
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  Generate Images
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-6 w-6 animate-pulse" />
+                  <span>Generate Images</span>
+                  <Zap className="h-5 w-5" />
                 </div>
               )}
             </Button>
           </Card>
 
-          {/* Results Panel */}
-          <Card className="glass p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Image className="h-5 w-5 text-secondary" />
-                Generated Images
+          {/* Enhanced Results Panel */}
+          <Card className="glass p-8 glow hover:scale-[1.02] transition-all duration-500 animate-scale-in" style={{animationDelay: '0.2s'}}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
+                  <Image className="h-6 w-6 text-secondary" />
+                </div>
+                <span className="text-gradient">Generated Images</span>
               </h2>
               {generatedImages.length > 0 && (
-                <Badge variant="secondary" className="cyber-glow">
-                  {generatedImages.length} Images
+                <Badge variant="secondary" className="cyber-glow animate-bounce text-lg px-4 py-2">
+                  {generatedImages.length} Images ✨
                 </Badge>
               )}
             </div>
 
             {generatedImages.length === 0 ? (
-              <div className="h-96 flex items-center justify-center text-center text-muted-foreground">
-                <div className="space-y-4">
-                  <div className="w-24 h-24 mx-auto bg-muted/20 rounded-lg flex items-center justify-center">
-                    <Image className="h-12 w-12" />
+              <div className="h-96 flex items-center justify-center text-center text-muted-foreground animate-fade-in">
+                <div className="space-y-6">
+                  <div className="w-32 h-32 mx-auto bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl flex items-center justify-center animate-pulse-glow">
+                    <Image className="h-16 w-16 text-muted-foreground/50" />
                   </div>
-                  <p>Your generated images will appear here</p>
+                  <div className="space-y-2">
+                    <p className="text-xl font-medium">Your AI masterpieces will appear here</p>
+                    <p className="text-sm text-muted-foreground/70">Fill in your prompts and hit generate to get started!</p>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 {generatedImages.map((image, index) => (
-                  <div key={index} className="relative group">
+                  <div key={index} className="relative group animate-scale-in" style={{animationDelay: `${index * 0.1}s`}}>
                     <img
                       src={image}
                       alt={`Generated image ${index + 1}`}
-                      className="w-full h-48 object-cover rounded-lg border border-muted/20 group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-56 object-cover rounded-xl border border-muted/30 group-hover:scale-110 transition-all duration-500 shadow-lg hover:shadow-2xl"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                      <Button size="sm" variant="secondary" className="cyber-glow">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl flex items-end justify-center pb-4">
+                      <Button size="sm" variant="secondary" className="cyber-glow hover:scale-110 transition-transform duration-200 bg-white/90 text-black font-medium">
                         <Download className="h-4 w-4 mr-2" />
-                        Download
+                        Download HD
                       </Button>
+                    </div>
+                    <div className="absolute top-2 right-2 bg-black/50 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <Star className="h-4 w-4 text-yellow-400" />
                     </div>
                   </div>
                 ))}

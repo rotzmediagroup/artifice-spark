@@ -70,27 +70,19 @@ export default {
 			},
 			keyframes: {
 				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
 				},
 				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
 				},
 				'glow-pulse': {
 					'0%, 100%': { 
 						boxShadow: '0 0 20px hsl(250 95% 70% / 0.3)' 
 					},
 					'50%': { 
-						boxShadow: '0 0 40px hsl(250 95% 70% / 0.6), 0 0 60px hsl(180 100% 50% / 0.3)' 
+						boxShadow: '0 0 40px hsl(250 95% 70% / 0.6), 0 0 60px hsl(280 100% 60% / 0.3)' 
 					}
 				},
 				'float': {
@@ -100,6 +92,24 @@ export default {
 				'cyber-flicker': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.8' }
+				},
+				'fade-in': {
+					'0%': { opacity: '0', transform: 'translateY(10px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' }
+				},
+				'scale-in': {
+					'0%': { transform: 'scale(0.95)', opacity: '0' },
+					'100%': { transform: 'scale(1)', opacity: '1' }
+				},
+				'slide-up': {
+					'0%': { transform: 'translateY(20px)', opacity: '0' },
+					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				'bounce-in': {
+					'0%': { transform: 'scale(0.3)', opacity: '0' },
+					'50%': { transform: 'scale(1.05)' },
+					'70%': { transform: 'scale(0.9)' },
+					'100%': { transform: 'scale(1)', opacity: '1' }
 				}
 			},
 			animation: {
@@ -107,7 +117,11 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
 				'float': 'float 3s ease-in-out infinite',
-				'cyber-flicker': 'cyber-flicker 0.3s ease-in-out infinite'
+				'cyber-flicker': 'cyber-flicker 0.3s ease-in-out infinite',
+				'fade-in': 'fade-in 0.5s ease-out',
+				'scale-in': 'scale-in 0.3s ease-out',
+				'slide-up': 'slide-up 0.6s ease-out',
+				'bounce-in': 'bounce-in 0.6s ease-out'
 			}
 		}
 	},
