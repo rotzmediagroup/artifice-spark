@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
@@ -47,6 +50,49 @@ const aspectRatios = [
   { label: "Phone (9:16)", value: "9:16", width: 768, height: 1344 },
 ];
 
+const promptTemplates = [
+  {
+    name: "Fantasy Portrait",
+    prompt: "A mystical fantasy portrait, magical atmosphere, ethereal lighting, detailed character design",
+    category: "Portrait"
+  },
+  {
+    name: "Sci-Fi Landscape",
+    prompt: "Futuristic alien landscape, cyberpunk city, neon lights, flying vehicles, distant planets",
+    category: "Landscape"
+  },
+  {
+    name: "Abstract Art",
+    prompt: "Abstract geometric composition, vibrant colors, dynamic shapes, modern art style",
+    category: "Abstract"
+  },
+  {
+    name: "Nature Scene",
+    prompt: "Serene natural landscape, golden hour lighting, peaceful atmosphere, high detail",
+    category: "Nature"
+  },
+  {
+    name: "Character Design",
+    prompt: "Unique character concept art, detailed costume design, expressive pose, professional illustration",
+    category: "Character"
+  }
+];
+
+interface GeneratedImageData {
+  id: string;
+  url: string;
+  prompt: string;
+  style: string;
+  timestamp: Date;
+  liked: boolean;
+  settings: {
+    steps: number;
+    cfgScale: number;
+    aspectRatio: string;
+    negativePrompt: string;
+  };
+}
+
 export default function ImageGenerator() {
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -58,6 +104,47 @@ export default function ImageGenerator() {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
+  const [imageHistory, setImageHistory] = useState<GeneratedImageData[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [batchCount, setBatchCount] = useState(1);
+  const [selectedHistoryImage, setSelectedHistoryImage] = useState<GeneratedImageData | null>(null);
+  const [savedPresets, setSavedPresets] = useState<any[]>([]);
+
+  // Load saved data from localStorage on component mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('imageHistory');
+    const savedPresets = localStorage.getItem('savedPresets');
+    
+    if (savedHistory) {
+      try {
+        const parsedHistory = JSON.parse(savedHistory).map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        }));
+        setImageHistory(parsedHistory);
+      } catch (error) {
+        console.error('Error loading image history:', error);
+      }
+    }
+    
+    if (savedPresets) {
+      try {
+        setSavedPresets(JSON.parse(savedPresets));
+      } catch (error) {
+        console.error('Error loading saved presets:', error);
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever history changes
+  useEffect(() => {
+    localStorage.setItem('imageHistory', JSON.stringify(imageHistory));
+  }, [imageHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('savedPresets', JSON.stringify(savedPresets));
+  }, [savedPresets]);
 
   // Helper function to convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -110,6 +197,95 @@ export default function ImageGenerator() {
     e.preventDefault();
   };
 
+  const applyTemplate = (template: any) => {
+    setPositivePrompt(template.prompt);
+    setSelectedTemplate(template.name);
+    toast.success(`Applied template: ${template.name}`);
+  };
+
+  const saveCurrentPreset = () => {
+    const preset = {
+      id: Date.now().toString(),
+      name: `Preset ${savedPresets.length + 1}`,
+      positivePrompt,
+      negativePrompt,
+      selectedStyle,
+      aspectRatio,
+      steps: steps[0],
+      cfgScale: cfgScale[0],
+      timestamp: new Date()
+    };
+    
+    setSavedPresets([...savedPresets, preset]);
+    toast.success("Preset saved!");
+  };
+
+  const loadPreset = (preset: any) => {
+    setPositivePrompt(preset.positivePrompt);
+    setNegativePrompt(preset.negativePrompt);
+    setSelectedStyle(preset.selectedStyle);
+    setAspectRatio(preset.aspectRatio);
+    setSteps([preset.steps]);
+    setCfgScale([preset.cfgScale]);
+    toast.success(`Loaded preset: ${preset.name}`);
+  };
+
+  const downloadImage = async (url: string, filename?: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename || `rotz-ai-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Image downloaded!");
+    } catch (error) {
+      toast.error("Failed to download image");
+    }
+  };
+
+  const shareImage = async (url: string) => {
+    try {
+      await navigator.share({
+        title: 'Generated with ROTZ.AI',
+        text: 'Check out this AI-generated image!',
+        url: url
+      });
+    } catch (error) {
+      // Fallback to clipboard
+      navigator.clipboard.writeText(url);
+      toast.success("Image URL copied to clipboard!");
+    }
+  };
+
+  const toggleLike = (imageId: string) => {
+    setImageHistory(prev => 
+      prev.map(img => 
+        img.id === imageId ? { ...img, liked: !img.liked } : img
+      )
+    );
+  };
+
+  const deleteFromHistory = (imageId: string) => {
+    setImageHistory(prev => prev.filter(img => img.id !== imageId));
+    toast.success("Image removed from history");
+  };
+
+  const generateVariations = (originalImage: GeneratedImageData) => {
+    setPositivePrompt(originalImage.prompt + " [variation]");
+    setSelectedStyle(originalImage.style);
+    setNegativePrompt(originalImage.settings.negativePrompt);
+    setSteps([originalImage.settings.steps]);
+    setCfgScale([originalImage.settings.cfgScale]);
+    const ratio = aspectRatios.find(r => r.label === originalImage.settings.aspectRatio) || aspectRatios[0];
+    setAspectRatio(ratio);
+    toast.success("Settings loaded for variation generation");
+  };
+
   const handleGenerate = async () => {
     if (!positivePrompt.trim()) {
       toast.error("Please enter a positive prompt");
@@ -117,64 +293,113 @@ export default function ImageGenerator() {
     }
 
     setIsGenerating(true);
+    setGenerationProgress(0);
+    
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 500);
     
     try {
-      // Prepare the payload for the webhook
-      const payload: any = {
-        prompt: positivePrompt.trim(),
-        negative_prompt: negativePrompt.trim() || undefined,
-        style: selectedStyle || undefined,
-        width: aspectRatio.width,
-        height: aspectRatio.height,
-        steps: steps[0],
-        cfg_scale: cfgScale[0],
-        timestamp: new Date().toISOString()
-      };
+      for (let i = 0; i < batchCount; i++) {
+        // Prepare the payload for the webhook
+        const payload: any = {
+          prompt: positivePrompt.trim(),
+          negative_prompt: negativePrompt.trim() || undefined,
+          style: selectedStyle || undefined,
+          width: aspectRatio.width,
+          height: aspectRatio.height,
+          steps: steps[0],
+          cfg_scale: cfgScale[0],
+          timestamp: new Date().toISOString()
+        };
 
-      // Add reference image if uploaded
-      if (referenceImage) {
-        const base64Image = await fileToBase64(referenceImage);
-        payload.reference_image = base64Image;
-        payload.image_prompt = true; // Flag to indicate this is an image-to-image generation
-      }
+        // Add reference image if uploaded
+        if (referenceImage) {
+          const base64Image = await fileToBase64(referenceImage);
+          payload.reference_image = base64Image;
+          payload.image_prompt = true;
+        }
 
-      console.log("Sending request to webhook:", payload);
-      
-      const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
+        console.log("Sending request to webhook:", payload);
+        
+        const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      const result = await response.json();
-      console.log("Webhook response:", result);
-      
-      // Handle the response - adjust based on your webhook's response format
-      if (result.image_url || result.imageUrl || result.url) {
-        const imageUrl = result.image_url || result.imageUrl || result.url;
-        setGeneratedImages([imageUrl]);
-        toast.success("🎨 Image generated successfully!");
-      } else if (result.images && Array.isArray(result.images)) {
-        // Handle multiple images if your webhook returns an array
-        setGeneratedImages(result.images);
-        toast.success(`🎨 ${result.images.length} images generated successfully!`);
-      } else {
-        // If the response format is different, log it and show a generic success
-        console.log("Unexpected response format:", result);
-        toast.success("✨ Generation completed! Check the response format.");
+        const result = await response.json();
+        console.log("Webhook response:", result);
+        
+        // Handle the response and add to history
+        if (result.image_url || result.imageUrl || result.url) {
+          const imageUrl = result.image_url || result.imageUrl || result.url;
+          const newImageData: GeneratedImageData = {
+            id: Date.now().toString() + i,
+            url: imageUrl,
+            prompt: positivePrompt.trim(),
+            style: selectedStyle,
+            timestamp: new Date(),
+            liked: false,
+            settings: {
+              steps: steps[0],
+              cfgScale: cfgScale[0],
+              aspectRatio: aspectRatio.label,
+              negativePrompt: negativePrompt.trim()
+            }
+          };
+          
+          setGeneratedImages(prev => [...prev, imageUrl]);
+          setImageHistory(prev => [newImageData, ...prev]);
+          toast.success("🎨 Image generated successfully!");
+        } else if (result.images && Array.isArray(result.images)) {
+          result.images.forEach((imageUrl: string, index: number) => {
+            const newImageData: GeneratedImageData = {
+              id: Date.now().toString() + i + index,
+              url: imageUrl,
+              prompt: positivePrompt.trim(),
+              style: selectedStyle,
+              timestamp: new Date(),
+              liked: false,
+              settings: {
+                steps: steps[0],
+                cfgScale: cfgScale[0],
+                aspectRatio: aspectRatio.label,
+                negativePrompt: negativePrompt.trim()
+              }
+            };
+            setImageHistory(prev => [newImageData, ...prev]);
+          });
+          
+          setGeneratedImages(result.images);
+          toast.success(`🎨 ${result.images.length} images generated successfully!`);
+        } else {
+          console.log("Unexpected response format:", result);
+          toast.success("✨ Generation completed! Check the response format.");
+        }
       }
       
     } catch (error) {
       console.error("Error generating image:", error);
       toast.error(`Failed to generate image: ${error.message}`);
     } finally {
+      clearInterval(progressInterval);
+      setGenerationProgress(100);
       setIsGenerating(false);
+      setTimeout(() => setGenerationProgress(0), 1000);
     }
   };
 
@@ -233,8 +458,26 @@ export default function ImageGenerator() {
               />
             </div>
 
-            {/* Reference Image Upload */}
+            {/* Negative Prompt */}
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.15s'}}>
+              <Label htmlFor="negative-prompt" className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-red-500/20 to-orange-500/20">
+                  <Settings className="h-5 w-5 text-secondary animate-spin" style={{animationDuration: '3s'}} />
+                </div>
+                Negative Prompt
+                <Badge variant="outline" className="text-xs">Optional</Badge>
+              </Label>
+              <Textarea
+                id="negative-prompt"
+                placeholder="What to avoid... e.g., 'blurry, low quality, distorted'"
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                className="min-h-[100px] glass border-secondary/30 focus:border-secondary/60 hover:border-secondary/40 transition-all duration-300"
+              />
+            </div>
+
+            {/* Reference Image Upload */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
               <Label className="flex items-center gap-3 text-lg font-medium">
                 <div className="p-1 rounded bg-gradient-to-r from-green-500/20 to-blue-500/20">
                   <ImageIcon className="h-5 w-5 text-accent animate-pulse" />
@@ -289,21 +532,31 @@ export default function ImageGenerator() {
                 </div>
               )}
             </div>
-            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
-              <Label htmlFor="negative-prompt" className="flex items-center gap-3 text-lg font-medium">
-                <div className="p-1 rounded bg-gradient-to-r from-red-500/20 to-orange-500/20">
-                  <Settings className="h-5 w-5 text-secondary animate-spin" style={{animationDuration: '3s'}} />
+
+            {/* Prompt Templates */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.3s'}}>
+              <Label className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-yellow-500/20 to-orange-500/20">
+                  <Star className="h-5 w-5 text-accent animate-pulse" />
                 </div>
-                Negative Prompt
-                <Badge variant="outline" className="text-xs">Optional</Badge>
+                Prompt Templates
               </Label>
-              <Textarea
-                id="negative-prompt"
-                placeholder="What to avoid... e.g., 'blurry, low quality, distorted'"
-                value={negativePrompt}
-                onChange={(e) => setNegativePrompt(e.target.value)}
-                className="min-h-[100px] glass border-secondary/30 focus:border-secondary/60 hover:border-secondary/40 transition-all duration-300"
-              />
+              <div className="grid grid-cols-1 gap-2">
+                {promptTemplates.map((template) => (
+                  <Button
+                    key={template.name}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyTemplate(template)}
+                    className="text-left justify-start h-auto p-3 glass"
+                  >
+                    <div>
+                      <div className="font-medium text-sm">{template.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{template.prompt}</div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
             </div>
 
             {/* Art Style */}
@@ -351,9 +604,42 @@ export default function ImageGenerator() {
               </div>
             </div>
 
+            {/* Batch Generation */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.6s'}}>
+              <Label className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-indigo-500/20 to-purple-500/20">
+                  <Grid3X3 className="h-5 w-5 text-primary animate-pulse" />
+                </div>
+                Batch Generation
+              </Label>
+              <div className="flex gap-2">
+                {[1, 2, 4, 6].map((count) => (
+                  <Button
+                    key={count}
+                    variant={batchCount === count ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBatchCount(count)}
+                    className="flex-1"
+                  >
+                    {count}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Advanced Settings */}
             <div className="space-y-4 p-4 glass rounded-lg border border-muted/20">
-              <h3 className="font-medium text-sm text-muted-foreground">Advanced Settings</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-sm text-muted-foreground">Advanced Settings</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={saveCurrentPreset}
+                  className="text-xs"
+                >
+                  Save Preset
+                </Button>
+              </div>
               
               <div className="space-y-2">
                 <Label className="text-sm">Steps: {steps[0]}</Label>
@@ -378,81 +664,239 @@ export default function ImageGenerator() {
                   className="w-full"
                 />
               </div>
+
+              {savedPresets.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Saved Presets</Label>
+                  <div className="grid grid-cols-2 gap-1">
+                    {savedPresets.slice(-4).map((preset) => (
+                      <Button
+                        key={preset.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => loadPreset(preset)}
+                        className="text-xs truncate"
+                      >
+                        {preset.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Generation Progress */}
+            {isGenerating && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Generating...</span>
+                  <span>{Math.round(generationProgress)}%</span>
+                </div>
+                <Progress value={generationProgress} className="w-full" />
+              </div>
+            )}
 
             {/* Enhanced Generate Button */}
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !positivePrompt.trim()}
-              className="w-full h-14 text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 glow pulse-glow transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed animate-bounce-in text-white"
-              size="lg"
+              className="w-full py-6 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transition-all duration-500 transform hover:scale-[1.02] animate-pulse-glow text-white"
             >
               {isGenerating ? (
-                <div className="flex items-center gap-3 text-white">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
-                  <span>Generating Magic...</span>
-                  <Zap className="h-5 w-5 animate-pulse" />
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Generating Magic...
                 </div>
               ) : (
-                <div className="flex items-center gap-3 text-white">
-                  <Sparkles className="h-6 w-6 animate-pulse" />
-                  <span>Generate Images</span>
-                  <Zap className="h-5 w-5" />
+                <div className="flex items-center gap-3">
+                  <Zap className="h-6 w-6" />
+                  Generate Images
+                  <Star className="h-5 w-5 animate-pulse" />
                 </div>
               )}
             </Button>
           </Card>
 
-          {/* Enhanced Results Panel */}
-          <Card className="glass p-8 glow hover:scale-[1.02] transition-all duration-500 animate-scale-in" style={{animationDelay: '0.2s'}}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
-                  <Image className="h-6 w-6 text-secondary" />
-                </div>
-                <span className="text-gradient">Generated Images</span>
-              </h2>
-              {generatedImages.length > 0 && (
-                <Badge variant="secondary" className="cyber-glow animate-bounce text-lg px-4 py-2">
-                  {generatedImages.length} Images ✨
-                </Badge>
-              )}
-            </div>
+          {/* Enhanced Results with Tabs */}
+          <Card className="glass p-8 glow animate-scale-in" style={{animationDelay: '0.2s'}}>
+            <Tabs defaultValue="current" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="current" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  Current Images
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  History ({imageHistory.length})
+                </TabsTrigger>
+              </TabsList>
 
-            {generatedImages.length === 0 ? (
-              <div className="h-96 flex items-center justify-center text-center text-muted-foreground animate-fade-in">
-                <div className="space-y-6">
-                  <div className="w-32 h-32 mx-auto bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl flex items-center justify-center animate-pulse-glow">
-                    <Image className="h-16 w-16 text-muted-foreground/50" />
+              <TabsContent value="current" className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
+                    <Image className="h-6 w-6 text-accent" />
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-xl font-medium">Your AI masterpieces will appear here</p>
-                    <p className="text-sm text-muted-foreground/70">Fill in your prompts and hit generate to get started!</p>
-                  </div>
+                  <h2 className="text-2xl font-bold text-gradient">Generated Images</h2>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-6">
-                {generatedImages.map((image, index) => (
-                  <div key={index} className="relative group animate-scale-in" style={{animationDelay: `${index * 0.1}s`}}>
-                    <img
-                      src={image}
-                      alt={`Generated image ${index + 1}`}
-                      className="w-full h-56 object-cover rounded-xl border border-muted/30 group-hover:scale-110 transition-all duration-500 shadow-lg hover:shadow-2xl"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl flex items-end justify-center pb-4">
-                      <Button size="sm" variant="secondary" className="cyber-glow hover:scale-110 transition-transform duration-200 bg-white/90 text-black font-medium">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download HD
-                      </Button>
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black/50 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <Star className="h-4 w-4 text-yellow-400" />
-                    </div>
+
+                {generatedImages.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-6">
+                    {generatedImages.map((imageUrl, index) => (
+                      <div key={index} className="relative group">
+                        <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
+                          <img
+                            src={imageUrl}
+                            alt={`Generated image ${index + 1}`}
+                            className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
+                          <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                className="glass text-white border-white/20 hover:bg-white/20"
+                                onClick={() => downloadImage(imageUrl)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="glass text-white border-white/20 hover:bg-white/20"
+                                onClick={() => shareImage(imageUrl)}
+                              >
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                ) : (
+                  <div className="text-center py-16 space-y-4">
+                    <div className="p-6 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 w-24 h-24 mx-auto flex items-center justify-center animate-pulse-glow">
+                      <Image className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-muted-foreground">Ready to Create</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Enter your creative prompt above and watch AI transform your imagination into stunning visual art
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="space-y-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gradient">Image History</h2>
+                  {imageHistory.length > 0 && (
+                    <Badge variant="secondary">{imageHistory.length} images</Badge>
+                  )}
+                </div>
+
+                {imageHistory.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imageHistory.map((image) => (
+                      <Dialog key={image.id}>
+                        <DialogTrigger asChild>
+                          <div className="relative group cursor-pointer">
+                            <div className="relative rounded-lg overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
+                              <img
+                                src={image.url}
+                                alt={image.prompt}
+                                className="w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
+                                <Button size="sm" variant="ghost" className="text-white">
+                                  View Details
+                                </Button>
+                              </div>
+                              {image.liked && (
+                                <div className="absolute top-2 right-2 bg-red-500/80 text-white p-1 rounded-full">
+                                  <Heart className="h-3 w-3 fill-current" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </DialogTrigger>
+                        
+                        <DialogContent className="max-w-4xl">
+                          <DialogHeader>
+                            <DialogTitle>Image Details</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                              <img
+                                src={image.url}
+                                alt={image.prompt}
+                                className="w-full rounded-lg shadow-lg"
+                              />
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <Label className="text-sm font-medium">Prompt</Label>
+                                <p className="text-sm text-muted-foreground mt-1">{image.prompt}</p>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Style</Label>
+                                <p className="text-sm text-muted-foreground mt-1">{image.style || "Default"}</p>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Created</Label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {image.timestamp.toLocaleDateString()} at {image.timestamp.toLocaleTimeString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 pt-4">
+                                <Button 
+                                  onClick={() => downloadImage(image.url, `rotz-ai-${image.id}.png`)}
+                                  className="flex-1"
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => toggleLike(image.id)}
+                                  className={image.liked ? "text-red-500" : ""}
+                                >
+                                  <Heart className={`h-4 w-4 ${image.liked ? 'fill-current' : ''}`} />
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => generateVariations(image)}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => deleteFromHistory(image.id)}
+                                  className="text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 space-y-4">
+                    <div className="p-6 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 w-24 h-24 mx-auto flex items-center justify-center">
+                      <History className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-muted-foreground">No History Yet</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Generate your first image to start building your creation history
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </Card>
         </div>
       </div>
