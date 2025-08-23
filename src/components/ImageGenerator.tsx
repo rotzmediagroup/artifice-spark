@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
@@ -56,6 +56,59 @@ export default function ImageGenerator() {
   const [cfgScale, setCfgScale] = useState([7]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
+
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload a valid image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error("Image size should be less than 10MB");
+      return;
+    }
+
+    setReferenceImage(file);
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setReferenceImagePreview(previewUrl);
+    
+    toast.success("Reference image uploaded successfully!");
+  };
+
+  const handleRemoveImage = () => {
+    setReferenceImage(null);
+    if (referenceImagePreview) {
+      URL.revokeObjectURL(referenceImagePreview);
+      setReferenceImagePreview(null);
+    }
+    toast.success("Reference image removed");
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleImageUpload(files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
 
   const handleGenerate = async () => {
     if (!positivePrompt.trim()) {
@@ -67,7 +120,7 @@ export default function ImageGenerator() {
     
     try {
       // Prepare the payload for the webhook
-      const payload = {
+      const payload: any = {
         prompt: positivePrompt.trim(),
         negative_prompt: negativePrompt.trim() || undefined,
         style: selectedStyle || undefined,
@@ -75,9 +128,15 @@ export default function ImageGenerator() {
         height: aspectRatio.height,
         steps: steps[0],
         cfg_scale: cfgScale[0],
-        // Add timestamp for uniqueness
         timestamp: new Date().toISOString()
       };
+
+      // Add reference image if uploaded
+      if (referenceImage) {
+        const base64Image = await fileToBase64(referenceImage);
+        payload.reference_image = base64Image;
+        payload.image_prompt = true; // Flag to indicate this is an image-to-image generation
+      }
 
       console.log("Sending request to webhook:", payload);
       
@@ -174,7 +233,62 @@ export default function ImageGenerator() {
               />
             </div>
 
-            {/* Enhanced Negative Prompt */}
+            {/* Reference Image Upload */}
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.15s'}}>
+              <Label className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-green-500/20 to-blue-500/20">
+                  <ImageIcon className="h-5 w-5 text-accent animate-pulse" />
+                </div>
+                Reference Image
+                <Badge variant="outline" className="text-xs">Optional</Badge>
+              </Label>
+              
+              {!referenceImagePreview ? (
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  className="border-2 border-dashed border-accent/30 rounded-lg p-8 text-center hover:border-accent/50 transition-colors duration-300 cursor-pointer glass"
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                >
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-accent/60" />
+                  <p className="text-muted-foreground mb-2">
+                    Drag & drop an image here, or click to browse
+                  </p>
+                  <p className="text-sm text-muted-foreground/70">
+                    Supports JPG, PNG, WEBP up to 10MB
+                  </p>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="relative rounded-lg overflow-hidden glass border border-accent/30">
+                  <img
+                    src={referenceImagePreview}
+                    alt="Reference"
+                    className="w-full h-40 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <Button
+                      onClick={handleRemoveImage}
+                      size="sm"
+                      variant="destructive"
+                      className="bg-red-500/80 hover:bg-red-600"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
+                  </div>
+                  <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+                    Reference Image
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
               <Label htmlFor="negative-prompt" className="flex items-center gap-3 text-lg font-medium">
                 <div className="p-1 rounded bg-gradient-to-r from-red-500/20 to-orange-500/20">
@@ -193,9 +307,11 @@ export default function ImageGenerator() {
             </div>
 
             {/* Art Style */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Palette className="h-4 w-4 text-accent" />
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.4s'}}>
+              <Label className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-pink-500/20 to-purple-500/20">
+                  <Palette className="h-5 w-5 text-accent animate-pulse" />
+                </div>
                 Art Style
               </Label>
               <Select value={selectedStyle} onValueChange={setSelectedStyle}>
@@ -213,9 +329,11 @@ export default function ImageGenerator() {
             </div>
 
             {/* Aspect Ratio */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Image className="h-4 w-4 text-primary" />
+            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.5s'}}>
+              <Label className="flex items-center gap-3 text-lg font-medium">
+                <div className="p-1 rounded bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
+                  <Image className="h-5 w-5 text-primary animate-pulse" />
+                </div>
                 Aspect Ratio
               </Label>
               <div className="grid grid-cols-2 gap-2">
