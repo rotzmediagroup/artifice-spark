@@ -610,7 +610,7 @@ export default function ImageGenerator() {
           generation_settings: {
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
-            style_name: selectedStyle || undefined,
+            style: selectedStyle || undefined,
             style_description: selectedStyle 
               ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
                  || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
@@ -645,7 +645,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.4", // Fixed Webhook Style Fields
+            app_version: "1.7.5", // Cache Busting Fix
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -679,7 +679,7 @@ export default function ImageGenerator() {
           height: currentDimensions.height,
           prompt: positivePrompt.trim(),
           negative_prompt: negativePrompt.trim() || undefined,
-          style_name: selectedStyle || undefined,
+          style: selectedStyle || undefined,
           style_description: selectedStyle 
             ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
                || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
