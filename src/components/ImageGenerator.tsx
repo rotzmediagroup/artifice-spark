@@ -244,6 +244,153 @@ const promptTemplates = [
     name: "Adventure Scene",
     prompt: "Exciting adventure moment, explorers discovering ancient ruins, treasure hunting, mysterious atmosphere",
     category: "Scene"
+  },
+  // Action & Adventure
+  {
+    name: "Epic Quest",
+    prompt: "Heroes embarking on epic quest, dramatic landscape, adventure gear, determination, cinematic journey",
+    category: "Action"
+  },
+  {
+    name: "Battle Scene",
+    prompt: "Intense medieval battle, clashing swords, armored warriors, battlefield chaos, dynamic action",
+    category: "Action"
+  },
+  {
+    name: "Heist Moment",
+    prompt: "Suspenseful heist scene, stealthy infiltration, high-tech security, tension-filled atmosphere",
+    category: "Action"
+  },
+  {
+    name: "Chase Sequence",
+    prompt: "High-speed chase through city streets, motion blur, adrenaline rush, cinematic action",
+    category: "Action"
+  },
+  // Horror & Dark
+  {
+    name: "Haunted Mansion",
+    prompt: "Spooky Victorian mansion, fog-shrouded, gothic architecture, eerie atmosphere, ghostly presence",
+    category: "Horror"
+  },
+  {
+    name: "Cosmic Horror",
+    prompt: "Eldritch cosmic horror, tentacled entity, otherworldly terror, dark void, existential dread",
+    category: "Horror"
+  },
+  {
+    name: "Gothic Nightmare",
+    prompt: "Dark gothic cathedral, shadows and candlelight, mysterious figures, haunting atmosphere",
+    category: "Horror"
+  },
+  {
+    name: "Abandoned Place",
+    prompt: "Decaying abandoned building, overgrown vegetation, broken windows, post-apocalyptic mood",
+    category: "Horror"
+  },
+  // Fantasy & Magic
+  {
+    name: "Dragon Encounter",
+    prompt: "Majestic dragon perched on mountain peak, scales glistening, ancient power, fantasy epic",
+    category: "Fantasy"
+  },
+  {
+    name: "Spell Casting",
+    prompt: "Wizard casting powerful spell, magical energy swirling, glowing runes, mystical power",
+    category: "Fantasy"
+  },
+  {
+    name: "Magical Forest",
+    prompt: "Enchanted forest glade, luminescent plants, fairy lights, mystical creatures, ethereal beauty",
+    category: "Fantasy"
+  },
+  {
+    name: "Crystal Cave",
+    prompt: "Underground crystal cave, glowing gems, prismatic light, magical formations, wonder and mystery",
+    category: "Fantasy"
+  },
+  // Sci-Fi & Future
+  {
+    name: "Space Exploration",
+    prompt: "Astronaut exploring alien planet, distant galaxies, space suit reflection, cosmic wonder",
+    category: "Sci-Fi"
+  },
+  {
+    name: "AI Awakening",
+    prompt: "Advanced AI robot gaining consciousness, glowing circuits, digital awakening, futuristic laboratory",
+    category: "Sci-Fi"
+  },
+  {
+    name: "Cyberpunk Street",
+    prompt: "Neon-lit cyberpunk alley, rain-slicked streets, holographic ads, urban dystopia",
+    category: "Sci-Fi"
+  },
+  {
+    name: "Time Portal",
+    prompt: "Swirling time portal, energy vortex, temporal distortion, sci-fi gateway, dimensional travel",
+    category: "Sci-Fi"
+  },
+  // Artistic & Creative
+  {
+    name: "Surreal Dreamscape",
+    prompt: "Salvador Dali inspired dreamscape, floating objects, impossible architecture, surreal imagery",
+    category: "Artistic"
+  },
+  {
+    name: "Pop Art Style",
+    prompt: "Vibrant pop art composition, bold colors, comic book style, retro aesthetic, graphic design",
+    category: "Artistic"
+  },
+  {
+    name: "Art Nouveau Design",
+    prompt: "Elegant Art Nouveau illustration, flowing organic lines, floral motifs, decorative elegance",
+    category: "Artistic"
+  },
+  {
+    name: "Street Art Mural",
+    prompt: "Large-scale street art mural, vibrant graffiti, urban expression, colorful wall art",
+    category: "Artistic"
+  },
+  // Nature & Environment
+  {
+    name: "Underwater World",
+    prompt: "Vibrant coral reef underwater, tropical fish, sunbeams through water, marine biodiversity",
+    category: "Nature"
+  },
+  {
+    name: "Mountain Peak",
+    prompt: "Snow-capped mountain summit, dramatic clouds, alpine landscape, majestic wilderness",
+    category: "Nature"
+  },
+  {
+    name: "Desert Oasis",
+    prompt: "Hidden desert oasis, palm trees, clear water, sand dunes, peaceful refuge in wasteland",
+    category: "Nature"
+  },
+  {
+    name: "Aurora Borealis",
+    prompt: "Northern lights dancing across starry sky, arctic landscape, natural light phenomenon",
+    category: "Nature"
+  },
+  // Vintage & Retro
+  {
+    name: "1920s Glamour",
+    prompt: "Art deco 1920s party scene, flapper fashion, jazz age elegance, vintage glamour",
+    category: "Vintage"
+  },
+  {
+    name: "Victorian Elegance",
+    prompt: "Ornate Victorian interior, rich fabrics, elegant furniture, period architecture, refined luxury",
+    category: "Vintage"
+  },
+  {
+    name: "80s Neon",
+    prompt: "Retro 1980s aesthetic, neon colors, synthwave vibes, geometric patterns, nostalgic atmosphere",
+    category: "Vintage"
+  },
+  {
+    name: "Wild West Scene",
+    prompt: "Classic western frontier town, saloon doors, dusty streets, cowboy atmosphere, desert sunset",
+    category: "Vintage"
   }
 ];
 
@@ -585,6 +732,12 @@ export default function ImageGenerator() {
       return;
     }
 
+    // Validate art style is selected
+    if (!selectedStyle) {
+      toast.error("Please select an Art Style before generating images.");
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationProgress(0);
     
@@ -645,7 +798,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.5", // Cache Busting Fix
+            app_version: "1.7.6", // Required Style & Clean Templates
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -666,12 +819,7 @@ export default function ImageGenerator() {
               custom_width_range: [256, 2000],
               custom_height_range: [256, 2000]
             },
-            quality_preset: "standard",
-            prompt_templates: promptTemplates.map(t => ({
-              name: t.name,
-              category: t.category,
-              active: t.name === selectedTemplate
-            }))
+            quality_preset: "standard"
           },
           
           // Legacy compatibility - maintain backward compatibility
