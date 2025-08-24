@@ -732,11 +732,6 @@ export default function ImageGenerator() {
       return;
     }
 
-    // Validate art style is selected
-    if (!selectedStyle) {
-      toast.error("Please select an Art Style before generating images.");
-      return;
-    }
 
     setIsGenerating(true);
     setGenerationProgress(0);
@@ -798,7 +793,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.6", // Required Style & Clean Templates
+            app_version: "1.7.7", // Fixed Generate Button UX
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -1581,7 +1576,7 @@ export default function ImageGenerator() {
             {/* Enhanced Generate Button */}
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || !positivePrompt.trim()}
+              disabled={isGenerating || !positivePrompt.trim() || !selectedStyle}
               className="w-full py-6 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transition-all duration-500 transform hover:scale-[1.02] animate-pulse-glow text-white"
             >
               {isGenerating ? (
