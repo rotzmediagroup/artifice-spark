@@ -21,6 +21,7 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CreditDisplay } from "@/components/CreditDisplay";
 import { useCredits } from "@/hooks/useCredits";
 import { useImageExtension } from "@/hooks/useImageExtension";
+import { useHaptic } from "@/hooks/useHaptic";
 import { getExpirationStatus, formatExpirationDate } from "@/lib/dateUtils";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
@@ -425,6 +426,7 @@ export default function ImageGenerator() {
   const { uploadReferenceImage, uploadFile, uploading, uploadProgress } = useStorage();
   const { credits, hasCredits, deductCredits, canGenerateImages, getCreditStatusMessage, loading: creditsLoading } = useCredits();
   const { extendImage, extending, canExtend, getExtensionButtonText } = useImageExtension();
+  const { lightTap, mediumTap, success, error, doubleTap } = useHaptic();
 
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -544,7 +546,7 @@ export default function ImageGenerator() {
   const handleImageUpload = async (file: File) => {
     if (!user) {
       toast.error("Please sign in to upload reference images");
-      setAuthModalOpen(true);
+      openAuthModal();
       return;
     }
 
@@ -584,15 +586,41 @@ export default function ImageGenerator() {
   };
 
   const applyTemplate = (template: { name: string; prompt: string; category: string }) => {
+    lightTap(); // Light haptic feedback for template selection
     setPositivePrompt(template.prompt);
     setSelectedTemplate(template.name);
     toast.success(`Applied template: ${template.name}`);
   };
 
+  const handleStyleChange = (style: string) => {
+    lightTap(); // Light haptic feedback for style selection
+    setSelectedStyle(style);
+  };
+
+  const handleTabChange = (value: string) => {
+    lightTap(); // Light haptic feedback for tab navigation
+    // Tab state is handled by the Tabs component itself
+  };
+
+  const openAuthModal = () => {
+    lightTap(); // Light haptic feedback for opening auth modal
+    setAuthModalOpen(true);
+  };
+
+  const handleStepsChange = (value: number[]) => {
+    lightTap(); // Light haptic feedback for slider adjustment
+    setSteps(value);
+  };
+
+  const handleCfgScaleChange = (value: number[]) => {
+    lightTap(); // Light haptic feedback for slider adjustment
+    setCfgScale(value);
+  };
+
   const saveCurrentPreset = async () => {
     if (!user) {
       toast.error("Please sign in to save presets");
-      setAuthModalOpen(true);
+      openAuthModal();
       return;
     }
 
@@ -652,6 +680,7 @@ export default function ImageGenerator() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      lightTap(); // Haptic feedback for successful download
       toast.success("Image downloaded!");
     } catch (error) {
       toast.error("Failed to download image");
@@ -668,6 +697,7 @@ export default function ImageGenerator() {
     } catch (error) {
       // Fallback to clipboard
       navigator.clipboard.writeText(url);
+      lightTap(); // Haptic feedback for clipboard copy
       toast.success("Image URL copied to clipboard!");
     }
   };
@@ -675,6 +705,7 @@ export default function ImageGenerator() {
   const toggleLike = async (imageId: string) => {
     if (!user) return;
     
+    lightTap(); // Haptic feedback for like toggle
     const image = imageHistory.find(img => img.id === imageId);
     if (image) {
       try {
@@ -689,6 +720,7 @@ export default function ImageGenerator() {
   const deleteFromHistory = async (imageId: string) => {
     if (!user) return;
     
+    doubleTap(); // Double tap haptic for delete action (confirmation-like)
     try {
       await deleteImageFromHistory(imageId);
       toast.success("Image removed from history");
@@ -710,24 +742,31 @@ export default function ImageGenerator() {
   };
 
   const handleGenerate = async () => {
+    // Haptic feedback for generate button press
+    mediumTap();
+    
     if (!positivePrompt.trim()) {
+      error(); // Error haptic pattern
       toast.error("Please enter a positive prompt");
       return;
     }
 
     if (!user) {
+      error(); // Error haptic pattern
       toast.error("Please sign in to generate images");
-      setAuthModalOpen(true);
+      openAuthModal();
       return;
     }
 
     // Check if user has sufficient credits
     if (!canGenerateImages()) {
+      error(); // Error haptic pattern
       toast.error("No credits available! Contact administrator to get credits for image generation.");
       return;
     }
 
     if (!hasCredits(1)) {
+      error(); // Error haptic pattern
       toast.error(`Insufficient credits! You need 1 credit but only have ${credits}.`);
       return;
     }
@@ -793,7 +832,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.7", // Fixed Generate Button UX
+            app_version: "1.7.8", // Added Mobile Haptic Feedback
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -1011,6 +1050,7 @@ export default function ImageGenerator() {
             console.error("Failed to deduct credits:", creditError);
           }
           
+          success(); // Success haptic pattern
           toast.success("🎨 Image generated successfully!");
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
@@ -1052,6 +1092,7 @@ export default function ImageGenerator() {
           }
           
           setGeneratedImages(result.images);
+          success(); // Success haptic pattern
           toast.success(`🎨 ${result.images.length} images generated successfully!`);
         } else {
           console.log("Unexpected response format:", result);
@@ -1209,7 +1250,7 @@ export default function ImageGenerator() {
                   Sign in to save your images, presets, and sync across devices
                 </p>
                 <Button 
-                  onClick={() => setAuthModalOpen(true)}
+                  onClick={openAuthModal}
                   size="sm"
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 >
@@ -1269,7 +1310,7 @@ export default function ImageGenerator() {
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   className="border-2 border-dashed border-accent/30 rounded-lg p-8 text-center hover:border-accent/50 transition-colors duration-300 cursor-pointer glass"
-                  onClick={() => user ? document.getElementById('image-upload')?.click() : setAuthModalOpen(true)}
+                  onClick={() => user ? (lightTap(), document.getElementById('image-upload')?.click()) : openAuthModal()}
                 >
                   {uploading ? (
                     <div className="space-y-4">
@@ -1359,8 +1400,9 @@ export default function ImageGenerator() {
                   <Palette className="h-5 w-5 text-accent animate-pulse" />
                 </div>
                 Art Style
+                <span className="text-red-500 text-sm font-normal ml-1">*Required</span>
               </Label>
-              <Select value={selectedStyle} onValueChange={setSelectedStyle}>
+              <Select value={selectedStyle} onValueChange={handleStyleChange}>
                 <SelectTrigger className="glass border-accent/20">
                   <SelectValue placeholder="Choose an art style..." />
                 </SelectTrigger>
@@ -1510,7 +1552,7 @@ export default function ImageGenerator() {
                 <Label className="text-sm">Steps: {steps[0]}</Label>
                 <Slider
                   value={steps}
-                  onValueChange={setSteps}
+                  onValueChange={handleStepsChange}
                   max={100}
                   min={10}
                   step={5}
@@ -1522,7 +1564,7 @@ export default function ImageGenerator() {
                 <Label className="text-sm">CFG Scale: {cfgScale[0]}</Label>
                 <Slider
                   value={cfgScale}
-                  onValueChange={setCfgScale}
+                  onValueChange={handleCfgScaleChange}
                   max={20}
                   min={1}
                   step={0.5}
@@ -1596,7 +1638,7 @@ export default function ImageGenerator() {
 
           {/* Enhanced Results with Tabs */}
           <Card className="glass p-8 glow animate-scale-in" style={{animationDelay: '0.2s'}}>
-            <Tabs defaultValue="current" className="w-full">
+            <Tabs defaultValue="current" className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="current" className="flex items-center gap-2">
                   <Image className="h-4 w-4" />
