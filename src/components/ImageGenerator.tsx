@@ -478,7 +478,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.2.2", // Updated version
+            app_version: "1.2.3", // Updated version
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -523,15 +523,26 @@ export default function ImageGenerator() {
 
         console.log("Sending request to webhook:", payload);
         
+        // Validate API key is present
+        const apiKey = import.meta.env.VITE_WEBHOOK_API_KEY;
+        if (!apiKey) {
+          throw new Error('Webhook API key is not configured. Please check your environment variables.');
+        }
+        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'key': apiKey
           },
           body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
+          // Handle authentication errors specifically
+          if (response.status === 401 || response.status === 403) {
+            throw new Error('Authentication failed. Please check your API credentials.');
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
