@@ -440,6 +440,7 @@ export default function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
+  const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -563,6 +564,7 @@ export default function ImageGenerator() {
     try {
       const downloadURL = await uploadReferenceImage(file);
       setReferenceImageUrl(downloadURL);
+      setReferenceImageFile(file); // Store the file for webhook binary upload
     } catch (error) {
       console.error('Upload error:', error);
     }
@@ -570,6 +572,7 @@ export default function ImageGenerator() {
 
   const handleRemoveImage = () => {
     setReferenceImageUrl(null);
+    setReferenceImageFile(null); // Also clear the file
     toast.success("Reference image removed");
   };
 
@@ -615,6 +618,20 @@ export default function ImageGenerator() {
   const handleCfgScaleChange = (value: number[]) => {
     lightTap(); // Light haptic feedback for slider adjustment
     setCfgScale(value);
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data:image/[type];base64, prefix to get just the base64 string
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
   };
 
   const saveCurrentPreset = async () => {
@@ -791,8 +808,11 @@ export default function ImageGenerator() {
       // Prepare comprehensive payload for the webhook
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       const currentDimensions = getCurrentDimensions();
-        
-        const payload = {
+      
+      // Convert reference image to base64 if present
+      const referenceImageBase64 = referenceImageFile ? await convertFileToBase64(referenceImageFile) : null;
+      
+      const payload = {
           // Generation settings - primary parameters
           generation_settings: {
             prompt: positivePrompt.trim(),
@@ -809,7 +829,13 @@ export default function ImageGenerator() {
             cfg_scale: cfgScale[0],
             batch_count: 1,
             template_used: selectedTemplate || null,
-            reference_image: referenceImageUrl || null,
+            reference_image: referenceImageBase64,
+            reference_image_metadata: referenceImageFile ? {
+              name: referenceImageFile.name,
+              size: referenceImageFile.size,
+              type: referenceImageFile.type,
+              lastModified: referenceImageFile.lastModified
+            } : null,
             seed: null // Could be added later for reproducibility
           },
           
@@ -832,7 +858,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.8", // Added Mobile Haptic Feedback
+            app_version: "1.7.9", // Added Reference Image Binary Upload
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -1400,7 +1426,7 @@ export default function ImageGenerator() {
                   <Palette className="h-5 w-5 text-accent animate-pulse" />
                 </div>
                 Art Style
-                <span className="text-red-500 text-sm font-normal ml-1">*Required</span>
+                <Badge variant="secondary" className="text-xs animate-bounce">Required</Badge>
               </Label>
               <Select value={selectedStyle} onValueChange={handleStyleChange}>
                 <SelectTrigger className="glass border-accent/20">
