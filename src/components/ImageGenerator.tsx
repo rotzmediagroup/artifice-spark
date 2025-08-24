@@ -479,7 +479,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.3.1", // PWA fixes and cleanup
+            app_version: "1.3.2", // Latest stable version
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
