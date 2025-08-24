@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
-import speakeasy from 'speakeasy';
+import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
 
 interface TOTPSettings {
@@ -74,13 +74,22 @@ export const useTOTP = () => {
     if (!user) return null;
 
     try {
-      const secret = speakeasy.generateSecret({
-        name: `ROTZ Image Generator (${user.email})`,
+      // Generate a random secret
+      const secret = new OTPAuth.Secret({ size: 32 });
+      
+      // Create TOTP object
+      const totp = new OTPAuth.TOTP({
         issuer: 'ROTZ Image Generator',
-        length: 32
+        label: user.email,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: secret,
       });
 
-      const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url!);
+      // Generate the otpauth URL and QR code
+      const otpauthURL = totp.toString();
+      const qrCodeUrl = await QRCode.toDataURL(otpauthURL);
 
       return {
         secret: secret.base32,
@@ -100,12 +109,18 @@ export const useTOTP = () => {
     if (!secretToUse) return false;
 
     try {
-      return speakeasy.totp.verify({
+      // Create TOTP object from secret
+      const totp = new OTPAuth.TOTP({
+        issuer: 'ROTZ Image Generator', 
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
         secret: secretToUse,
-        encoding: 'base32',
-        token,
-        window: 2 // Allow 2 time steps (60 seconds) of drift
       });
+
+      // Validate token with 2-step drift tolerance (60 seconds total)
+      const delta = totp.validate({ token, window: 2 });
+      return delta !== null;
     } catch (error) {
       console.error('Error verifying TOTP:', error);
       return false;
