@@ -37,6 +37,11 @@ export interface GeneratedImageData {
     totalPixels?: number;
     megapixels?: number;
   };
+  // Auto-deletion fields
+  expiresAt: Date;           // Deletion date (14 days from creation)
+  extensionCount: number;     // Track extensions (max 3 for users, unlimited for admin)
+  lastExtendedAt?: Date;      // Last extension timestamp
+  isExpired?: boolean;        // Mark expired images (for UI display before deletion)
 }
 
 export interface PresetData {
@@ -62,25 +67,45 @@ export const useFirestore = () => {
   const [loading, setLoading] = useState(true);
 
   // Convert Firestore data to our format
-  const convertImageData = (doc: { id: string; data: () => any }): GeneratedImageData => ({
-    id: doc.id,
-    url: doc.data().url,
-    prompt: doc.data().prompt,
-    style: doc.data().style,
-    timestamp: doc.data().timestamp?.toDate() || new Date(),
-    liked: doc.data().liked || false,
-    settings: doc.data().settings || {
-      steps: 30,
-      cfgScale: 7,
-      aspectRatio: 'Square (1:1)', // Use the label format consistently
-      negativePrompt: '',
-      width: 1024,
-      height: 1024,
-      isCustomDimensions: false,
-      totalPixels: 1048576,
-      megapixels: 1.05
+  const convertImageData = (doc: { id: string; data: () => any }): GeneratedImageData => {
+    const data = doc.data();
+    const timestamp = data.timestamp?.toDate() || new Date();
+    
+    // Calculate expiration for existing images (14 days from creation if not set)
+    let expiresAt = data.expiresAt?.toDate();
+    if (!expiresAt) {
+      expiresAt = new Date(timestamp);
+      expiresAt.setDate(expiresAt.getDate() + 14);
     }
-  });
+    
+    // Check if image is expired
+    const isExpired = expiresAt < new Date();
+    
+    return {
+      id: doc.id,
+      url: data.url,
+      prompt: data.prompt,
+      style: data.style,
+      timestamp,
+      liked: data.liked || false,
+      settings: data.settings || {
+        steps: 30,
+        cfgScale: 7,
+        aspectRatio: 'Square (1:1)', // Use the label format consistently
+        negativePrompt: '',
+        width: 1024,
+        height: 1024,
+        isCustomDimensions: false,
+        totalPixels: 1048576,
+        megapixels: 1.05
+      },
+      // Auto-deletion fields
+      expiresAt,
+      extensionCount: data.extensionCount || 0,
+      lastExtendedAt: data.lastExtendedAt?.toDate(),
+      isExpired
+    };
+  };
 
   const convertPresetData = (doc: { id: string; data: () => any }): PresetData => ({
     id: doc.id,
@@ -181,6 +206,8 @@ export const useFirestore = () => {
       await addDoc(imageHistoryRef, {
         ...imageData,
         timestamp: Timestamp.fromDate(imageData.timestamp),
+        expiresAt: Timestamp.fromDate(imageData.expiresAt),
+        lastExtendedAt: imageData.lastExtendedAt ? Timestamp.fromDate(imageData.lastExtendedAt) : null,
         userId: user.uid
       });
     } catch (error) {

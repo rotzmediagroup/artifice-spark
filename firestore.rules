@@ -56,7 +56,18 @@ service cloud.firestore {
       
       // Image history subcollection
       match /imageHistory/{imageId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId &&
+                      // Ensure expiration is set to 14 days from creation
+                      request.resource.data.expiresAt is timestamp &&
+                      request.resource.data.extensionCount == 0;
+        allow update: if request.auth != null && request.auth.uid == userId &&
+                      // Allow updating liked status and extension fields
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked']) ||
+                       // Allow extension updates only through Cloud Functions (validated server-side)
+                       (request.resource.data.diff(resource.data).affectedKeys().hasAny(['expiresAt', 'extensionCount', 'lastExtendedAt']) &&
+                        request.resource.data.extensionCount >= resource.data.extensionCount));
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
       
       // User presets subcollection

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2, LogIn } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Heart, Trash2, LogIn, Clock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFirestore";
@@ -20,6 +20,8 @@ import AuthModal from "@/components/AuthModal";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CreditDisplay } from "@/components/CreditDisplay";
 import { useCredits } from "@/hooks/useCredits";
+import { useImageExtension } from "@/hooks/useImageExtension";
+import { getExpirationStatus, formatExpirationDate } from "@/lib/dateUtils";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
@@ -132,6 +134,7 @@ export default function ImageGenerator() {
   } = useFirestore();
   const { uploadReferenceImage, uploadFile, uploading, uploadProgress } = useStorage();
   const { credits, hasCredits, deductCredits, canGenerateImages, getCreditStatusMessage, loading: creditsLoading } = useCredits();
+  const { extendImage, extending, canExtend, getExtensionButtonText } = useImageExtension();
 
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -147,7 +150,6 @@ export default function ImageGenerator() {
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [batchCount, setBatchCount] = useState(1);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
@@ -435,8 +437,8 @@ export default function ImageGenerator() {
       return;
     }
 
-    if (!hasCredits(batchCount)) {
-      toast.error(`Insufficient credits! You need ${batchCount} credit${batchCount > 1 ? 's' : ''} but only have ${credits}.`);
+    if (!hasCredits(1)) {
+      toast.error(`Insufficient credits! You need 1 credit but only have ${credits}.`);
       return;
     }
 
@@ -455,10 +457,10 @@ export default function ImageGenerator() {
     }, 500);
     
     try {
-      for (let i = 0; i < batchCount; i++) {
-        // Prepare comprehensive payload for the webhook
-        const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-        const currentDimensions = getCurrentDimensions();
+      // Generate single image
+      // Prepare comprehensive payload for the webhook
+      const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const currentDimensions = getCurrentDimensions();
         
         const payload = {
           // Generation settings - primary parameters
@@ -468,7 +470,7 @@ export default function ImageGenerator() {
             style: selectedStyle || undefined,
             steps: steps[0],
             cfg_scale: cfgScale[0],
-            batch_count: 1, // Always 1 per API call in the loop
+            batch_count: 1,
             template_used: selectedTemplate || null,
             reference_image: referenceImageUrl || null,
             seed: null // Could be added later for reproducibility
@@ -493,12 +495,12 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.5.0", // Multi-Factor Authentication System
+            app_version: "1.7.0", // Auto-deletion and Extension System
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
-              total_batch_count: batchCount,
-              batch_index: i + 1,
-              is_batch: batchCount > 1
+              total_batch_count: 1,
+              batch_index: 1,
+              is_batch: false
             }
           },
           
@@ -622,6 +624,9 @@ export default function ImageGenerator() {
             );
             
             // Create image data with Firebase Storage URL
+            const expirationDate = new Date();
+            expirationDate.setDate(expirationDate.getDate() + 14); // Expires in 14 days
+            
             const newImageData: GeneratedImageData = {
               id: imageId,
               url: firebaseImageUrl,
@@ -640,7 +645,11 @@ export default function ImageGenerator() {
                 isCustomDimensions: currentDims.is_custom,
                 totalPixels: currentDims.total_pixels,
                 megapixels: currentDims.megapixels
-              }
+              },
+              // Auto-deletion fields
+              expiresAt: expirationDate,
+              extensionCount: 0,
+              isExpired: false
             };
             
             // Save to history with Firebase URL
@@ -672,6 +681,8 @@ export default function ImageGenerator() {
           // Handle JSON response with image URL (legacy support)
           const imageUrl = result.image_url || result.imageUrl || result.url;
           const currentDims = getCurrentDimensions();
+          const expirationDate = new Date();
+          expirationDate.setDate(expirationDate.getDate() + 14);
           const newImageData: GeneratedImageData = {
             id: generateImageId(),
             url: imageUrl,
@@ -690,7 +701,10 @@ export default function ImageGenerator() {
               isCustomDimensions: currentDims.is_custom,
               totalPixels: currentDims.total_pixels,
               megapixels: currentDims.megapixels
-            }
+            },
+            expiresAt: expirationDate,
+            extensionCount: 0,
+            isExpired: false
           };
           
           setGeneratedImages(prev => [...prev, imageUrl]);
@@ -708,6 +722,8 @@ export default function ImageGenerator() {
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
           for (const imageUrl of result.images) {
+            const expirationDate = new Date();
+            expirationDate.setDate(expirationDate.getDate() + 14);
             const newImageData: GeneratedImageData = {
               id: generateImageId(),
               url: imageUrl,
@@ -726,7 +742,10 @@ export default function ImageGenerator() {
                 isCustomDimensions: currentDims.is_custom,
                 totalPixels: currentDims.total_pixels,
                 megapixels: currentDims.megapixels
-              }
+              },
+              expiresAt: expirationDate,
+              extensionCount: 0,
+              isExpired: false
             };
             await addImageToHistory(newImageData);
             
@@ -766,6 +785,8 @@ export default function ImageGenerator() {
                 prev.map(url => url === tempImageUrl ? firebaseImageUrl : url)
               );
               
+              const expirationDate = new Date();
+              expirationDate.setDate(expirationDate.getDate() + 14);
               const newImageData: GeneratedImageData = {
                 id: imageId,
                 url: firebaseImageUrl,
@@ -783,7 +804,10 @@ export default function ImageGenerator() {
                   isCustomDimensions: currentDims.is_custom,
                   totalPixels: currentDims.total_pixels,
                   megapixels: currentDims.megapixels
-                }
+                },
+                expiresAt: expirationDate,
+                extensionCount: 0,
+                isExpired: false
               };
               
               await addImageToHistory(newImageData);
@@ -812,7 +836,6 @@ export default function ImageGenerator() {
             toast.warning("⚠️ Generation completed but no recognizable image data received.");
           }
         }
-      }
       
     } catch (error) {
       console.error("Error generating image:", error);
@@ -1170,28 +1193,6 @@ export default function ImageGenerator() {
               </Tabs>
             </div>
 
-            {/* Batch Generation */}
-            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.6s'}}>
-              <Label className="flex items-center gap-3 text-lg font-medium">
-                <div className="p-1 rounded bg-gradient-to-r from-indigo-500/20 to-purple-500/20">
-                  <Grid3X3 className="h-5 w-5 text-primary animate-pulse" />
-                </div>
-                Batch Generation
-              </Label>
-              <div className="flex gap-2">
-                {[1, 2, 4, 6].map((count) => (
-                  <Button
-                    key={count}
-                    variant={batchCount === count ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setBatchCount(count)}
-                    className="flex-1"
-                  >
-                    {count}
-                  </Button>
-                ))}
-              </div>
-            </div>
 
             {/* Advanced Settings */}
             <div className="space-y-4 p-4 glass rounded-lg border border-muted/20">
@@ -1374,31 +1375,66 @@ export default function ImageGenerator() {
                   )}
                 </div>
 
+                {/* Auto-deletion Warning Banner */}
+                <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                    <div className="space-y-1">
+                      <h3 className="font-medium text-amber-500">Automatic Image Deletion</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Images are automatically deleted after 14 days to manage storage. Download images you want to keep permanently.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        • Regular users: Extend storage up to 3 times (7 days each)
+                        <br />
+                        • Admin users: Unlimited extensions available
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {imageHistory.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {imageHistory.map((image) => (
-                      <Dialog key={image.id}>
-                        <DialogTrigger asChild>
-                          <div className="relative group cursor-pointer">
-                            <div className="relative rounded-lg overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
-                              <img
-                                src={image.url}
-                                alt={image.prompt}
-                                className="w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300"
-                              />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                                <Button size="sm" variant="ghost" className="text-white">
-                                  View Details
-                                </Button>
-                              </div>
-                              {image.liked && (
-                                <div className="absolute top-2 right-2 bg-red-500/80 text-white p-1 rounded-full">
-                                  <Heart className="h-3 w-3 fill-current" />
+                    {imageHistory.map((image) => {
+                      const expirationStatus = getExpirationStatus(image.expiresAt);
+                      return (
+                        <Dialog key={image.id}>
+                          <DialogTrigger asChild>
+                            <div className="relative group cursor-pointer">
+                              <div className="relative rounded-lg overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
+                                <img
+                                  src={image.url}
+                                  alt={image.prompt}
+                                  className={`w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300 ${
+                                    image.isExpired ? 'opacity-50' : ''
+                                  }`}
+                                />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
+                                  <Button size="sm" variant="ghost" className="text-white">
+                                    View Details
+                                  </Button>
                                 </div>
-                              )}
+                                
+                                {/* Expiration Warning Badge */}
+                                {(expirationStatus.status === 'critical' || expirationStatus.status === 'warning' || expirationStatus.status === 'expired') && (
+                                  <div className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 ${
+                                    expirationStatus.status === 'expired' ? 'bg-red-500/90 text-white' :
+                                    expirationStatus.status === 'critical' ? 'bg-red-500/80 text-white' :
+                                    'bg-amber-500/80 text-white'
+                                  }`}>
+                                    <Clock className="h-3 w-3" />
+                                    {expirationStatus.daysRemaining > 0 ? `${expirationStatus.daysRemaining}d` : 'Expired'}
+                                  </div>
+                                )}
+                                
+                                {image.liked && (
+                                  <div className="absolute top-2 right-2 bg-red-500/80 text-white p-1 rounded-full">
+                                    <Heart className="h-3 w-3 fill-current" />
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </DialogTrigger>
+                          </DialogTrigger>
                         
                         <DialogContent className="max-w-4xl">
                           <DialogHeader>
@@ -1427,6 +1463,25 @@ export default function ImageGenerator() {
                                   {image.timestamp.toLocaleDateString()} at {image.timestamp.toLocaleTimeString()}
                                 </p>
                               </div>
+                              
+                              {/* Expiration Information */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Storage Expiration</Label>
+                                <div className="space-y-1">
+                                  <p className={`text-sm ${expirationStatus.color}`}>
+                                    {expirationStatus.message}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Expires on: {formatExpirationDate(image.expiresAt)}
+                                  </p>
+                                  {image.extensionCount > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Extensions used: {image.extensionCount}/3
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              
                               <div className="flex gap-2 pt-4">
                                 <Button 
                                   onClick={() => downloadImage(image.url, `rotz-ai-${image.id}.png`)}
@@ -1456,11 +1511,42 @@ export default function ImageGenerator() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
+                              
+                              {/* Extension Button */}
+                              {canExtend(image.extensionCount) && !image.isExpired && (
+                                <div className="pt-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={async () => {
+                                      const result = await extendImage(image.id);
+                                      if (result) {
+                                        // Refresh the image data
+                                        window.location.reload();
+                                      }
+                                    }}
+                                    disabled={extending === image.id}
+                                    className="w-full"
+                                  >
+                                    {extending === image.id ? (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                                        Extending...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock className="h-4 w-4 mr-2" />
+                                        {getExtensionButtonText(image.extensionCount)}
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </DialogContent>
-                      </Dialog>
-                    ))}
+                        </Dialog>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-16 space-y-4">
