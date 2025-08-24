@@ -13,12 +13,32 @@ service cloud.firestore {
       // Only admin can create/update credits field
       allow create: if request.auth != null && request.auth.uid == userId && 
                     (!('credits' in request.resource.data) || request.resource.data.credits == 0);
+      // Allow users to update their own profile for credit deduction only
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                    // Allow updating credits, totalCreditsUsed, and lastLogin for credit deduction
+                    (request.resource.data.diff(resource.data).affectedKeys().hasAll(['credits', 'totalCreditsUsed', 'lastLogin']) ||
+                     request.resource.data.diff(resource.data).affectedKeys().hasAll(['credits', 'totalCreditsUsed']) ||
+                     request.resource.data.diff(resource.data).affectedKeys().hasAll(['lastLogin'])) &&
+                    // Ensure credits can only be decreased (not increased)
+                    (!('credits' in request.resource.data) || 
+                     !('credits' in resource.data) ||
+                     request.resource.data.credits <= resource.data.credits) &&
+                    // Ensure totalCreditsUsed can only be increased
+                    (!('totalCreditsUsed' in request.resource.data) || 
+                     !('totalCreditsUsed' in resource.data) ||
+                     request.resource.data.totalCreditsUsed >= resource.data.totalCreditsUsed);
     }
     
     // Credit transactions - Admin can read/write all, users can read their own
     match /creditTransactions/{transactionId} {
       allow read, write: if isAdmin();
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow users to create transaction records for credit deduction only
+      allow create: if request.auth != null && 
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.type == 'used' &&
+                    request.resource.data.amount < 0 &&
+                    request.resource.data.adminUserId == null;
     }
     
     // TOTP MFA settings - Admin can read all, users can read/write their own
