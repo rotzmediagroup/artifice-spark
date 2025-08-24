@@ -615,6 +615,9 @@ export default function ImageGenerator() {
               ? styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
               : selectedStyle ? `${selectedStyle} artistic style with characteristic visual elements and techniques.` 
               : undefined,
+            aspect_ratio: currentDimensions.aspect_ratio,
+            aspect_ratio_label: currentDimensions.aspect_ratio_label,
+            aspect_ratio_category: aspectRatio.category || "standard",
             steps: steps[0],
             cfg_scale: cfgScale[0],
             batch_count: 1,
@@ -642,7 +645,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.1", // Enhanced Templates and Style Descriptions
+            app_version: "1.7.2", // Added Aspect Ratio to Webhook Generation Settings
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
