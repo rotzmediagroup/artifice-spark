@@ -15,11 +15,11 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt', 'pwa-128x128.png', 'pwa-256x256.png'],
       manifest: {
         id: 'rotz-image-generator',
         name: 'ROTZ Image Generator',
-        short_name: 'ROTZ.AI',
+        short_name: 'ROTZ AI GEN',
         description: 'Professional AI image generation with advanced styling and custom dimensions',
         theme_color: '#8b5cf6',
         background_color: '#1a1a2e',
@@ -36,8 +36,20 @@ export default defineConfig(({ mode }) => ({
             purpose: 'any'
           },
           {
+            src: 'pwa-128x128.png',
+            sizes: '128x128',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
             src: 'pwa-192x192.png',
             sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: 'pwa-256x256.png',
+            sizes: '256x256',
             type: 'image/png',
             purpose: 'any'
           },
