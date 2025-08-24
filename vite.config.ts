@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
+        id: 'rotz-image-generator',
         name: 'ROTZ Image Generator',
         short_name: 'ROTZ.AI',
         description: 'Professional AI image generation with advanced styling and custom dimensions',
@@ -25,17 +26,20 @@ export default defineConfig(({ mode }) => ({
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: '/',
+        scope: '/',
         categories: ['productivity', 'graphics', 'utilities', 'entertainment'],
         icons: [
           {
             src: 'pwa-64x64.png',
             sizes: '64x64',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'pwa-512x512.png',
@@ -48,6 +52,12 @@ export default defineConfig(({ mode }) => ({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
+          },
+          {
+            src: 'apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any'
           }
         ],
         shortcuts: [
@@ -56,12 +66,25 @@ export default defineConfig(({ mode }) => ({
             short_name: "Generate",
             description: "Start generating AI images",
             url: "/?action=generate",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }]
           }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              }
+            }
+          }
+        ]
       },
       devOptions: {
         enabled: false

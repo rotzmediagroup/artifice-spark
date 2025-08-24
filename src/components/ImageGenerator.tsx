@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2, LogIn, TestTube } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Grid3X3, Heart, Trash2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFirestore";
@@ -479,7 +479,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.3.0", // Updated version with PWA
+            app_version: "1.3.1", // PWA fixes and cleanup
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -799,12 +799,6 @@ export default function ImageGenerator() {
         {/* Enhanced Header with Logo and User Menu */}
         <div className="text-center mb-12 animate-fade-in relative">
           <div className="absolute top-0 right-0 flex gap-2">
-            <a href="/test" className="inline-flex">
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
-                <TestTube className="h-4 w-4" />
-                Database Test
-              </Button>
-            </a>
             <UserMenu />
           </div>
           
