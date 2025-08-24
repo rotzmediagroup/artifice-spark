@@ -17,6 +17,7 @@ import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFiresto
 import { useStorage } from "@/hooks/useStorage";
 import UserMenu from "@/components/UserMenu";
 import AuthModal from "@/components/AuthModal";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
@@ -478,7 +479,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.2.3", // Updated version
+            app_version: "1.3.0", // Updated version with PWA
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -1422,6 +1423,7 @@ export default function ImageGenerator() {
         </div>
 
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+        <PWAInstallPrompt />
       </div>
     </div>
   );
