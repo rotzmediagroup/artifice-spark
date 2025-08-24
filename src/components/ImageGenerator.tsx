@@ -25,33 +25,73 @@ import { getExpirationStatus, formatExpirationDate } from "@/lib/dateUtils";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
-  "Photorealistic", "Digital Art", "Oil Painting", "Watercolor", "Pencil Sketch", "Charcoal Drawing",
-  "Anime", "Manga", "Comic Book", "Cartoon", "Pixel Art", "Vector Art", "Minimalist", "Abstract",
-  "Surreal", "Fantasy", "Sci-Fi", "Cyberpunk", "Steampunk", "Art Nouveau", "Art Deco", "Pop Art",
-  "Street Art", "Graffiti", "Impressionist", "Expressionist", "Cubist", "Renaissance", "Baroque",
-  "Gothic", "Medieval", "Japanese Ink", "Chinese Painting", "Indian Miniature", "African Art",
-  "Blueprint", "Technical Drawing", "Architectural", "Isometric", "3D Render", "Low Poly",
-  "Voxel Art", "Papercraft", "Origami", "Clay Model", "Bronze Sculpture", "Marble Sculpture",
-  "Neon", "Holographic", "Glitch Art", "Vaporwave", "Synthwave", "Retro", "Vintage", "Film Noir",
-  // Unique & Creative Styles
-  "Biomechanical", "Fractals", "Kaleidoscope", "Double Exposure", "Tilt-Shift", "Cross-Hatching",
-  "Stippling", "Mosaic", "Stained Glass", "Embroidery", "Quilt Pattern", "Batik", "Tie-Dye",
-  "Sand Art", "Ice Sculpture", "Latte Art", "Food Art", "Shadow Play", "Light Painting",
-  "Macro Photography", "Infrared", "X-Ray", "Thermal Imaging", "Satellite View", "Microscopic",
-  "Cel Shading", "Toon Shading", "Wireframe", "Point Cloud", "Particle System", "Fluid Dynamics",
-  "Crystalline", "Organic", "Geometric", "Tessellation", "Voronoi", "Mandelbrot",
-  "Paper Cut-out", "Pop-up Book", "Diorama", "Shadow Box", "Layered Paper", "Kirigami",
-  "Grunge", "Distressed", "Weathered", "Rust Texture", "Patina", "Aged Paper",
-  "Neon Signs", "LED Display", "Circuit Board", "Binary Code", "Matrix Style", "Hologram",
-  "Aurora Borealis", "Galaxy", "Nebula", "Solar Flare", "Cosmic Dust", "Planetary",
-  "Underwater", "Volcanic", "Desert Dunes", "Forest Canopy", "Mountain Peaks", "Ocean Waves",
-  "Typography Art", "Calligraphy", "Illuminated Manuscript", "Bookbinding", "Letter Press",
-  "Chalk Art", "Sidewalk Art", "Cave Painting", "Hieroglyphics", "Petroglyphs", "Runes",
-  "Dieselpunk", "Solarpunk", "Biopunk", "Atompunk", "Clockwork", "Victorian",
-  "Art Brut", "Outsider Art", "Folk Art", "Tribal Art", "Primitive", "Shamanic",
-  "Psychedelic", "Optical Illusion", "Anamorphic", "Impossible Objects", "M.C. Escher Style",
-  "Pointillism", "Fauvism", "Dadaism", "Constructivism", "Suprematism", "Bauhaus"
-];
+  "3D Render", "Abstract", "African Art", "Aged Paper", "Anamorphic", "Anime", "Architectural", 
+  "Architectural Visualization", "Art Brut", "Art Deco", "Art Nouveau", "Atompunk", "Aurora Borealis", 
+  "Baroque", "Batik", "Bauhaus", "Binary Code", "Biomechanical", "Biopunk", "Blueprint", 
+  "Bookbinding", "Bronze Sculpture", "Cartoon", "Cave Painting", "Cel Shading", "Chalk Art", 
+  "Charcoal Drawing", "Children's Book Illustration", "Chinese Painting", "Circuit Board", 
+  "Clay Model", "Clockwork", "Comic Book", "Comic Strip", "Concept Art", "Constructivism", 
+  "Cross-Hatching", "Crystalline", "Cubist", "Cyberpunk", "Dadaism", "Desert Dunes", 
+  "Dieselpunk", "Digital Art", "Diorama", "Distressed", "Double Exposure", "Embroidery", 
+  "Expressionist", "Fantasy", "Fashion Photography", "Fauvism", "Film Noir", "Fluid Dynamics", 
+  "Folk Art", "Food Art", "Food Photography", "Forest Canopy", "Fractals", "Galaxy", 
+  "Game Board", "Geometric", "Glitch Art", "Gothic", "Graffiti", "Grunge", "Hieroglyphics", 
+  "Hologram", "Holographic", "Hyper Realistic", "Ice Sculpture", "Illuminated Manuscript", 
+  "Impossible Objects", "Impressionist", "Indian Miniature", "Infrared", "Isometric", 
+  "Japanese Ink", "Kaleidoscope", "Kirigami", "Latte Art", "Layered Paper", "LED Display", 
+  "Letter Press", "Light Painting", "Low Poly", "M.C. Escher Style", "Macro Photography", 
+  "Mandelbrot", "Manga", "Marble Sculpture", "Matte Painting", "Matrix Style", "Medical Illustration", 
+  "Medieval", "Microscopic", "Minimalist", "Mosaic", "Mountain Peaks", "Nebula", "Neon", 
+  "Neon Signs", "Ocean Waves", "Oil Painting", "Optical Illusion", "Organic", "Origami", 
+  "Outsider Art", "Paper Cut-out", "Papercraft", "Particle System", "Patina", "Pencil Sketch", 
+  "Photo Realistic", "Photorealistic", "Pixel Art", "Planetary", "Point Cloud", "Pointillism", 
+  "Pop Art", "Pop-up Book", "Primitive", "Psychedelic", "Quilt Pattern", "Renaissance", 
+  "Retro", "Runes", "Rust Texture", "Sand Art", "Satellite View", "Sci-Fi", "Scientific Diagram", 
+  "Shadow Box", "Shadow Play", "Shamanic", "Sidewalk Art", "Solar Flare", "Solarpunk", 
+  "Stained Glass", "Steampunk", "Stippling", "Street Art", "Suprematism", "Surreal", 
+  "Synthwave", "Technical Drawing", "Technical Manual", "Tessellation", "Thermal Imaging", 
+  "Tie-Dye", "Tilt-Shift", "Toon Shading", "Tribal Art", "Typography Art", "Underwater", 
+  "Vaporwave", "Vector Art", "Victorian", "Vintage", "Volcanic", "Voronoi", "Voxel Art", 
+  "Watercolor", "Weathered", "Wireframe", "X-Ray"
+].sort();
+
+// Detailed style descriptions for better AI understanding
+const styleDescriptions = {
+  "3D Render": "Three-dimensional computer graphics rendering with realistic lighting, shadows, and textures. Professional 3D modeling aesthetic with clean surfaces and volumetric lighting.",
+  "Abstract": "Non-representational art focusing on colors, forms, and composition. Emphasis on visual elements rather than realistic depiction, exploring pure artistic expression.",
+  "Anime": "Japanese animation style with distinctive character designs, large expressive eyes, stylized proportions, and vibrant colors typical of manga and anime culture.",
+  "Architectural": "Precise architectural drawing style with clean lines, technical accuracy, and professional presentation suitable for construction and design documentation.",
+  "Architectural Visualization": "Photorealistic architectural rendering showing buildings and spaces with accurate materials, lighting, and environmental context for presentation purposes.",
+  "Cartoon": "Simplified, exaggerated illustration style with bold outlines, bright colors, and whimsical character designs typical of animated cartoons and comic strips.",
+  "Charcoal Drawing": "Traditional charcoal art technique with rich blacks, subtle grays, and soft blending. Emphasis on dramatic contrast and expressive mark-making.",
+  "Children's Book Illustration": "Warm, friendly illustration style appropriate for young readers. Bright colors, simple shapes, and engaging characters with educational appeal.",
+  "Comic Book": "Sequential art style with bold outlines, dynamic compositions, speech bubbles, and action-oriented visual storytelling typical of superhero and graphic novels.",
+  "Comic Strip": "Panel-based illustration format with clear narrative flow, character consistency, and visual humor typical of newspaper comic strips.",
+  "Concept Art": "Professional game and film concept artwork with detailed environments, character designs, and mood exploration for entertainment industry production.",
+  "Cyberpunk": "Futuristic dystopian aesthetic with neon colors, high-tech elements, urban decay, and digital enhancement themes characteristic of cyberpunk genre.",
+  "Digital Art": "Contemporary digital painting and illustration created with electronic tools, featuring smooth gradients, precise details, and modern artistic techniques.",
+  "Fantasy": "Imaginative artwork depicting magical realms, mythical creatures, and supernatural elements with rich storytelling and otherworldly atmospheres.",
+  "Fashion Photography": "Professional fashion and portrait photography with emphasis on styling, lighting, and glamour. High-end commercial aesthetic with model poses.",
+  "Food Photography": "Appetizing food presentation with careful lighting, composition, and styling to showcase culinary dishes in their most appealing form.",
+  "Game Board": "Tabletop board game design aesthetic with clear geometric layouts, vibrant colors suitable for game components, top-down perspective, clean iconography optimized for gameplay functionality.",
+  "Hyper Realistic": "Extremely detailed realistic artwork that appears photographic, with meticulous attention to textures, lighting, and minute details that surpass normal photography.",
+  "Impressionist": "Loose brushwork and emphasis on light effects, outdoor scenes, and momentary visual impressions typical of French Impressionist movement.",
+  "Manga": "Japanese comic book style with detailed line work, expressive characters, screen tones, and panel-based storytelling typical of manga publications.",
+  "Matte Painting": "Digital matte painting technique used in film and games for creating expansive environments and backgrounds with photorealistic detail and atmospheric perspective.",
+  "Medical Illustration": "Scientific accuracy in depicting anatomical structures, medical procedures, and biological systems with educational clarity and professional precision.",
+  "Minimalist": "Clean, simplified aesthetic with minimal elements, abundant white space, and focus on essential forms without unnecessary decoration or complexity.",
+  "Oil Painting": "Traditional oil painting technique with rich, textured brushstrokes, warm color palette, classical composition, painterly quality with visible brush marks and luminous depth.",
+  "Photo Realistic": "Photographic quality in painted or digital art, achieving realistic lighting, textures, and proportions that closely mimic actual photography.",
+  "Photorealistic": "Artwork that achieves the visual fidelity and detail of a photograph, with accurate lighting, shadows, and surface textures.",
+  "Pixel Art": "Digital art created with individual pixels, featuring limited color palettes and blocky aesthetic reminiscent of early video game graphics.",
+  "Sci-Fi": "Science fiction aesthetic with futuristic technology, space themes, advanced machinery, and speculative design elements.",
+  "Scientific Diagram": "Clear, educational illustration style used for scientific and technical documentation with precise labeling and informational clarity.",
+  "Steampunk": "Victorian-era inspired aesthetic combined with steam-powered machinery, brass fixtures, gears, and retro-futuristic industrial design elements.",
+  "Technical Drawing": "Precise engineering and technical illustration style with clean lines, accurate proportions, and professional drafting standards.",
+  "Technical Manual": "Instructional illustration style used in manuals and documentation, featuring clear step-by-step visuals and informational graphics.",
+  "Vector Art": "Clean geometric artwork created with mathematical curves and shapes, featuring solid colors and scalable graphics typical of logo and icon design.",
+  "Watercolor": "Traditional watercolor painting technique with transparent washes, soft blending, organic color bleeding, and delicate artistic expression."
+};
 
 const aspectRatios = [
   // Standard Dimensions
@@ -77,30 +117,133 @@ const aspectRatios = [
 ];
 
 const promptTemplates = [
+  // Portraits
   {
     name: "Fantasy Portrait",
-    prompt: "A mystical fantasy portrait, magical atmosphere, ethereal lighting, detailed character design",
+    prompt: "A mystical fantasy portrait, magical atmosphere, ethereal lighting, detailed character design, enchanted eyes",
     category: "Portrait"
   },
   {
+    name: "Realistic Portrait",
+    prompt: "Professional headshot photography, studio lighting, sharp focus, detailed facial features, natural expression",
+    category: "Portrait"
+  },
+  {
+    name: "Heroic Character",
+    prompt: "Epic heroic character portrait, dramatic lighting, powerful stance, detailed armor or costume, inspiring presence",
+    category: "Portrait"
+  },
+  {
+    name: "Cyberpunk Portrait",
+    prompt: "Futuristic cyberpunk portrait, neon lighting, technological augmentations, urban setting, dystopian atmosphere",
+    category: "Portrait"
+  },
+
+  // Landscapes
+  {
     name: "Sci-Fi Landscape",
-    prompt: "Futuristic alien landscape, cyberpunk city, neon lights, flying vehicles, distant planets",
+    prompt: "Futuristic alien landscape, cyberpunk city, neon lights, flying vehicles, distant planets, atmospheric perspective",
     category: "Landscape"
   },
   {
+    name: "Nature Scene",
+    prompt: "Serene natural landscape, golden hour lighting, peaceful atmosphere, high detail, pristine wilderness",
+    category: "Landscape"
+  },
+  {
+    name: "Fantasy Realm",
+    prompt: "Magical fantasy landscape, floating islands, mystical forests, ancient ruins, ethereal atmosphere",
+    category: "Landscape"
+  },
+  {
+    name: "Post-Apocalyptic",
+    prompt: "Post-apocalyptic wasteland, abandoned buildings, dramatic sky, desolate atmosphere, survival setting",
+    category: "Landscape"
+  },
+
+  // Abstract
+  {
     name: "Abstract Art",
-    prompt: "Abstract geometric composition, vibrant colors, dynamic shapes, modern art style",
+    prompt: "Abstract geometric composition, vibrant colors, dynamic shapes, modern art style, flowing forms",
     category: "Abstract"
   },
   {
-    name: "Nature Scene",
-    prompt: "Serene natural landscape, golden hour lighting, peaceful atmosphere, high detail",
-    category: "Nature"
+    name: "Fluid Dynamics",
+    prompt: "Liquid paint splash, fluid dynamics, swirling colors, organic patterns, smooth gradients",
+    category: "Abstract"
   },
   {
-    name: "Character Design",
-    prompt: "Unique character concept art, detailed costume design, expressive pose, professional illustration",
-    category: "Character"
+    name: "Sacred Geometry",
+    prompt: "Sacred geometric patterns, mandala design, symmetrical composition, spiritual symbolism, intricate details",
+    category: "Abstract"
+  },
+
+  // Architecture
+  {
+    name: "Modern Architecture",
+    prompt: "Contemporary architectural design, clean lines, glass and steel, minimalist aesthetic, urban environment",
+    category: "Architecture"
+  },
+  {
+    name: "Ancient Temple",
+    prompt: "Ancient temple architecture, ornate carvings, historical stonework, mystical atmosphere, cultural heritage",
+    category: "Architecture"
+  },
+  {
+    name: "Futuristic Building",
+    prompt: "Futuristic architectural structure, innovative design, advanced materials, sci-fi cityscape, high-tech aesthetic",
+    category: "Architecture"
+  },
+
+  // Objects & Still Life
+  {
+    name: "Product Shot",
+    prompt: "Professional product photography, clean white background, studio lighting, commercial quality, detailed textures",
+    category: "Object"
+  },
+  {
+    name: "Vintage Still Life",
+    prompt: "Classic still life arrangement, vintage objects, warm lighting, artistic composition, nostalgic atmosphere",
+    category: "Object"
+  },
+  {
+    name: "Magical Artifact",
+    prompt: "Enchanted magical artifact, glowing runes, mystical energy, fantasy item, detailed craftsmanship",
+    category: "Object"
+  },
+
+  // Animals & Creatures
+  {
+    name: "Wildlife Portrait",
+    prompt: "Majestic wildlife animal portrait, natural habitat, detailed fur or feathers, expressive eyes, nature photography",
+    category: "Animal"
+  },
+  {
+    name: "Mythical Creature",
+    prompt: "Legendary mythical creature, dragon or phoenix, magical powers, fantasy setting, epic scale",
+    category: "Animal"
+  },
+  {
+    name: "Cute Pet",
+    prompt: "Adorable pet portrait, playful expression, soft lighting, cozy domestic setting, heartwarming moment",
+    category: "Animal"
+  },
+
+  // Scenes & Action
+  {
+    name: "Epic Battle",
+    prompt: "Dynamic battle scene, warriors in combat, dramatic action, epic scale, cinematic composition",
+    category: "Scene"
+  },
+  {
+    name: "Peaceful Moment",
+    prompt: "Tranquil peaceful scene, calm atmosphere, gentle lighting, serene mood, contemplative setting",
+    category: "Scene"
+  },
+  {
+    name: "Adventure Scene",
+    prompt: "Exciting adventure moment, explorers discovering ancient ruins, treasure hunting, mysterious atmosphere",
+    category: "Scene"
   }
 ];
 
@@ -468,6 +611,10 @@ export default function ImageGenerator() {
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
             style: selectedStyle || undefined,
+            style_description: selectedStyle && styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
+              ? styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
+              : selectedStyle ? `${selectedStyle} artistic style with characteristic visual elements and techniques.` 
+              : undefined,
             steps: steps[0],
             cfg_scale: cfgScale[0],
             batch_count: 1,
@@ -495,7 +642,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.0", // Auto-deletion and Extension System
+            app_version: "1.7.1", // Enhanced Templates and Style Descriptions
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -1036,18 +1183,23 @@ export default function ImageGenerator() {
                 </div>
                 Prompt Templates
               </Label>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="max-h-60 overflow-y-auto scroll-smooth space-y-2">
                 {promptTemplates.map((template) => (
                   <Button
                     key={template.name}
                     variant="outline"
                     size="sm"
                     onClick={() => applyTemplate(template)}
-                    className="text-left justify-start h-auto p-3 glass"
+                    className="w-full text-left justify-start h-auto p-3 glass hover:bg-accent/10 transition-colors"
                   >
-                    <div>
-                      <div className="font-medium text-sm">{template.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{template.prompt}</div>
+                    <div className="w-full">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="font-medium text-sm">{template.name}</div>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                          {template.category}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">{template.prompt}</div>
                     </div>
                   </Button>
                 ))}
@@ -1385,9 +1537,7 @@ export default function ImageGenerator() {
                         Images are automatically deleted after 14 days to manage storage. Download images you want to keep permanently.
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        • Regular users: Extend storage up to 3 times (7 days each)
-                        <br />
-                        • Admin users: Unlimited extensions available
+                        • Regular users can extend storage up to 3 times (7 days each)
                       </p>
                     </div>
                   </div>
