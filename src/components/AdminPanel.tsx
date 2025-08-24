@@ -261,6 +261,7 @@ export const AdminPanel: React.FC = () => {
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="transactions">Recent Transactions</TabsTrigger>
           <TabsTrigger value="stats">System Statistics</TabsTrigger>
+          <TabsTrigger value="security">Security & MFA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -292,6 +293,7 @@ export const AdminPanel: React.FC = () => {
                         <th className="text-left p-2">User</th>
                         <th className="text-left p-2">Credits</th>
                         <th className="text-left p-2">Total Used</th>
+                        <th className="text-left p-2">MFA Status</th>
                         <th className="text-left p-2">Last Login</th>
                         <th className="text-left p-2">Actions</th>
                       </tr>
@@ -320,6 +322,11 @@ export const AdminPanel: React.FC = () => {
                           </td>
                           <td className="p-2">
                             {user.totalCreditsUsed || 0}
+                          </td>
+                          <td className="p-2">
+                            <Badge variant={user.mfaEnabled ? "default" : "secondary"}>
+                              {user.mfaEnabled ? "Enabled" : "Disabled"}
+                            </Badge>
                           </td>
                           <td className="p-2 text-sm text-muted-foreground">
                             {formatDate(user.lastLogin)}
@@ -414,6 +421,76 @@ export const AdminPanel: React.FC = () => {
                   {stats.totalCreditsGranted > 0 
                     ? Math.round((stats.totalCreditsUsed / stats.totalCreditsGranted) * 100) 
                     : 0}%
+                </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Multi-Factor Authentication Overview</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Settings className="h-5 w-5 text-blue-500" />
+                    <h4 className="font-medium">Total Users</h4>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.totalUsers}</p>
+                </div>
+                
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown className="h-5 w-5 text-green-500" />
+                    <h4 className="font-medium">MFA Enabled</h4>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {users.filter(u => u.mfaEnabled).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {Math.round((users.filter(u => u.mfaEnabled).length / stats.totalUsers) * 100)}% of users
+                  </p>
+                </div>
+                
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    <h4 className="font-medium">MFA Disabled</h4>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {users.filter(u => !u.mfaEnabled && !u.isAdmin).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Regular users without MFA
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="font-medium mb-3">MFA Security Recommendations</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded">
+                    <Crown className="h-4 w-4 text-green-600" />
+                    <span>Encourage users to enable MFA for enhanced security</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                    <span>Admins have unlimited access regardless of MFA status</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-orange-50 rounded">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <span>Monitor for unusual login patterns</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">Admin Note</h4>
+                <p className="text-sm text-yellow-700">
+                  As a super admin, you can access all user accounts and manage MFA settings. 
+                  Users can enable/disable their own MFA through the Security settings in their user menu. 
+                  MFA uses TOTP (Time-based One-Time Password) compatible with Google Authenticator and other authenticator apps.
                 </p>
               </div>
             </div>

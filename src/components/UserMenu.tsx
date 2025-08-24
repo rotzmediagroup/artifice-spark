@@ -11,19 +11,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, LogOut, Upload, Settings, Crown, Coins } from "lucide-react";
+import { User, LogOut, Upload, Settings, Crown, Coins, Shield } from "lucide-react";
 import AuthModal from "./AuthModal";
 import { CreditDisplay } from "./CreditDisplay";
 import { AdminPanel } from "./AdminPanel";
+import { MFASettings } from "./MFASettings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useCredits } from "@/hooks/useCredits";
+import { useTOTP } from "@/hooks/useTOTP";
 
 export default function UserMenu() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const { credits } = useCredits();
+  const { isEnabled: mfaEnabled } = useTOTP();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [securityPanelOpen, setSecurityPanelOpen] = useState(false);
 
   if (!user) {
     return (
@@ -96,9 +100,14 @@ export default function UserMenu() {
             </>
           )}
           
-          <DropdownMenuItem disabled>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <DropdownMenuItem onClick={() => setSecurityPanelOpen(true)}>
+            <Shield className="mr-2 h-4 w-4" />
+            <span>Security</span>
+            {mfaEnabled && (
+              <span className="ml-auto text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                2FA
+              </span>
+            )}
           </DropdownMenuItem>
           <DropdownMenuItem disabled>
             <Upload className="mr-2 h-4 w-4" />
@@ -122,6 +131,13 @@ export default function UserMenu() {
             </DialogTitle>
           </DialogHeader>
           <AdminPanel />
+        </DialogContent>
+      </Dialog>
+
+      {/* Security Settings Dialog */}
+      <Dialog open={securityPanelOpen} onOpenChange={setSecurityPanelOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <MFASettings />
         </DialogContent>
       </Dialog>
     </>

@@ -22,10 +22,14 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  pendingMFA: boolean;
+  requiresMFA: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  completeMFASignIn: () => void;
+  cancelMFASignIn: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +49,21 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingMFA, setPendingMFA] = useState(false);
+  const [requiresMFA, setRequiresMFA] = useState(false);
+  const [pendingUser, setPendingUser] = useState<User | null>(null);
+
+  // Function to check if user has MFA enabled
+  const checkMFAStatus = async (user: User): Promise<boolean> => {
+    try {
+      const totpSettingsRef = doc(db, 'totpSettings', user.uid);
+      const totpSettingsDoc = await getDoc(totpSettingsRef);
+      return totpSettingsDoc.exists() && totpSettingsDoc.data().enabled === true;
+    } catch (error) {
+      console.error('Error checking MFA status:', error);
+      return false;
+    }
+  };
 
   // Function to create or update user profile
   const createOrUpdateUserProfile = async (user: User) => {
@@ -67,7 +86,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           totalCreditsGranted: 0,
-          totalCreditsUsed: 0
+          totalCreditsUsed: 0,
+          // MFA fields
+          mfaEnabled: false,
+          mfaEnabledAt: null
         });
         
         if (isAdmin) {
@@ -98,6 +120,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Handle pending MFA state - don't update user until MFA is complete
+      if (pendingMFA && user) {
+        return; // Wait for MFA completion
+      }
+
       if (user) {
         // Create or update user profile when user signs in
         await createOrUpdateUserProfile(user);
@@ -108,12 +135,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [pendingMFA]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast.success('Welcome back!');
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Check if user has MFA enabled
+      const hasMFA = await checkMFAStatus(user);
+      
+      if (hasMFA) {
+        // Set pending MFA state and sign out temporarily
+        setPendingUser(user);
+        setPendingMFA(true);
+        setRequiresMFA(true);
+        await firebaseSignOut(auth);
+        console.log(`[MFA] User ${user.email} requires MFA verification`);
+      } else {
+        toast.success('Welcome back!');
+      }
     } catch (error: unknown) {
       console.error('Sign in error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sign in');
@@ -136,8 +176,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      toast.success('Welcome!');
+      const { user } = await signInWithPopup(auth, provider);
+      
+      // Check if user has MFA enabled
+      const hasMFA = await checkMFAStatus(user);
+      
+      if (hasMFA) {
+        // Set pending MFA state and sign out temporarily
+        setPendingUser(user);
+        setPendingMFA(true);
+        setRequiresMFA(true);
+        await firebaseSignOut(auth);
+        console.log(`[MFA] User ${user.email} requires MFA verification`);
+      } else {
+        toast.success('Welcome!');
+      }
     } catch (error: unknown) {
       console.error('Google sign in error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to sign in with Google');
@@ -148,6 +201,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      
+      // Clear MFA state
+      setPendingMFA(false);
+      setRequiresMFA(false);
+      setPendingUser(null);
+      
       toast.success('Signed out successfully');
     } catch (error: unknown) {
       console.error('Sign out error:', error);
@@ -156,13 +215,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const completeMFASignIn = async () => {
+    if (!pendingUser) {
+      console.error('No pending user for MFA completion');
+      return;
+    }
+
+    try {
+      // Create or update user profile
+      await createOrUpdateUserProfile(pendingUser);
+      
+      // Set the user as authenticated
+      setUser(pendingUser);
+      
+      // Clear MFA state
+      setPendingMFA(false);
+      setRequiresMFA(false);
+      setPendingUser(null);
+      
+      toast.success('Welcome back!');
+      console.log(`[MFA] User ${pendingUser.email} successfully completed MFA`);
+    } catch (error) {
+      console.error('MFA completion error:', error);
+      toast.error('Failed to complete sign-in');
+      cancelMFASignIn();
+    }
+  };
+
+  const cancelMFASignIn = () => {
+    setPendingMFA(false);
+    setRequiresMFA(false);
+    setPendingUser(null);
+    toast.info('Sign-in cancelled');
+  };
+
   const value = {
     user,
     loading,
+    pendingMFA,
+    requiresMFA,
     signIn,
     signUp,
     signInWithGoogle,
     signOut,
+    completeMFASignIn,
+    cancelMFASignIn,
   };
 
   return (

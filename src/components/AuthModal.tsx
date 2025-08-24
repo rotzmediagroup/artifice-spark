@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
+import { TOTPVerification } from "./TOTPVerification";
 import { Mail, Lock, User, Chrome } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,7 +16,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, requiresMFA, completeMFASignIn, cancelMFASignIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [signInForm, setSignInForm] = useState({ email: "", password: "" });
   const [signUpForm, setSignUpForm] = useState({ 
@@ -35,8 +36,11 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
     setLoading(true);
     try {
       await signIn(signInForm.email, signInForm.password);
-      onOpenChange(false);
-      setSignInForm({ email: "", password: "" });
+      // Don't close the modal yet - MFA might be required
+      if (!requiresMFA) {
+        onOpenChange(false);
+        setSignInForm({ email: "", password: "" });
+      }
     } catch (error) {
       // Error is handled in the context
     } finally {
@@ -77,12 +81,25 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
     setLoading(true);
     try {
       await signInWithGoogle();
-      onOpenChange(false);
+      // Don't close the modal yet - MFA might be required
+      if (!requiresMFA) {
+        onOpenChange(false);
+      }
     } catch (error) {
       // Error is handled in the context
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMFASuccess = () => {
+    completeMFASignIn();
+    onOpenChange(false);
+    setSignInForm({ email: "", password: "" });
+  };
+
+  const handleMFACancel = () => {
+    cancelMFASignIn();
   };
 
   return (
@@ -265,6 +282,16 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
           Your data is securely stored and synced across devices
         </div>
       </DialogContent>
+      
+      {/* TOTP Verification Modal */}
+      <TOTPVerification
+        open={requiresMFA}
+        onOpenChange={() => {}} // Prevent closing via backdrop
+        onSuccess={handleMFASuccess}
+        onCancel={handleMFACancel}
+        title="Two-Factor Authentication Required"
+        description="Please complete authentication with your authenticator app"
+      />
     </Dialog>
   );
 }
