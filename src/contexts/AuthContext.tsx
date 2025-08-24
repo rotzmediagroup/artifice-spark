@@ -9,7 +9,14 @@ import {
   signInWithPopup,
   updateProfile
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp,
+  runTransaction
+} from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -39,8 +46,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to create or update user profile
+  const createOrUpdateUserProfile = async (user: User) => {
+    try {
+      const userProfileRef = doc(db, 'userProfiles', user.uid);
+      const userProfileDoc = await getDoc(userProfileRef);
+      
+      const isAdmin = user.email === 'jerome@rotz.host';
+      const now = new Date();
+      
+      if (!userProfileDoc.exists()) {
+        // Create new user profile
+        console.log(`Creating new user profile for: ${user.email}`);
+        await setDoc(userProfileRef, {
+          email: user.email,
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
+          credits: 0, // Start with 0 credits (admins get unlimited through isAdmin flag)
+          isAdmin,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          totalCreditsGranted: 0,
+          totalCreditsUsed: 0
+        });
+        
+        if (isAdmin) {
+          console.log(`[ADMIN PROFILE] Created super admin profile for: ${user.email}`);
+        } else {
+          console.log(`[USER PROFILE] Created standard user profile for: ${user.email}`);
+        }
+      } else {
+        // Update existing user profile
+        const existingData = userProfileDoc.data();
+        await runTransaction(db, async (transaction) => {
+          transaction.update(userProfileRef, {
+            email: user.email,
+            displayName: user.displayName || existingData.displayName || '',
+            photoURL: user.photoURL || existingData.photoURL || '',
+            isAdmin, // Update admin status in case it changed
+            lastLogin: serverTimestamp()
+          });
+        });
+        
+        console.log(`Updated user profile for: ${user.email}`);
+      }
+    } catch (error) {
+      console.error('Error creating/updating user profile:', error);
+      // Don't toast error to user as this is background functionality
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Create or update user profile when user signs in
+        await createOrUpdateUserProfile(user);
+      }
+      
       setUser(user);
       setLoading(false);
     });

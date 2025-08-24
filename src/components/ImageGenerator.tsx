@@ -18,6 +18,8 @@ import { useStorage } from "@/hooks/useStorage";
 import UserMenu from "@/components/UserMenu";
 import AuthModal from "@/components/AuthModal";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { CreditDisplay } from "@/components/CreditDisplay";
+import { useCredits } from "@/hooks/useCredits";
 import rotzLogo from "/lovable-uploads/76e648b8-1d96-4e74-9c2c-401522a50123.png";
 
 const artStyles = [
@@ -129,6 +131,7 @@ export default function ImageGenerator() {
     migrateFromLocalStorage 
   } = useFirestore();
   const { uploadReferenceImage, uploadFile, uploading, uploadProgress } = useStorage();
+  const { credits, hasCredits, deductCredits, canGenerateImages, getCreditStatusMessage, loading: creditsLoading } = useCredits();
 
   const [positivePrompt, setPositivePrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -426,6 +429,17 @@ export default function ImageGenerator() {
       return;
     }
 
+    // Check if user has sufficient credits
+    if (!canGenerateImages()) {
+      toast.error("No credits available! Contact administrator to get credits for image generation.");
+      return;
+    }
+
+    if (!hasCredits(batchCount)) {
+      toast.error(`Insufficient credits! You need ${batchCount} credit${batchCount > 1 ? 's' : ''} but only have ${credits}.`);
+      return;
+    }
+
     setIsGenerating(true);
     setGenerationProgress(0);
     
@@ -479,7 +493,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.3.3", // PWA title and icon fixes
+            app_version: "1.4.0", // Credit management system
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: batchCount,
@@ -631,6 +645,16 @@ export default function ImageGenerator() {
             
             // Save to history with Firebase URL
             await addImageToHistory(newImageData);
+            
+            // Deduct credits for successful generation
+            try {
+              await deductCredits(1);
+              console.log("Credit deducted for successful image generation");
+            } catch (creditError) {
+              console.error("Failed to deduct credits:", creditError);
+              // Note: We don't show error to user as image was already generated
+            }
+            
             toast.success("💾 Image saved to your collection!");
             
             // Clean up temporary blob URL
@@ -671,6 +695,15 @@ export default function ImageGenerator() {
           
           setGeneratedImages(prev => [...prev, imageUrl]);
           await addImageToHistory(newImageData);
+          
+          // Deduct credits for successful generation
+          try {
+            await deductCredits(1);
+            console.log("Credit deducted for successful image generation");
+          } catch (creditError) {
+            console.error("Failed to deduct credits:", creditError);
+          }
+          
           toast.success("🎨 Image generated successfully!");
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
@@ -696,6 +729,14 @@ export default function ImageGenerator() {
               }
             };
             await addImageToHistory(newImageData);
+            
+            // Deduct credits for each successful generation
+            try {
+              await deductCredits(1);
+              console.log("Credit deducted for successful image generation");
+            } catch (creditError) {
+              console.error("Failed to deduct credits:", creditError);
+            }
           }
           
           setGeneratedImages(result.images);
@@ -746,6 +787,15 @@ export default function ImageGenerator() {
               };
               
               await addImageToHistory(newImageData);
+              
+              // Deduct credits for successful generation
+              try {
+                await deductCredits(1);
+                console.log("Credit deducted for successful image generation");
+              } catch (creditError) {
+                console.error("Failed to deduct credits:", creditError);
+              }
+              
               toast.success("💾 Image processed and saved!");
               
               // Clean up temporary blob URL
@@ -1209,6 +1259,18 @@ export default function ImageGenerator() {
                   <span>{Math.round(generationProgress)}%</span>
                 </div>
                 <Progress value={generationProgress} className="w-full" />
+              </div>
+            )}
+
+            {/* Credit Display */}
+            {user && (
+              <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium">Credits Available:</Label>
+                  </div>
+                  <CreditDisplay variant="inline" />
+                </div>
               </div>
             )}
 
