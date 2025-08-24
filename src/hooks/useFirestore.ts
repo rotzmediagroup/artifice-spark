@@ -108,29 +108,67 @@ export const useFirestore = () => {
     }
 
     setLoading(true);
+    let imagesLoaded = false;
+    let presetsLoaded = false;
 
-    // Subscribe to image history
+    const checkAllLoaded = () => {
+      if (imagesLoaded && presetsLoaded) {
+        setLoading(false);
+      }
+    };
+
+    // Subscribe to image history with error handling
     const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
     const imageHistoryQuery = query(imageHistoryRef, orderBy('timestamp', 'desc'));
     
-    const unsubscribeImages = onSnapshot(imageHistoryQuery, (snapshot) => {
-      const images = snapshot.docs.map(convertImageData);
-      setImageHistory(images);
-    });
+    const unsubscribeImages = onSnapshot(
+      imageHistoryQuery, 
+      (snapshot) => {
+        const images = snapshot.docs.map(convertImageData);
+        setImageHistory(images);
+        imagesLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error('Error loading image history:', error);
+        setImageHistory([]);
+        imagesLoaded = true;
+        checkAllLoaded();
+      }
+    );
 
-    // Subscribe to presets
+    // Subscribe to presets with error handling
     const presetsRef = collection(db, `users/${user.uid}/presets`);
     const presetsQuery = query(presetsRef, orderBy('timestamp', 'desc'));
     
-    const unsubscribePresets = onSnapshot(presetsQuery, (snapshot) => {
-      const presetsData = snapshot.docs.map(convertPresetData);
-      setPresets(presetsData);
-      setLoading(false);
-    });
+    const unsubscribePresets = onSnapshot(
+      presetsQuery, 
+      (snapshot) => {
+        const presetsData = snapshot.docs.map(convertPresetData);
+        setPresets(presetsData);
+        presetsLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error('Error loading presets:', error);
+        setPresets([]);
+        presetsLoaded = true;
+        checkAllLoaded();
+      }
+    );
+
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Loading timeout reached, forcing completion');
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
 
     return () => {
       unsubscribeImages();
       unsubscribePresets();
+      clearTimeout(loadingTimeout);
     };
   }, [user]);
 
@@ -156,7 +194,7 @@ export const useFirestore = () => {
     
     try {
       const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
-      const updateData = { ...updates };
+      const updateData: any = { ...updates };
       if (updates.timestamp) {
         updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }
@@ -201,7 +239,7 @@ export const useFirestore = () => {
     
     try {
       const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
-      const updateData = { ...updates };
+      const updateData: any = { ...updates };
       if (updates.timestamp) {
         updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }

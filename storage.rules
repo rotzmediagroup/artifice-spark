@@ -9,5 +9,11 @@ service firebase.storage {
                          resource.size < 10 * 1024 * 1024 && // 10MB limit
                          resource.contentType.matches('image/.*');
     }
+    
+    // Users can access generated images
+    match /generated-images/{userId}/{imageId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true; // Allow public read access for sharing
+    }
   }
 }
