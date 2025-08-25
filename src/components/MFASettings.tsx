@@ -42,7 +42,11 @@ export const MFASettings: React.FC = () => {
   } = useTOTP();
 
   const [setupMode, setSetupMode] = useState(false);
-  const [totpSetup, setTotpSetup] = useState<any>(null);
+  const [totpSetup, setTotpSetup] = useState<{
+    secret: string;
+    qrCode: string;
+    backupCodes: string[];
+  } | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
   const [newBackupCodes, setNewBackupCodes] = useState<string[] | null>(null);

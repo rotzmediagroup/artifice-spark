@@ -43,12 +43,12 @@ export const useImageExtension = () => {
       }
       
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to extend image:', error);
       
-      if (error.code === 'permission-denied') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied') {
         toast.error('Maximum extensions reached. Please download your image to keep it permanently.');
-      } else if (error.code === 'not-found') {
+      } else if (error && typeof error === 'object' && 'code' in error && error.code === 'not-found') {
         toast.error('Image not found.');
       } else {
         toast.error('Failed to extend image storage. Please try again.');

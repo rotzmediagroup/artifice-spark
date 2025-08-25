@@ -43,6 +43,7 @@ export interface GeneratedImageData {
     videoFps?: number;
     videoFormat?: string;
     videoWithAudio?: boolean;
+    videoResolution?: string;
   };
   // Auto-deletion fields
   expiresAt: Date;           // Deletion date (14 days from creation)
@@ -57,7 +58,13 @@ export interface PresetData {
   positivePrompt: string;
   negativePrompt: string;
   selectedStyle: string;
-  aspectRatio: any;
+  aspectRatio: {
+    label: string;
+    value: string;
+    width: number;
+    height: number;
+    category: string;
+  };
   steps: number;
   cfgScale: number;
   timestamp: Date;
@@ -74,7 +81,7 @@ export const useFirestore = () => {
   const [loading, setLoading] = useState(true);
 
   // Convert Firestore data to our format
-  const convertImageData = (doc: { id: string; data: () => any }): GeneratedImageData => {
+  const convertImageData = (doc: { id: string; data: () => Record<string, unknown> }): GeneratedImageData => {
     const data = doc.data();
     const timestamp = data.timestamp?.toDate() || new Date();
     
@@ -116,7 +123,7 @@ export const useFirestore = () => {
     };
   };
 
-  const convertPresetData = (doc: { id: string; data: () => any }): PresetData => ({
+  const convertPresetData = (doc: { id: string; data: () => Record<string, unknown> }): PresetData => ({
     id: doc.id,
     name: doc.data().name,
     positivePrompt: doc.data().positivePrompt,
@@ -193,10 +200,8 @@ export const useFirestore = () => {
 
     // Set a timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('Loading timeout reached, forcing completion');
-        setLoading(false);
-      }
+      console.warn('Loading timeout reached, forcing completion');
+      setLoading(false);
     }, 10000); // 10 second timeout
 
     return () => {
@@ -204,7 +209,7 @@ export const useFirestore = () => {
       unsubscribePresets();
       clearTimeout(loadingTimeout);
     };
-  }, [user]);
+  }, [user, loading]);
 
   // Image history operations
   const addImageToHistory = async (imageData: Omit<GeneratedImageData, 'id'>) => {
@@ -230,7 +235,7 @@ export const useFirestore = () => {
     
     try {
       const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
-      const updateData: any = { ...updates };
+      const updateData: Partial<GeneratedImageData> & { timestamp?: Timestamp } = { ...updates };
       if (updates.timestamp) {
         updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }
@@ -275,7 +280,7 @@ export const useFirestore = () => {
     
     try {
       const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
-      const updateData: any = { ...updates };
+      const updateData: Partial<PresetData> & { timestamp?: Timestamp } = { ...updates };
       if (updates.timestamp) {
         updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }

@@ -201,7 +201,7 @@ export const manualCleanup = functions.https.onRequest(async (req, res) => {
   
   try {
     // Trigger the cleanup
-    await cleanupExpiredImages(null as any);
+    await cleanupExpiredImages(null);
     res.status(200).send('Cleanup completed successfully');
   } catch (error) {
     console.error('Manual cleanup failed:', error);

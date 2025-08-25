@@ -158,8 +158,8 @@ export const useTOTP = () => {
       
       await runTransaction(db, async (transaction) => {
         const settings: Omit<TOTPSettings, 'enrolledAt' | 'lastUsed'> & { 
-          enrolledAt: any; 
-          lastUsed: any; 
+          enrolledAt: ReturnType<typeof serverTimestamp>; 
+          lastUsed: ReturnType<typeof serverTimestamp> | null; 
         } = {
           userId: user.uid,
           enabled: true,

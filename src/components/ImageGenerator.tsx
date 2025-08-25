@@ -448,6 +448,7 @@ export default function ImageGenerator() {
   const [videoDuration, setVideoDuration] = useState(5); // Default 5 seconds
   const [videoFps, setVideoFps] = useState(24); // Default 24 FPS
   const [videoWithAudio, setVideoWithAudio] = useState(false); // Default silent
+  const [videoResolution, setVideoResolution] = useState('720p'); // Default 720p
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
@@ -543,7 +544,7 @@ export default function ImageGenerator() {
         }
       });
     };
-  }, []);
+  }, [generatedImages]);
 
   // Helper function to convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -704,20 +705,32 @@ export default function ImageGenerator() {
 
   const downloadImage = async (url: string, filename?: string) => {
     try {
-      const response = await fetch(url);
+      console.log("Downloading file:", url, "as:", filename);
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = filename || `rotz-ai-image-${Date.now()}.png`;
+      link.download = filename || `rotz-ai-${Date.now()}.${blob.type.includes('video') ? 'mp4' : 'png'}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
       lightTap(); // Haptic feedback for successful download
-      toast.success("Image downloaded!");
+      
+      const mediaType = blob.type.includes('video') ? 'Video' : 'Image';
+      toast.success(`${mediaType} downloaded successfully!`);
     } catch (error) {
-      toast.error("Failed to download image");
+      console.error("Download failed:", error);
+      toast.error("Failed to download file. Please try again.");
     }
   };
 
@@ -809,6 +822,7 @@ export default function ImageGenerator() {
 
     setIsGenerating(true);
     setGenerationProgress(0);
+    const generationStartTime = Date.now(); // Track generation start time
     
     // Simulate progress - slower for videos
     const progressInterval = setInterval(() => {
@@ -862,7 +876,9 @@ export default function ImageGenerator() {
               video_duration: videoDuration,
               video_fps: videoFps,
               video_format: "mp4",
-              video_audio: videoWithAudio
+              video_audio: videoWithAudio,
+              audio_state: videoWithAudio ? "with_audio" : "without_audio",
+              video_resolution: videoResolution
             }),
             seed: null // Could be added later for reproducibility
           },
@@ -937,15 +953,24 @@ export default function ImageGenerator() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
+        console.log(`Starting ${generationMode} generation request at:`, new Date().toISOString());
+        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'key': apiKey
+            'key': apiKey,
+            // Add headers that might help with long requests
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache'
           },
           body: JSON.stringify(payload),
-          signal: controller.signal
+          signal: controller.signal,
+          // Additional fetch options for long requests
+          keepalive: true
         });
+        
+        console.log(`Received response for ${generationMode} generation at:`, new Date().toISOString());
 
         // Clear timeout if request completes successfully
         clearTimeout(timeoutId);
@@ -962,7 +987,14 @@ export default function ImageGenerator() {
         const contentType = response.headers.get('content-type');
         console.log("Response content-type:", contentType);
         
-        let result: any;
+        let result: { 
+          is_binary: boolean; 
+          blob?: Blob; 
+          content_type?: string;
+          error?: string; 
+          message?: string;
+          generated_images?: string[];
+        };
         let imageBlob: Blob | null = null;
         
         if (contentType && (contentType.includes('image/png') || contentType.includes('video/mp4'))) {
@@ -1051,7 +1083,8 @@ export default function ImageGenerator() {
                   videoDuration: videoDuration,
                   videoFps: videoFps,
                   videoFormat: "mp4",
-                  videoWithAudio: videoWithAudio
+                  videoWithAudio: videoWithAudio,
+                  videoResolution: videoResolution
                 })
               },
               // Auto-deletion fields
@@ -1116,7 +1149,8 @@ export default function ImageGenerator() {
                 videoDuration: videoDuration,
                 videoFps: videoFps,
                 videoFormat: "mp4",
-                videoWithAudio: videoWithAudio
+                videoWithAudio: videoWithAudio,
+                videoResolution: videoResolution
               })
             },
             expiresAt: expirationDate,
@@ -1166,7 +1200,9 @@ export default function ImageGenerator() {
                 ...(generationMode === 'video' && {
                   videoDuration: videoDuration,
                   videoFps: videoFps,
-                  videoFormat: "mp4"
+                  videoFormat: "mp4",
+                  videoWithAudio: videoWithAudio,
+                  videoResolution: videoResolution
                 })
               },
               expiresAt: expirationDate,
@@ -1268,11 +1304,26 @@ export default function ImageGenerator() {
       
     } catch (error) {
       console.error("Error generating image:", error);
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        generationMode,
+        timeElapsed: Date.now() - generationStartTime
+      });
       
-      // Handle timeout errors specifically
+      // Handle different types of errors
       if (error.name === 'AbortError') {
         const mediaType = generationMode === 'video' ? 'video' : 'image';
-        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out. This may happen during high demand. Please try again.`);
+        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out after 15 minutes. Please try again.`);
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        // This is likely the 60-second timeout issue
+        const mediaType = generationMode === 'video' ? 'video' : 'image';
+        if (generationMode === 'video') {
+          toast.error('Video generation connection timed out, but your video may still be processing. Please check the Videos tab in a few minutes.');
+        } else {
+          toast.error(`Network error during ${mediaType} generation. Please try again.`);
+        }
       } else {
         toast.error(`Failed to generate ${generationMode === 'video' ? 'video' : 'image'}: ${error.message}`);
       }
@@ -1714,25 +1765,6 @@ export default function ImageGenerator() {
                 />
               </div>
               
-              {/* Video Generation Warning */}
-              {generationMode === 'video' && (
-                <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 animate-slide-up">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0">
-                      <Clock className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                        ⏱️ Video generation takes time
-                      </p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        Video processing typically takes 2-5 minutes. Please be patient while we create your video.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               {/* Video-specific controls */}
               {generationMode === 'video' && (
                 <>
@@ -1756,9 +1788,6 @@ export default function ImageGenerator() {
                       <span>3s</span>
                       <span>15s</span>
                       <span>30s</span>
-                    </div>
-                    <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      Estimated generation time: {videoDuration <= 10 ? '2-4' : videoDuration <= 20 ? '3-5' : '4-7'} minutes
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -1810,6 +1839,26 @@ export default function ImageGenerator() {
                         🔊 With Audio
                       </Button>
                     </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm">Resolution</Label>
+                    <Select 
+                      value={videoResolution} 
+                      onValueChange={(value) => {
+                        lightTap(); // Haptic feedback
+                        setVideoResolution(value);
+                      }}
+                    >
+                      <SelectTrigger className="glass border-accent/20">
+                        <SelectValue placeholder="Select resolution..." />
+                      </SelectTrigger>
+                      <SelectContent className="glass border-accent/20">
+                        <SelectItem value="480p">480p (Standard Definition)</SelectItem>
+                        <SelectItem value="720p">720p (HD)</SelectItem>
+                        <SelectItem value="1080p">1080p (Full HD)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </>
               )}
@@ -1889,12 +1938,22 @@ export default function ImageGenerator() {
               )}
             </Button>
             
-            {/* Video generation time notice - styled like other badges */}
-            {isGenerating && generationMode === 'video' && (
-              <div className="flex justify-center mt-3">
-                <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50">
-                  ⏳ Generating video might take several minutes. Please stand by.
-                </Badge>
+            {/* Video Generation Warning */}
+            {generationMode === 'video' && (
+              <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 animate-slide-up">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      ⏱️ Video generation takes time
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      Video processing typically takes 2-5 minutes. Please be patient while we create your video.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </Card>
@@ -2107,12 +2166,7 @@ export default function ImageGenerator() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Button
                                   variant="outline"
-                                  onClick={() => {
-                                    const link = document.createElement('a');
-                                    link.href = image.url;
-                                    link.download = `rotz-image-${image.id}${image.fileExtension || '.png'}`;
-                                    link.click();
-                                  }}
+                                  onClick={() => downloadImage(image.url, `rotz-image-${image.id}${image.fileExtension || (image.contentType === 'video' ? '.mp4' : '.png')}`)}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
                                   Download
