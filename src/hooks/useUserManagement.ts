@@ -461,12 +461,20 @@ export const useUserManagement = () => {
 
   // Delete user account (soft delete)
   const deleteUser = async (userId: string, reason: string): Promise<boolean> => {
+    console.log('[DELETE] Starting user deletion process');
+    console.log('[DELETE] Admin user:', user?.email);
+    console.log('[DELETE] Target user ID:', userId);
+    console.log('[DELETE] Delete reason:', reason);
+    
     if (!verifyAdminAccess()) {
-      toast.error('Insufficient permissions');
+      console.error('[DELETE] Admin access verification failed');
+      toast.error('Insufficient permissions - Admin access required');
       return false;
     }
+    console.log('[DELETE] Admin access verified successfully');
 
     if (userId === user!.uid) {
+      console.error('[DELETE] Attempt to delete own account blocked');
       toast.error('You cannot delete your own account');
       return false;
     }

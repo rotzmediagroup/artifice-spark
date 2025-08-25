@@ -717,7 +717,10 @@ export default function ImageGenerator() {
       console.log("Downloading file:", url, "as:", filename);
       
       // Configure timeout for download - videos need more time to download
-      const isVideo = filename?.includes('.mp4') || url.includes('generated-videos');
+      const isVideo = filename?.includes('.mp4') || 
+                      url.includes('generated-videos') ||
+                      url.includes('video') ||
+                      filename?.includes('video');
       const downloadTimeout = isVideo ? 300000 : 60000; // 5min for videos, 1min for images
       
       const controller = new AbortController();
@@ -753,7 +756,10 @@ export default function ImageGenerator() {
       
       // Handle different download error types
       if (error.name === 'AbortError') {
-        const isVideo = filename?.includes('.mp4') || url.includes('generated-videos');
+        const isVideo = filename?.includes('.mp4') || 
+                      url.includes('generated-videos') ||
+                      url.includes('video') ||
+                      filename?.includes('video');
         const mediaType = isVideo ? 'video' : 'image';
         const timeoutMin = isVideo ? '5 minutes' : '1 minute';
         toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} download timed out after ${timeoutMin}. The file may be too large. Try sharing the link instead.`);
@@ -2090,7 +2096,7 @@ export default function ImageGenerator() {
                               <Button 
                                 size="sm" 
                                 className="glass bg-white/10 text-white border-white/20 hover:bg-white/20"
-                                onClick={() => downloadImage(imageUrl)}
+                                onClick={() => downloadImage(imageUrl, `rotz-video-${Date.now()}.mp4`)}
                               >
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
@@ -2120,7 +2126,7 @@ export default function ImageGenerator() {
                                 <Button 
                                   size="sm" 
                                   className="glass text-white border-white/20 hover:bg-white/20"
-                                  onClick={() => downloadImage(imageUrl)}
+                                  onClick={() => downloadImage(imageUrl, `rotz-video-${Date.now()}.mp4`)}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
                                   Download
@@ -2473,7 +2479,7 @@ export default function ImageGenerator() {
                               
                               <div className="flex gap-2 pt-4">
                                 <Button 
-                                  onClick={() => downloadImage(video.url)}
+                                  onClick={() => downloadImage(video.url, `rotz-video-${video.id}.mp4`)}
                                   className="flex-1"
                                 >
                                   <Download className="h-4 w-4 mr-2" />
