@@ -150,30 +150,118 @@ npm run firebase:deploy    # Full deployment
 ## 📊 PROGRESS TRACKING
 
 ### 🔄 CURRENT SESSION LOG
-**Date:** [Update with current date]  
-**Time Started:** [Update with start time]  
-**Objective:** [Current development goal]
+**Date:** August 25, 2025  
+**Time Started:** 14:30 UTC  
+**Objective:** Emergency UI recovery and establishing UI protection guidelines
 
 #### Changes Made This Session:
-- [ ] [List specific changes made]
-- [ ] [Include file paths and function names]
-- [ ] [Note any configuration changes]
+- [x] Reverted to commit `e15457b` to restore working UI after accidental UI breakage
+- [x] Created comprehensive agents.md file with critical UI protection rules
+- [x] Established strict guidelines prohibiting UI changes without explicit permission
+- [x] Documented safe vs forbidden modification areas
+- [x] Successfully deployed working UI state to production
 
 #### Issues Encountered:
-- **Issue:** [Description of problem]
-- **Solution:** [How it was resolved]
-- **Files Modified:** [List of files changed]
+- **Issue:** UI was accidentally broken when attempting to fix admin panel hover color
+- **Solution:** Performed git reset --hard to commit e15457b and redeployed immediately
+- **Files Modified:** Created agents.md (new file)
 
 #### UI Impact Assessment:
-- **UI Changes Made:** [NONE - unless explicitly requested]
-- **Visual Verification:** [Confirm no unintended design changes]
-- **User Approval:** [Required for any UI modifications]
+- **UI Changes Made:** NONE - Reverted all changes to restore original UI
+- **Visual Verification:** UI restored to original working state at commit e15457b
+- **User Approval:** User demanded immediate revert due to UI breakage
 
 #### Deployment Status:
-- [ ] Build successful
-- [ ] Production deployed
-- [ ] Functionality verified
-- [ ] UI integrity confirmed
+- [x] Build successful
+- [x] Production deployed - https://rotz-image-generator.web.app
+- [x] Functionality verified
+- [x] UI integrity confirmed - restored to working state
+
+---
+
+## 🎯 CURRENT APPLICATION STATE (August 25, 2025)
+
+### 📍 WHERE WE LEFT OFF:
+
+#### **Current Git State:**
+- **Branch:** main
+- **Current Commit:** e964ee0 (agents.md creation)
+- **Base Working Commit:** e15457b (known working UI state)
+- **Deployment:** Live at https://rotz-image-generator.web.app
+
+#### **Pending Issues to Address (WITHOUT UI CHANGES):**
+
+1. **jerome@rotz.host Admin Issues:**
+   - **Hover Color Problem:** White text on white background in admin table (needs fixing WITHOUT changing overall UI)
+   - **User Deletion Not Working:** Permission/functionality issue preventing user deletion
+   - **Approach:** Add targeted fixes to specific elements only with user approval
+
+2. **Video Generation Timeout Fix:**
+   - **Status:** NOT APPLIED in current deployment (reverted with UI fix)
+   - **Issue:** False "Network error during video generation" messages
+   - **Solution Ready:** Remove timeouts for videos, keep heartbeat mechanism
+   - **Location:** Would modify src/components/ImageGenerator.tsx handleGenerate function
+
+3. **Video Download Fix:**
+   - **Status:** NOT APPLIED in current deployment (reverted with UI fix)
+   - **Issue:** Download button for videos not working
+   - **Solution Ready:** Add proper .mp4 filename parameter to download calls
+
+#### **Working Features:**
+- ✅ Image generation with all styles
+- ✅ User authentication and profiles
+- ✅ Credit system (image and video credits)
+- ✅ Admin panel accessible to jerome@rotz.host
+- ✅ Image history and management
+- ✅ Share functionality for images/videos
+- ❌ Video download buttons (known issue)
+- ❌ Video generation timeout handling (known issue)
+
+#### **Technology Stack:**
+- **Frontend:** React 18 + TypeScript + Vite
+- **UI:** shadcn-ui + Tailwind CSS (DO NOT MODIFY)
+- **Backend:** Firebase (Firestore, Auth, Storage)
+- **Deployment:** Firebase Hosting
+- **API:** N8N webhook for image/video generation
+
+#### **Key Files and Their States:**
+- `src/components/ImageGenerator.tsx` - Main UI (DO NOT TOUCH without permission)
+- `src/components/AdminPanel.tsx` - Has hover color issue on line 392
+- `src/hooks/useUserManagement.ts` - Has deleteUser function that needs debugging
+- `src/hooks/useAdmin.ts` - Admin verification logic
+- `firestore.rules` - Security rules for jerome@rotz.host
+
+#### **Next Session Should:**
+1. Read this agents.md file first
+2. Verify current deployment state
+3. Ask user which specific issue to address
+4. Use ExitPlanMode for any changes
+5. Make ONLY backend/logic changes unless UI changes explicitly requested
+6. Test thoroughly before deployment
+7. Update this section with new progress
+
+#### **Safe Commands to Start Next Session:**
+```bash
+# Check current state
+git status
+git log --oneline -5
+
+# Start development
+npm run dev
+
+# Test build
+npm run build
+
+# Deploy (only after testing)
+npm run firebase:deploy
+```
+
+#### **CRITICAL REMINDERS:**
+- 🚨 NO UI CHANGES without explicit "change the UI" instruction
+- 🚨 Current UI is working - DO NOT MODIFY design/styling
+- ✅ Backend improvements are safe
+- ✅ Console logging and debugging are safe
+- ⚠️ Always use ExitPlanMode for planning changes
 
 ---
 
