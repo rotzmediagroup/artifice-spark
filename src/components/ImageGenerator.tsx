@@ -2453,7 +2453,7 @@ export default function ImageGenerator() {
                               
                               <div className="flex gap-2 pt-4">
                                 <Button 
-                                  onClick={() => downloadImage(video.url, `rotz-video-${video.id}${video.fileExtension || '.mp4'}`)}
+                                  onClick={() => downloadImage(video.url)}
                                   className="flex-1"
                                 >
                                   <Download className="h-4 w-4 mr-2" />
