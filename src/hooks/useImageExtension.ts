@@ -60,18 +60,21 @@ export const useImageExtension = () => {
     }
   };
 
-  const canExtend = (extensionCount: number): boolean => {
-    return isAdmin || extensionCount < 3;
+  const canExtend = (extensionCount: number, contentType: 'image' | 'video' = 'image'): boolean => {
+    const maxExtensions = contentType === 'video' ? 1 : 3;
+    return isAdmin || extensionCount < maxExtensions;
   };
 
-  const getRemainingExtensions = (extensionCount: number): number | 'unlimited' => {
+  const getRemainingExtensions = (extensionCount: number, contentType: 'image' | 'video' = 'image'): number | 'unlimited' => {
     if (isAdmin) return 'unlimited';
-    return Math.max(0, 3 - extensionCount);
+    const maxExtensions = contentType === 'video' ? 1 : 3;
+    return Math.max(0, maxExtensions - extensionCount);
   };
 
-  const getExtensionButtonText = (extensionCount: number): string => {
+  const getExtensionButtonText = (extensionCount: number, contentType: 'image' | 'video' = 'image'): string => {
     if (isAdmin) return 'Extend (Admin)';
-    const remaining = 3 - extensionCount;
+    const maxExtensions = contentType === 'video' ? 1 : 3;
+    const remaining = maxExtensions - extensionCount;
     if (remaining <= 0) return 'Max Extensions';
     return `Extend (${remaining} left)`;
   };

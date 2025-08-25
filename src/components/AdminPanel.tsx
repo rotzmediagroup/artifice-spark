@@ -20,7 +20,7 @@ import {
   Search,
   History
 } from 'lucide-react';
-import { useUserManagement } from '@/hooks/useUserManagement';
+import { useUserManagement, type CreditTransaction } from '@/hooks/useUserManagement';
 import { useAdmin } from '@/hooks/useAdmin';
 import { toast } from 'sonner';
 

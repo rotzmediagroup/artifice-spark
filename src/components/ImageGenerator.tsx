@@ -997,18 +997,33 @@ export default function ImageGenerator() {
         };
         let imageBlob: Blob | null = null;
         
-        if (contentType && (contentType.includes('image/png') || contentType.includes('video/mp4'))) {
+        if (contentType && (contentType.includes('image/png') || contentType.includes('video/mp4') || contentType.includes('application/octet-stream'))) {
           // Handle binary PNG or MP4 response
           imageBlob = await response.blob();
-          const fileType = contentType.includes('video/mp4') ? 'video' : 'image';
-          console.log(`Received binary ${fileType} response, size:`, imageBlob.size);
+          
+          // Enhanced content type detection with fallbacks
+          let detectedType: 'image' | 'video' = 'image';
+          
+          if (contentType.includes('video/mp4')) {
+            detectedType = 'video';
+          } else if (contentType.includes('image/')) {
+            detectedType = 'image';
+          } else if (contentType.includes('application/octet-stream')) {
+            // Fallback: use generation mode for octet-stream
+            detectedType = generationMode;
+          } else {
+            // Final fallback: use generation mode
+            detectedType = generationMode;
+          }
+          
+          console.log(`Content-Type: ${contentType}, Generation Mode: ${generationMode}, Detected Type: ${detectedType}, Blob Size: ${imageBlob.size}`);
           
           result = {
             is_binary: true,
             blob: imageBlob,
             size: imageBlob.size,
-            contentType: fileType,
-            fileExtension: fileType === 'video' ? '.mp4' : '.png'
+            contentType: detectedType,
+            fileExtension: detectedType === 'video' ? '.mp4' : '.png'
           };
         } else {
           // Handle JSON response (fallback)
@@ -1019,18 +1034,26 @@ export default function ImageGenerator() {
             // If JSON parsing fails, try to handle as binary anyway
             console.warn("JSON parsing failed, attempting binary handling:", jsonError);
             imageBlob = await response.blob();
+            
+            // For fallback binary handling, use generation mode to determine type
+            const fallbackType = generationMode;
+            console.log(`Fallback binary handling: Generation Mode: ${generationMode}, Detected Type: ${fallbackType}, Blob Size: ${imageBlob.size}`);
+            
             result = {
               is_binary: true,
               blob: imageBlob,
-              size: imageBlob.size
+              size: imageBlob.size,
+              contentType: fallbackType,
+              fileExtension: fallbackType === 'video' ? '.mp4' : '.png'
             };
           }
         }
         
         // Handle the response and add to history
         if (result.is_binary && result.blob) {
-          // Handle binary PNG response from N8N webhook
-          console.log("Processing binary PNG response...", result.blob.size, "bytes");
+          // Handle binary media response from N8N webhook
+          const mediaTypeDesc = result.contentType || generationMode;
+          console.log(`Processing binary ${mediaTypeDesc} response...`, result.blob.size, "bytes");
           
           const imageId = generateImageId();
           const currentDims = getCurrentDimensions();
@@ -2007,27 +2030,53 @@ export default function ImageGenerator() {
                             />
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
-                          <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                className="glass text-white border-white/20 hover:bg-white/20"
-                                onClick={() => downloadImage(imageUrl)}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="glass text-white border-white/20 hover:bg-white/20"
-                                onClick={() => shareImage(imageUrl)}
-                              >
-                                <Share2 className="h-4 w-4 mr-2" />
-                                Share
-                              </Button>
+                          
+                          {/* Position buttons differently for video vs image to avoid blocking video controls */}
+                          {generationMode === 'video' ? (
+                            // For videos: Position buttons in top-right corner to avoid blocking video controls
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  className="glass text-white border-white/20 hover:bg-white/20"
+                                  onClick={() => downloadImage(imageUrl)}
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="glass text-white border-white/20 hover:bg-white/20"
+                                  onClick={() => shareImage(imageUrl)}
+                                >
+                                  <Share2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            // For images: Keep current bottom positioning
+                            <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  className="glass text-white border-white/20 hover:bg-white/20"
+                                  onClick={() => downloadImage(imageUrl)}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="glass text-white border-white/20 hover:bg-white/20"
+                                  onClick={() => shareImage(imageUrl)}
+                                >
+                                  <Share2 className="h-4 w-4 mr-2" />
+                                  Share
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -2161,7 +2210,7 @@ export default function ImageGenerator() {
                                   <div className="text-sm text-muted-foreground space-y-1">
                                     <p>Created: {image.timestamp.toLocaleString()}</p>
                                     <p>Expires: {image.expiresAt.toLocaleDateString()} ({expirationStatus.daysUntilExpiration} days left)</p>
-                                    <p>Extensions: {image.extensionCount}/3</p>
+                                    <p>Extensions: {image.extensionCount}/{(image.contentType || 'image') === 'video' ? '1' : '3'}</p>
                                   </div>
                                 </div>
                               </div>
@@ -2199,7 +2248,7 @@ export default function ImageGenerator() {
                               </div>
                               
                               {/* Extension Button */}
-                              {canExtend(image.extensionCount) && !image.isExpired && (
+                              {canExtend(image.extensionCount, image.contentType || 'image') && !image.isExpired && (
                                 <div className="pt-2">
                                   <Button
                                     onClick={() => extendImage(image.id)}
@@ -2215,7 +2264,7 @@ export default function ImageGenerator() {
                                     ) : (
                                       <>
                                         <Clock className="h-4 w-4 mr-2" />
-                                        {getExtensionButtonText(image.extensionCount)}
+                                        {getExtensionButtonText(image.extensionCount, image.contentType || 'image')}
                                       </>
                                     )}
                                   </Button>
@@ -2258,7 +2307,7 @@ export default function ImageGenerator() {
                         Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        • Regular users can extend storage up to 3 times (7 days each)
+                        • Regular users can extend storage up to 1 time (7 days extra)
                       </p>
                     </div>
                   </div>
@@ -2356,7 +2405,7 @@ export default function ImageGenerator() {
                                   </p>
                                   {video.extensionCount > 0 && (
                                     <p className="text-xs text-muted-foreground">
-                                      Extensions used: {video.extensionCount}/3
+                                      Extensions used: {video.extensionCount}/{(video.contentType || 'video') === 'video' ? '1' : '3'}
                                     </p>
                                   )}
                                 </div>
@@ -2393,7 +2442,7 @@ export default function ImageGenerator() {
                               </div>
                               
                               {/* Extension Button */}
-                              {canExtend(video.extensionCount) && !video.isExpired && (
+                              {canExtend(video.extensionCount, video.contentType || 'video') && !video.isExpired && (
                                 <div className="pt-2">
                                   <Button
                                     variant="outline"
@@ -2415,7 +2464,7 @@ export default function ImageGenerator() {
                                     ) : (
                                       <>
                                         <Clock className="h-4 w-4 mr-2" />
-                                        {getExtensionButtonText(image.extensionCount)}
+                                        {getExtensionButtonText(video.extensionCount, video.contentType || 'video')}
                                       </>
                                     )}
                                   </Button>

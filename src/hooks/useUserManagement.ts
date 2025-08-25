@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from './useAdmin';
 import { toast } from 'sonner';
 
-interface UserProfile {
+export interface UserProfile {
   id: string;
   email: string;
   displayName: string;
@@ -28,7 +28,7 @@ interface UserProfile {
   totalCreditsUsed: number;
 }
 
-interface CreditTransaction {
+export interface CreditTransaction {
   id: string;
   userId: string;
   adminUserId: string;

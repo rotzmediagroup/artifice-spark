@@ -140,9 +140,13 @@ exports.extendImageExpiration = functions.https.onCall(async (data, context) => 
             throw new functions.https.HttpsError('not-found', 'Image data not found');
         }
         const currentExtensionCount = imageData.extensionCount || 0;
+        const contentType = imageData.contentType || 'image'; // Default to 'image' for backwards compatibility
+        // Different extension limits based on content type
+        const maxExtensions = contentType === 'video' ? 1 : 3;
+        const mediaTypeName = contentType === 'video' ? 'Videos' : 'Images';
         // Check extension limit for non-admin users
-        if (!isAdmin && currentExtensionCount >= 3) {
-            throw new functions.https.HttpsError('permission-denied', 'Maximum extensions reached. Regular users can extend up to 3 times.');
+        if (!isAdmin && currentExtensionCount >= maxExtensions) {
+            throw new functions.https.HttpsError('permission-denied', `Maximum extensions reached. ${mediaTypeName} can be extended up to ${maxExtensions} time${maxExtensions === 1 ? '' : 's'}.`);
         }
         // Calculate new expiration date (add 7 days)
         const currentExpiresAt = imageData.expiresAt.toDate();
@@ -167,7 +171,7 @@ exports.extendImageExpiration = functions.https.onCall(async (data, context) => 
             success: true,
             newExpiresAt: newExpiresAt.toISOString(),
             extensionCount: currentExtensionCount + 1,
-            remainingExtensions: isAdmin ? 'unlimited' : (3 - (currentExtensionCount + 1)),
+            remainingExtensions: isAdmin ? 'unlimited' : (maxExtensions - (currentExtensionCount + 1)),
         };
     }
     catch (error) {
