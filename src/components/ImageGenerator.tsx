@@ -706,10 +706,21 @@ export default function ImageGenerator() {
   const downloadImage = async (url: string, filename?: string) => {
     try {
       console.log("Downloading file:", url, "as:", filename);
+      
+      // Configure timeout for download - videos need more time to download
+      const isVideo = filename?.includes('.mp4') || url.includes('generated-videos');
+      const downloadTimeout = isVideo ? 300000 : 60000; // 5min for videos, 1min for images
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), downloadTimeout);
+      
       const response = await fetch(url, {
         method: 'GET',
-        mode: 'cors'
+        mode: 'cors',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -730,7 +741,18 @@ export default function ImageGenerator() {
       toast.success(`${mediaType} downloaded successfully!`);
     } catch (error) {
       console.error("Download failed:", error);
-      toast.error("Failed to download file. Please try again.");
+      
+      // Handle different download error types
+      if (error.name === 'AbortError') {
+        const isVideo = filename?.includes('.mp4') || url.includes('generated-videos');
+        const mediaType = isVideo ? 'video' : 'image';
+        const timeoutMin = isVideo ? '5 minutes' : '1 minute';
+        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} download timed out after ${timeoutMin}. The file may be too large. Try sharing the link instead.`);
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        toast.error("Network error during download. Please check your connection and try again.");
+      } else {
+        toast.error("Failed to download file. Please try again.");
+      }
     }
   };
 
@@ -949,7 +971,7 @@ export default function ImageGenerator() {
         }
         
         // Configure timeout based on generation mode - videos need much longer
-        const timeoutDuration = generationMode === 'video' ? 900000 : 120000; // 15min for video, 2min for images
+        const timeoutDuration = generationMode === 'video' ? 600000 : 120000; // 10min for video, 2min for images
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
@@ -1338,7 +1360,8 @@ export default function ImageGenerator() {
       // Handle different types of errors
       if (error.name === 'AbortError') {
         const mediaType = generationMode === 'video' ? 'video' : 'image';
-        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out after 15 minutes. Please try again.`);
+        const timeoutMin = generationMode === 'video' ? '10 minutes' : '2 minutes';
+        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out after ${timeoutMin}. Please try again.`);
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         // This is likely the 60-second timeout issue
         const mediaType = generationMode === 'video' ? 'video' : 'image';
