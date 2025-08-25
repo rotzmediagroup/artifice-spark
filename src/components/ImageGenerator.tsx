@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Heart, Trash2, LogIn, Clock, AlertTriangle } from "lucide-react";
+import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Heart, Trash2, LogIn, Clock, AlertTriangle, Video, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFirestore";
@@ -443,6 +443,9 @@ export default function ImageGenerator() {
   const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
+  const [videoDuration, setVideoDuration] = useState(5); // Default 5 seconds
+  const [videoFps, setVideoFps] = useState(24); // Default 24 FPS
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
@@ -603,6 +606,12 @@ export default function ImageGenerator() {
   const handleTabChange = (value: string) => {
     lightTap(); // Light haptic feedback for tab navigation
     // Tab state is handled by the Tabs component itself
+  };
+
+  const handleModeChange = (mode: 'image' | 'video') => {
+    lightTap(); // Light haptic feedback for mode switch
+    setGenerationMode(mode);
+    toast.success(`Switched to ${mode} generation mode`);
   };
 
   const openAuthModal = () => {
@@ -782,9 +791,10 @@ export default function ImageGenerator() {
       return;
     }
 
-    if (!hasCredits(1)) {
+    const requiredCredits = generationMode === 'video' ? 10 : 1;
+    if (!hasCredits(requiredCredits)) {
       error(); // Error haptic pattern
-      toast.error(`Insufficient credits! You need 1 credit but only have ${credits}.`);
+      toast.error(`Insufficient credits! You need ${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} but only have ${credits}.`);
       return;
     }
 
@@ -815,6 +825,7 @@ export default function ImageGenerator() {
       const payload = {
           // Generation settings - primary parameters
           generation_settings: {
+            generation_type: generationMode, // 'image' or 'video'
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
             style: selectedStyle || undefined,
@@ -836,6 +847,12 @@ export default function ImageGenerator() {
               type: referenceImageFile.type,
               lastModified: referenceImageFile.lastModified
             } : null,
+            // Video-specific settings (only included if generating video)
+            ...(generationMode === 'video' && {
+              video_duration: videoDuration,
+              video_fps: videoFps,
+              video_format: "mp4"
+            }),
             seed: null // Could be added later for reproducibility
           },
           
@@ -858,7 +875,7 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.7.9", // Added Reference Image Binary Upload
+            app_version: "1.8.0", // Added Video Generation Support
             generation_mode: referenceImageUrl ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
@@ -969,7 +986,7 @@ export default function ImageGenerator() {
           
           // Show image immediately
           setGeneratedImages(prev => [...prev, tempImageUrl]);
-          toast.success("🎨 Image generated! Uploading to storage...");
+          toast.success(`🎨 ${generationMode === 'video' ? 'Video' : 'Image'} generated! Uploading to storage...`);
           
           try {
             // Upload binary image to Firebase Storage in background
@@ -1015,8 +1032,8 @@ export default function ImageGenerator() {
             
             // Deduct credits for successful generation
             try {
-              await deductCredits(1);
-              console.log("Credit deducted for successful image generation");
+              await deductCredits(requiredCredits);
+              console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
             } catch (creditError) {
               console.error("Failed to deduct credits:", creditError);
               // Note: We don't show error to user as image was already generated
@@ -1070,14 +1087,14 @@ export default function ImageGenerator() {
           
           // Deduct credits for successful generation
           try {
-            await deductCredits(1);
-            console.log("Credit deducted for successful image generation");
+            await deductCredits(requiredCredits);
+            console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
           } catch (creditError) {
             console.error("Failed to deduct credits:", creditError);
           }
           
           success(); // Success haptic pattern
-          toast.success("🎨 Image generated successfully!");
+          toast.success(`🎨 ${generationMode === 'video' ? 'Video' : 'Image'} generated successfully!`);
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
           for (const imageUrl of result.images) {
@@ -1110,8 +1127,8 @@ export default function ImageGenerator() {
             
             // Deduct credits for each successful generation
             try {
-              await deductCredits(1);
-              console.log("Credit deducted for successful image generation");
+              await deductCredits(requiredCredits);
+              console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
             } catch (creditError) {
               console.error("Failed to deduct credits:", creditError);
             }
@@ -1119,7 +1136,7 @@ export default function ImageGenerator() {
           
           setGeneratedImages(result.images);
           success(); // Success haptic pattern
-          toast.success(`🎨 ${result.images.length} images generated successfully!`);
+          toast.success(`🎨 ${result.images.length} ${generationMode === 'video' ? 'video' : 'image'}${result.images.length > 1 ? 's' : ''} generated successfully!`);
         } else {
           console.log("Unexpected response format:", result);
           
@@ -1243,11 +1260,38 @@ export default function ImageGenerator() {
             />
           </div>
           <h1 className="text-5xl font-bold text-gradient mb-4 animate-slide-up">
-            AI Image Generator
+            AI {generationMode === 'video' ? 'Video' : 'Image'} Generator
           </h1>
           <p className="text-muted-foreground text-xl animate-fade-in" style={{animationDelay: '0.2s'}}>
-            Create stunning images with professional AI technology
+            Create stunning {generationMode === 'image' ? 'images' : 'videos'} with professional AI technology
           </p>
+          
+          {/* Generation Mode Toggle */}
+          <div className="flex justify-center mb-8 animate-slide-up" style={{animationDelay: '0.3s'}}>
+            <div className="glass p-1 rounded-lg border border-accent/20">
+              <div className="flex">
+                <Button
+                  variant={generationMode === 'image' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleModeChange('image')}
+                  className={`flex items-center gap-2 ${generationMode === 'image' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
+                >
+                  <Camera className="h-4 w-4" />
+                  Images
+                </Button>
+                <Button
+                  variant={generationMode === 'video' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleModeChange('video')}
+                  className={`flex items-center gap-2 ${generationMode === 'video' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
+                >
+                  <Video className="h-4 w-4" />
+                  Videos
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {user && (
             <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>Welcome back, {user.displayName || user.email}</span>
@@ -1321,72 +1365,74 @@ export default function ImageGenerator() {
               />
             </div>
 
-            {/* Reference Image Upload */}
-            <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
-              <Label className="flex items-center gap-3 text-lg font-medium">
-                <div className="p-1 rounded bg-gradient-to-r from-green-500/20 to-blue-500/20">
-                  <ImageIcon className="h-5 w-5 text-accent animate-pulse" />
-                </div>
-                Reference Image
-                <Badge variant="outline" className="text-xs">Optional</Badge>
-              </Label>
-              
-              {!referenceImageUrl ? (
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  className="border-2 border-dashed border-accent/30 rounded-lg p-8 text-center hover:border-accent/50 transition-colors duration-300 cursor-pointer glass"
-                  onClick={() => user ? (lightTap(), document.getElementById('image-upload')?.click()) : openAuthModal()}
-                >
-                  {uploading ? (
-                    <div className="space-y-4">
-                      <div className="w-12 h-12 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto"></div>
-                      <p className="text-muted-foreground">Uploading... {uploadProgress}%</p>
+            {/* Reference Image Upload - Only show for image mode */}
+            {generationMode === 'image' && (
+              <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
+                <Label className="flex items-center gap-3 text-lg font-medium">
+                  <div className="p-1 rounded bg-gradient-to-r from-green-500/20 to-blue-500/20">
+                    <ImageIcon className="h-5 w-5 text-accent animate-pulse" />
+                  </div>
+                  Reference Image
+                  <Badge variant="outline" className="text-xs">Optional</Badge>
+                </Label>
+                
+                {!referenceImageUrl ? (
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    className="border-2 border-dashed border-accent/30 rounded-lg p-8 text-center hover:border-accent/50 transition-colors duration-300 cursor-pointer glass"
+                    onClick={() => user ? (lightTap(), document.getElementById('image-upload')?.click()) : openAuthModal()}
+                  >
+                    {uploading ? (
+                      <div className="space-y-4">
+                        <div className="w-12 h-12 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto"></div>
+                        <p className="text-muted-foreground">Uploading... {uploadProgress}%</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-12 w-12 mx-auto mb-4 text-accent/60" />
+                        <p className="text-muted-foreground mb-2">
+                          {user ? "Drag & drop an image here, or click to browse" : "Sign in to upload reference images"}
+                        </p>
+                        <p className="text-sm text-muted-foreground/70">
+                          Supports JPG, PNG, WEBP up to 10MB
+                        </p>
+                      </>
+                    )}
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
+                      className="hidden"
+                      disabled={!user}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative rounded-lg overflow-hidden glass border border-accent/30">
+                    <img
+                      src={referenceImageUrl}
+                      alt="Reference"
+                      className="w-full h-40 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <Button
+                        onClick={handleRemoveImage}
+                        size="sm"
+                        variant="destructive"
+                        className="bg-red-500/80 hover:bg-red-600"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
                     </div>
-                  ) : (
-                    <>
-                      <Upload className="h-12 w-12 mx-auto mb-4 text-accent/60" />
-                      <p className="text-muted-foreground mb-2">
-                        {user ? "Drag & drop an image here, or click to browse" : "Sign in to upload reference images"}
-                      </p>
-                      <p className="text-sm text-muted-foreground/70">
-                        Supports JPG, PNG, WEBP up to 10MB
-                      </p>
-                    </>
-                  )}
-                  <input
-                    id="image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                    className="hidden"
-                    disabled={!user}
-                  />
-                </div>
-              ) : (
-                <div className="relative rounded-lg overflow-hidden glass border border-accent/30">
-                  <img
-                    src={referenceImageUrl}
-                    alt="Reference"
-                    className="w-full h-40 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <Button
-                      onClick={handleRemoveImage}
-                      size="sm"
-                      variant="destructive"
-                      className="bg-red-500/80 hover:bg-red-600"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Remove
-                    </Button>
+                    <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-medium">
+                      Reference Image
+                    </div>
                   </div>
-                  <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-medium">
-                    Reference Image
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Prompt Templates */}
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.3s'}}>
@@ -1597,6 +1643,54 @@ export default function ImageGenerator() {
                   className="w-full"
                 />
               </div>
+              
+              {/* Video-specific controls */}
+              {generationMode === 'video' && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      Duration: {videoDuration}s
+                    </Label>
+                    <Slider
+                      value={[videoDuration]}
+                      onValueChange={(value) => {
+                        lightTap(); // Haptic feedback
+                        setVideoDuration(value[0]);
+                      }}
+                      max={30}
+                      min={3}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>3s</span>
+                      <span>15s</span>
+                      <span>30s</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Frame Rate: {videoFps} FPS</Label>
+                    <Select 
+                      value={videoFps.toString()} 
+                      onValueChange={(value) => {
+                        lightTap(); // Haptic feedback
+                        setVideoFps(parseInt(value));
+                      }}
+                    >
+                      <SelectTrigger className="glass border-accent/20">
+                        <SelectValue placeholder="Select frame rate..." />
+                      </SelectTrigger>
+                      <SelectContent className="glass border-accent/20">
+                        <SelectItem value="12">12 FPS</SelectItem>
+                        <SelectItem value="24">24 FPS (Cinema)</SelectItem>
+                        <SelectItem value="30">30 FPS (Standard)</SelectItem>
+                        <SelectItem value="60">60 FPS (Smooth)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
               {presets.length > 0 && user && (
                 <div className="space-y-2">
@@ -1632,11 +1726,21 @@ export default function ImageGenerator() {
             {/* Credit Display */}
             {user && (
               <div className="p-4 rounded-lg bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm font-medium">Credits Available:</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Credits Available:</Label>
+                    </div>
+                    <CreditDisplay variant="inline" />
                   </div>
-                  <CreditDisplay variant="inline" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Image generation cost:</span>
+                    <span className="font-medium">1 credit</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Video generation cost:</span>
+                    <span className="font-medium">10 credits</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1650,12 +1754,12 @@ export default function ImageGenerator() {
               {isGenerating ? (
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Generating Magic...
+                  Generating {generationMode === 'video' ? 'Video' : 'Magic'}...
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Zap className="h-6 w-6" />
-                  Generate Images
+                  Generate {generationMode === 'video' ? 'Video' : 'Images'}
                   <Star className="h-5 w-5 animate-pulse" />
                 </div>
               )}
@@ -1668,7 +1772,7 @@ export default function ImageGenerator() {
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="current" className="flex items-center gap-2">
                   <Image className="h-4 w-4" />
-                  Current Images
+                  Current {generationMode === 'video' ? 'Videos' : 'Images'}
                 </TabsTrigger>
                 <TabsTrigger value="history" className="flex items-center gap-2">
                   <History className="h-4 w-4" />
@@ -1681,7 +1785,7 @@ export default function ImageGenerator() {
                   <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
                     <Image className="h-6 w-6 text-accent" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gradient">Generated Images</h2>
+                  <h2 className="text-2xl font-bold text-gradient">Generated {generationMode === 'video' ? 'Videos' : 'Images'}</h2>
                 </div>
 
                 {generatedImages.length > 0 ? (
