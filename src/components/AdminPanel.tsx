@@ -389,7 +389,7 @@ export const AdminPanel: React.FC = () => {
                     </thead>
                     <tbody>
                       {filteredUsers.map((user) => (
-                        <tr key={user.id} className="border-b hover:bg-gray-50">
+                        <tr key={user.id} className="border-b hover:bg-gray-50 hover:[&_.text-muted-foreground]:text-gray-700">
                           <td className="p-2">
                             <div>
                               <p className="font-medium">{user.displayName || 'No name'}</p>
