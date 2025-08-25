@@ -18,11 +18,14 @@ import {
   TrendingUp,
   Calendar,
   Search,
-  History
+  History,
+  Shield,
+  UserX
 } from 'lucide-react';
-import { useUserManagement, type CreditTransaction } from '@/hooks/useUserManagement';
+import { useUserManagement, type CreditTransaction, type UserProfile } from '@/hooks/useUserManagement';
 import { useAdmin } from '@/hooks/useAdmin';
 import { toast } from 'sonner';
+import { UserAccountDialog } from './UserAccountDialog';
 
 interface CreditActionDialogProps {
   userId: string;
@@ -188,11 +191,23 @@ const CreditActionDialog: React.FC<CreditActionDialogProps> = ({
 
 export const AdminPanel: React.FC = () => {
   const { isAdmin } = useAdmin();
-  const { users, loading, recentTransactions, getSystemStats, getUserTransactions } = useUserManagement();
+  const { 
+    users, 
+    loading, 
+    recentTransactions, 
+    getSystemStats, 
+    getUserTransactions,
+    suspendUser,
+    unsuspendUser,
+    deleteUser,
+    reactivateUser
+  } = useUserManagement();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userTransactions, setUserTransactions] = useState<CreditTransaction[]>([]);
   const [showTransactions, setShowTransactions] = useState(false);
+  const [accountDialogUser, setAccountDialogUser] = useState<UserProfile | null>(null);
+  const [accountActionLoading, setAccountActionLoading] = useState(false);
 
   // Don't render if not admin
   if (!isAdmin) {
@@ -201,16 +216,48 @@ export const AdminPanel: React.FC = () => {
 
   const stats = getSystemStats();
   
-  const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.displayName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.displayName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Show all users by default, can add status filtering here later
+    return matchesSearch;
+  });
 
   const handleViewTransactions = async (userId: string) => {
     setSelectedUserId(userId);
     const transactions = await getUserTransactions(userId);
     setUserTransactions(transactions);
     setShowTransactions(true);
+  };
+
+  const handleAccountAction = async (action: string, userId: string, reason?: string) => {
+    setAccountActionLoading(true);
+    try {
+      let success = false;
+      switch (action) {
+        case 'suspend':
+          success = await suspendUser(userId, reason || '');
+          break;
+        case 'unsuspend':
+          success = await unsuspendUser(userId);
+          break;
+        case 'delete':
+          success = await deleteUser(userId, reason || '');
+          break;
+        case 'reactivate':
+          success = await reactivateUser(userId);
+          break;
+      }
+      if (success) {
+        toast.success(`User ${action}ed successfully`);
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} user:`, error);
+      toast.error(`Failed to ${action} user`);
+    } finally {
+      setAccountActionLoading(false);
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -319,6 +366,7 @@ export const AdminPanel: React.FC = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-2">User</th>
+                        <th className="text-left p-2">Status</th>
                         <th className="text-left p-2">Credits (Img/Vid)</th>
                         <th className="text-left p-2">Total Used</th>
                         <th className="text-left p-2">MFA Status</th>
@@ -338,6 +386,19 @@ export const AdminPanel: React.FC = () => {
                                   <Crown className="h-3 w-3 mr-1" />
                                   Admin
                                 </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <div className="space-y-1">
+                              {user.deletedAt ? (
+                                <Badge variant="destructive">Deleted</Badge>
+                              ) : user.isSuspended ? (
+                                <Badge variant="secondary">Suspended</Badge>
+                              ) : !user.isActive ? (
+                                <Badge variant="outline">Inactive</Badge>
+                              ) : (
+                                <Badge variant="default">Active</Badge>
                               )}
                             </div>
                           </td>
@@ -394,6 +455,16 @@ export const AdminPanel: React.FC = () => {
                                 <History className="h-4 w-4 mr-1" />
                                 History
                               </Button>
+                              {!user.isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setAccountDialogUser(user)}
+                                >
+                                  <Shield className="h-4 w-4 mr-1" />
+                                  Account
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -447,18 +518,12 @@ export const AdminPanel: React.FC = () => {
                 <p className="text-2xl font-bold text-blue-600">{stats.totalCreditsUsed}</p>
               </div>
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Credits Remaining</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {stats.totalCreditsGranted - stats.totalCreditsUsed}
-                </p>
+                <p className="text-sm text-muted-foreground">Suspended Users</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.suspendedUsers || 0}</p>
               </div>
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Usage Rate</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {stats.totalCreditsGranted > 0 
-                    ? Math.round((stats.totalCreditsUsed / stats.totalCreditsGranted) * 100) 
-                    : 0}%
-                </p>
+                <p className="text-sm text-muted-foreground">Deleted Users</p>
+                <p className="text-2xl font-bold text-red-600">{stats.deletedUsers || 0}</p>
               </div>
             </div>
           </Card>
@@ -534,6 +599,26 @@ export const AdminPanel: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* User Account Management Dialog */}
+      <UserAccountDialog
+        isOpen={!!accountDialogUser}
+        onClose={() => setAccountDialogUser(null)}
+        user={accountDialogUser}
+        onSuspendUser={async (userId, reason) => {
+          await handleAccountAction('suspend', userId, reason);
+        }}
+        onUnsuspendUser={async (userId) => {
+          await handleAccountAction('unsuspend', userId);
+        }}
+        onDeleteUser={async (userId, reason) => {
+          await handleAccountAction('delete', userId, reason);
+        }}
+        onReactivateUser={async (userId) => {
+          await handleAccountAction('reactivate', userId);
+        }}
+        isLoading={accountActionLoading}
+      />
     </div>
   );
 };

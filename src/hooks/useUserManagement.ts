@@ -29,14 +29,23 @@ export interface UserProfile {
   lastLogin: Date;
   totalCreditsGranted: number;
   totalCreditsUsed: number;
+  // Account management fields
+  isActive: boolean;
+  isSuspended: boolean;
+  suspendedAt: Date | null;
+  suspendedBy: string | null;
+  suspensionReason: string | null;
+  deletedAt: Date | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
 }
 
 export interface CreditTransaction {
   id: string;
   userId: string;
   adminUserId: string;
-  type: 'grant' | 'deduct' | 'used' | 'adjustment';
-  creditType: 'image' | 'video';
+  type: 'grant' | 'deduct' | 'used' | 'adjustment' | 'suspend' | 'unsuspend' | 'delete' | 'reactivate';
+  creditType?: 'image' | 'video'; // Optional for account management actions
   amount: number;
   previousBalance: number;
   newBalance: number;
@@ -77,7 +86,16 @@ export const useUserManagement = () => {
             imageCredits: data.imageCredits ?? data.credits ?? 0,
             videoCredits: data.videoCredits ?? 0,
             createdAt: data.createdAt?.toDate() || new Date(),
-            lastLogin: data.lastLogin?.toDate() || new Date()
+            lastLogin: data.lastLogin?.toDate() || new Date(),
+            // Account management defaults for backwards compatibility
+            isActive: data.isActive ?? true,
+            isSuspended: data.isSuspended ?? false,
+            suspendedAt: data.suspendedAt?.toDate() || null,
+            suspendedBy: data.suspendedBy ?? null,
+            suspensionReason: data.suspensionReason ?? null,
+            deletedAt: data.deletedAt?.toDate() || null,
+            deletedBy: data.deletedBy ?? null,
+            deleteReason: data.deleteReason ?? null
           } as UserProfile;
         });
         
@@ -145,7 +163,7 @@ export const useUserManagement = () => {
         const newTotalGranted = (data.totalCreditsGranted || 0) + amount;
         
         // Update user profile with new dual credit structure
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           totalCreditsGranted: newTotalGranted
         };
         
@@ -215,7 +233,7 @@ export const useUserManagement = () => {
         const newCredits = Math.max(0, currentCredits - amount); // Don't allow negative credits
         
         // Update user profile with new dual credit structure
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         
         if (creditType === 'image') {
           updateData.imageCredits = newCredits;
@@ -312,6 +330,265 @@ export const useUserManagement = () => {
     }
   };
 
+  // Suspend user account
+  const suspendUser = async (userId: string, reason: string): Promise<boolean> => {
+    if (!verifyAdminAccess()) {
+      toast.error('Insufficient permissions');
+      return false;
+    }
+
+    if (userId === user!.uid) {
+      toast.error('You cannot suspend your own account');
+      return false;
+    }
+
+    try {
+      const userProfileRef = doc(db, 'userProfiles', userId);
+      
+      const success = await runTransaction(db, async (transaction) => {
+        const profileDoc = await transaction.get(userProfileRef);
+        
+        if (!profileDoc.exists()) {
+          throw new Error('User profile not found');
+        }
+
+        const userData = profileDoc.data();
+        
+        if (userData.isAdmin) {
+          throw new Error('Cannot suspend admin accounts');
+        }
+
+        if (userData.isSuspended) {
+          throw new Error('User is already suspended');
+        }
+
+        // Update user profile
+        transaction.update(userProfileRef, {
+          isSuspended: true,
+          suspendedAt: new Date(),
+          suspendedBy: user!.uid,
+          suspensionReason: reason
+        });
+
+        // Log the action
+        const transactionRef = doc(collection(db, 'creditTransactions'));
+        transaction.set(transactionRef, {
+          userId,
+          adminUserId: user!.uid,
+          type: 'suspend',
+          amount: 0,
+          previousBalance: 0,
+          newBalance: 0,
+          reason,
+          timestamp: new Date()
+        });
+
+        return true;
+      });
+
+      if (success) {
+        toast.success('User account suspended successfully');
+        console.log(`[ADMIN ACTION] Suspended user ${userId} - Reason: ${reason}`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error suspending user:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to suspend user. Please try again.');
+      return false;
+    }
+  };
+
+  // Unsuspend user account
+  const unsuspendUser = async (userId: string, reason: string): Promise<boolean> => {
+    if (!verifyAdminAccess()) {
+      toast.error('Insufficient permissions');
+      return false;
+    }
+
+    try {
+      const userProfileRef = doc(db, 'userProfiles', userId);
+      
+      const success = await runTransaction(db, async (transaction) => {
+        const profileDoc = await transaction.get(userProfileRef);
+        
+        if (!profileDoc.exists()) {
+          throw new Error('User profile not found');
+        }
+
+        const userData = profileDoc.data();
+        
+        if (!userData.isSuspended) {
+          throw new Error('User is not suspended');
+        }
+
+        // Update user profile
+        transaction.update(userProfileRef, {
+          isSuspended: false,
+          suspendedAt: null,
+          suspendedBy: null,
+          suspensionReason: null
+        });
+
+        // Log the action
+        const transactionRef = doc(collection(db, 'creditTransactions'));
+        transaction.set(transactionRef, {
+          userId,
+          adminUserId: user!.uid,
+          type: 'unsuspend',
+          amount: 0,
+          previousBalance: 0,
+          newBalance: 0,
+          reason,
+          timestamp: new Date()
+        });
+
+        return true;
+      });
+
+      if (success) {
+        toast.success('User account reactivated successfully');
+        console.log(`[ADMIN ACTION] Unsuspended user ${userId} - Reason: ${reason}`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error unsuspending user:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate user. Please try again.');
+      return false;
+    }
+  };
+
+  // Delete user account (soft delete)
+  const deleteUser = async (userId: string, reason: string): Promise<boolean> => {
+    if (!verifyAdminAccess()) {
+      toast.error('Insufficient permissions');
+      return false;
+    }
+
+    if (userId === user!.uid) {
+      toast.error('You cannot delete your own account');
+      return false;
+    }
+
+    try {
+      const userProfileRef = doc(db, 'userProfiles', userId);
+      
+      const success = await runTransaction(db, async (transaction) => {
+        const profileDoc = await transaction.get(userProfileRef);
+        
+        if (!profileDoc.exists()) {
+          throw new Error('User profile not found');
+        }
+
+        const userData = profileDoc.data();
+        
+        if (userData.isAdmin) {
+          throw new Error('Cannot delete admin accounts');
+        }
+
+        if (userData.deletedAt) {
+          throw new Error('User is already deleted');
+        }
+
+        // Update user profile (soft delete)
+        transaction.update(userProfileRef, {
+          deletedAt: new Date(),
+          deletedBy: user!.uid,
+          deleteReason: reason,
+          isActive: false
+        });
+
+        // Log the action
+        const transactionRef = doc(collection(db, 'creditTransactions'));
+        transaction.set(transactionRef, {
+          userId,
+          adminUserId: user!.uid,
+          type: 'delete',
+          amount: 0,
+          previousBalance: 0,
+          newBalance: 0,
+          reason,
+          timestamp: new Date()
+        });
+
+        return true;
+      });
+
+      if (success) {
+        toast.success('User account deleted successfully');
+        console.log(`[ADMIN ACTION] Deleted user ${userId} - Reason: ${reason}`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete user. Please try again.');
+      return false;
+    }
+  };
+
+  // Reactivate deleted user account
+  const reactivateUser = async (userId: string, reason: string): Promise<boolean> => {
+    if (!verifyAdminAccess()) {
+      toast.error('Insufficient permissions');
+      return false;
+    }
+
+    try {
+      const userProfileRef = doc(db, 'userProfiles', userId);
+      
+      const success = await runTransaction(db, async (transaction) => {
+        const profileDoc = await transaction.get(userProfileRef);
+        
+        if (!profileDoc.exists()) {
+          throw new Error('User profile not found');
+        }
+
+        const userData = profileDoc.data();
+        
+        if (!userData.deletedAt) {
+          throw new Error('User is not deleted');
+        }
+
+        // Update user profile
+        transaction.update(userProfileRef, {
+          deletedAt: null,
+          deletedBy: null,
+          deleteReason: null,
+          isActive: true,
+          isSuspended: false
+        });
+
+        // Log the action
+        const transactionRef = doc(collection(db, 'creditTransactions'));
+        transaction.set(transactionRef, {
+          userId,
+          adminUserId: user!.uid,
+          type: 'reactivate',
+          amount: 0,
+          previousBalance: 0,
+          newBalance: 0,
+          reason,
+          timestamp: new Date()
+        });
+
+        return true;
+      });
+
+      if (success) {
+        toast.success('User account reactivated successfully');
+        console.log(`[ADMIN ACTION] Reactivated user ${userId} - Reason: ${reason}`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error reactivating user:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to reactivate user. Please try again.');
+      return false;
+    }
+  };
+
   // Get user transaction history
   const getUserTransactions = async (userId: string): Promise<CreditTransaction[]> => {
     if (!verifyAdminAccess()) {
@@ -339,22 +616,54 @@ export const useUserManagement = () => {
     }
   };
 
-  // Get system statistics
+  // Get system statistics (real-time and comprehensive)
   const getSystemStats = () => {
-    const totalUsers = users.length;
-    const totalCreditsInCirculation = users.reduce((sum, user) => sum + user.credits, 0);
-    const totalCreditsGranted = users.reduce((sum, user) => sum + (user.totalCreditsGranted || 0), 0);
-    const totalCreditsUsed = users.reduce((sum, user) => sum + (user.totalCreditsUsed || 0), 0);
-    const activeUsers = users.filter(user => user.credits > 0).length;
-    const usersWithoutCredits = users.filter(user => user.credits === 0 && !user.isAdmin).length;
+    // Filter out deleted users for main stats
+    const activeUserList = users.filter(user => !user.deletedAt);
+    
+    const totalUsers = activeUserList.length;
+    const totalImageCredits = activeUserList.reduce((sum, user) => sum + (user.imageCredits || 0), 0);
+    const totalVideoCredits = activeUserList.reduce((sum, user) => sum + (user.videoCredits || 0), 0);
+    const totalCreditsInCirculation = totalImageCredits + totalVideoCredits;
+    const totalCreditsGranted = activeUserList.reduce((sum, user) => sum + (user.totalCreditsGranted || 0), 0);
+    const totalCreditsUsed = activeUserList.reduce((sum, user) => sum + (user.totalCreditsUsed || 0), 0);
+    
+    // User status counts
+    const activeUsers = activeUserList.filter(user => user.isActive && !user.isSuspended && (user.imageCredits > 0 || user.videoCredits > 0 || user.isAdmin)).length;
+    const suspendedUsers = activeUserList.filter(user => user.isSuspended).length;
+    const usersWithoutCredits = activeUserList.filter(user => 
+      !user.isAdmin && 
+      !user.isSuspended && 
+      user.imageCredits === 0 && 
+      user.videoCredits === 0
+    ).length;
+    
+    // Additional detailed stats
+    const deletedUsers = users.filter(user => user.deletedAt).length;
+    const adminUsers = activeUserList.filter(user => user.isAdmin).length;
+    const usersWithImageCredits = activeUserList.filter(user => user.imageCredits > 0).length;
+    const usersWithVideoCredits = activeUserList.filter(user => user.videoCredits > 0).length;
 
     return {
+      // Main stats
       totalUsers,
       totalCreditsInCirculation,
+      totalImageCredits,
+      totalVideoCredits,
       totalCreditsGranted,
       totalCreditsUsed,
+      
+      // User status stats
       activeUsers,
-      usersWithoutCredits
+      suspendedUsers,
+      usersWithoutCredits,
+      deletedUsers,
+      adminUsers,
+      usersWithImageCredits,
+      usersWithVideoCredits,
+      
+      // Legacy compatibility
+      usersWithCredits: usersWithImageCredits + usersWithVideoCredits
     };
   };
 

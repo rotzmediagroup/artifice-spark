@@ -124,7 +124,7 @@ export const useCredits = () => {
         const newTotalUsed = (data.totalCreditsUsed || 0) + amount;
         
         // Update user profile with new credit structure
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           totalCreditsUsed: newTotalUsed,
           lastLogin: new Date()
         };

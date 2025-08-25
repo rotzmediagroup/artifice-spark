@@ -65,6 +65,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Function to check account status and block suspended/deleted users
+  const checkAccountStatus = async (user: User): Promise<boolean> => {
+    try {
+      const userProfileRef = doc(db, 'userProfiles', user.uid);
+      const userProfileDoc = await getDoc(userProfileRef);
+      
+      if (userProfileDoc.exists()) {
+        const userData = userProfileDoc.data();
+        
+        // Check if user is deleted
+        if (userData.deletedAt) {
+          toast.error('This account has been deleted. Please contact support.');
+          await firebaseSignOut(auth);
+          return false;
+        }
+        
+        // Check if user is suspended
+        if (userData.isSuspended) {
+          toast.error('This account has been suspended. Please contact support.');
+          await firebaseSignOut(auth);
+          return false;
+        }
+        
+        // Check if user is inactive
+        if (userData.isActive === false) {
+          toast.error('This account is inactive. Please contact support.');
+          await firebaseSignOut(auth);
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error checking account status:', error);
+      return true; // Allow sign-in if check fails to avoid blocking legitimate users
+    }
+  };
+
   // Function to create or update user profile
   const createOrUpdateUserProfile = async (user: User) => {
     try {
@@ -81,7 +119,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: user.email,
           displayName: user.displayName || '',
           photoURL: user.photoURL || '',
-          credits: 0, // Start with 0 credits (admins get unlimited through isAdmin flag)
+          credits: 0, // Legacy field for backwards compatibility
+          imageCredits: 0,
+          videoCredits: 0,
           isAdmin,
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
@@ -89,7 +129,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           totalCreditsUsed: 0,
           // MFA fields
           mfaEnabled: false,
-          mfaEnabledAt: null
+          mfaEnabledAt: null,
+          // Account status fields
+          isActive: true,
+          isSuspended: false,
+          suspendedAt: null,
+          suspendedBy: null,
+          suspensionReason: null,
+          deletedAt: null,
+          deletedBy: null,
+          deleteReason: null
         });
         
         if (isAdmin) {
@@ -126,6 +175,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (user) {
+        // Check account status before allowing sign-in
+        const accountStatusOk = await checkAccountStatus(user);
+        if (!accountStatusOk) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
         // Create or update user profile when user signs in
         await createOrUpdateUserProfile(user);
       }
@@ -222,6 +279,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     try {
+      // Check account status before completing MFA
+      const accountStatusOk = await checkAccountStatus(pendingUser);
+      if (!accountStatusOk) {
+        cancelMFASignIn();
+        return;
+      }
+      
       // Create or update user profile
       await createOrUpdateUserProfile(pendingUser);
       
