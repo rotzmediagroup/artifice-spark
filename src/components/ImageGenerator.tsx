@@ -447,6 +447,7 @@ export default function ImageGenerator() {
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
   const [videoDuration, setVideoDuration] = useState(5); // Default 5 seconds
   const [videoFps, setVideoFps] = useState(24); // Default 24 FPS
+  const [videoWithAudio, setVideoWithAudio] = useState(false); // Default silent
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
@@ -809,16 +810,18 @@ export default function ImageGenerator() {
     setIsGenerating(true);
     setGenerationProgress(0);
     
-    // Simulate progress
+    // Simulate progress - slower for videos
     const progressInterval = setInterval(() => {
       setGenerationProgress(prev => {
-        if (prev >= 90) {
+        const maxProgress = generationMode === 'video' ? 70 : 90; // Videos cap at 70%
+        if (prev >= maxProgress) {
           clearInterval(progressInterval);
           return prev;
         }
-        return prev + Math.random() * 15;
+        const increment = generationMode === 'video' ? Math.random() * 8 : Math.random() * 15; // Slower increment for videos
+        return prev + increment;
       });
-    }, 500);
+    }, generationMode === 'video' ? 2000 : 500); // Videos update every 2 seconds vs 0.5 seconds for images
     
     try {
       // Generate single image
@@ -858,7 +861,8 @@ export default function ImageGenerator() {
             ...(generationMode === 'video' && {
               video_duration: videoDuration,
               video_fps: videoFps,
-              video_format: "mp4"
+              video_format: "mp4",
+              video_audio: videoWithAudio
             }),
             seed: null // Could be added later for reproducibility
           },
@@ -1037,7 +1041,8 @@ export default function ImageGenerator() {
                 ...(mediaType === 'video' && {
                   videoDuration: videoDuration,
                   videoFps: videoFps,
-                  videoFormat: "mp4"
+                  videoFormat: "mp4",
+                  videoWithAudio: videoWithAudio
                 })
               },
               // Auto-deletion fields
@@ -1101,7 +1106,8 @@ export default function ImageGenerator() {
               ...(generationMode === 'video' && {
                 videoDuration: videoDuration,
                 videoFps: videoFps,
-                videoFormat: "mp4"
+                videoFormat: "mp4",
+                videoWithAudio: videoWithAudio
               })
             },
             expiresAt: expirationDate,
@@ -1759,6 +1765,36 @@ export default function ImageGenerator() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm">Audio</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={!videoWithAudio ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          lightTap();
+                          setVideoWithAudio(false);
+                        }}
+                        className={`flex-1 ${!videoWithAudio ? 'bg-gradient-to-r from-green-600 to-emerald-600' : ''}`}
+                      >
+                        🔇 Silent
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={videoWithAudio ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          lightTap();
+                          setVideoWithAudio(true);
+                        }}
+                        className={`flex-1 ${videoWithAudio ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''}`}
+                      >
+                        🔊 With Audio
+                      </Button>
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -1825,7 +1861,7 @@ export default function ImageGenerator() {
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   {generationMode === 'video' 
-                    ? 'Generating Video... This may take several minutes' 
+                    ? 'Generating Video...' 
                     : 'Generating Magic...'}
                 </div>
               ) : (
@@ -1836,6 +1872,15 @@ export default function ImageGenerator() {
                 </div>
               )}
             </Button>
+            
+            {/* Video generation time notice */}
+            {isGenerating && generationMode === 'video' && (
+              <div className="text-center mt-3">
+                <p className="text-sm text-muted-foreground">
+                  This may take several minutes
+                </p>
+              </div>
+            )}
           </Card>
 
           {/* Enhanced Results with Tabs */}
@@ -1869,11 +1914,20 @@ export default function ImageGenerator() {
                     {generatedImages.map((imageUrl, index) => (
                       <div key={index} className="relative group">
                         <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
-                          <img
-                            src={imageUrl}
-                            alt={`Generated image ${index + 1}`}
-                            className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
-                          />
+                          {generationMode === 'video' ? (
+                            <video
+                              src={imageUrl}
+                              controls
+                              className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
+                              poster={imageUrl}
+                            />
+                          ) : (
+                            <img
+                              src={imageUrl}
+                              alt={`Generated image ${index + 1}`}
+                              className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
+                            />
+                          )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
                           <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <div className="flex gap-2">

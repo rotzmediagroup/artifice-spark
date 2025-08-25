@@ -42,6 +42,7 @@ export interface GeneratedImageData {
     videoDuration?: number;
     videoFps?: number;
     videoFormat?: string;
+    videoWithAudio?: boolean;
   };
   // Auto-deletion fields
   expiresAt: Date;           // Deletion date (14 days from creation)
