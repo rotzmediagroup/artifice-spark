@@ -27,21 +27,24 @@ import { toast } from 'sonner';
 interface CreditActionDialogProps {
   userId: string;
   userEmail: string;
-  currentCredits: number;
+  currentImageCredits: number;
+  currentVideoCredits: number;
   onClose: () => void;
 }
 
 const CreditActionDialog: React.FC<CreditActionDialogProps> = ({ 
   userId, 
   userEmail, 
-  currentCredits, 
+  currentImageCredits, 
+  currentVideoCredits, 
   onClose 
 }) => {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [action, setAction] = useState<'grant' | 'deduct' | 'set'>('grant');
+  const [creditType, setCreditType] = useState<'image' | 'video'>('image');
   const [loading, setLoading] = useState(false);
-  const { grantCredits, deductCredits, setCredits } = useUserManagement();
+  const { grantCreditsForType, deductCreditsForType, setCredits } = useUserManagement();
 
   const handleSubmit = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -61,13 +64,15 @@ const CreditActionDialog: React.FC<CreditActionDialogProps> = ({
 
       switch (action) {
         case 'grant':
-          success = await grantCredits(userId, numAmount, reason);
+          success = await grantCreditsForType(userId, creditType, numAmount, reason);
           break;
         case 'deduct':
-          success = await deductCredits(userId, numAmount, reason);
+          success = await deductCreditsForType(userId, creditType, numAmount, reason);
           break;
         case 'set':
-          success = await setCredits(userId, numAmount, reason);
+          // For 'set', we'll need a different approach since setCredits might not support dual types yet
+          toast.error('Set credits action needs to be implemented for dual credit system');
+          success = false;
           break;
       }
 
@@ -90,7 +95,30 @@ const CreditActionDialog: React.FC<CreditActionDialogProps> = ({
       </DialogHeader>
       <div className="space-y-4">
         <div>
-          <Label>Current Credits: {currentCredits}</Label>
+          <Label>Current Credits:</Label>
+          <p className="text-sm text-muted-foreground mt-1">
+            Image Credits: {currentImageCredits} | Video Credits: {currentVideoCredits}
+          </p>
+        </div>
+        
+        <div>
+          <Label htmlFor="creditType">Credit Type</Label>
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant={creditType === 'image' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCreditType('image')}
+            >
+              Image Credits
+            </Button>
+            <Button
+              variant={creditType === 'video' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCreditType('video')}
+            >
+              Video Credits
+            </Button>
+          </div>
         </div>
         
         <div>
@@ -291,7 +319,7 @@ export const AdminPanel: React.FC = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-2">User</th>
-                        <th className="text-left p-2">Credits</th>
+                        <th className="text-left p-2">Credits (Img/Vid)</th>
                         <th className="text-left p-2">Total Used</th>
                         <th className="text-left p-2">MFA Status</th>
                         <th className="text-left p-2">Last Login</th>
@@ -314,11 +342,19 @@ export const AdminPanel: React.FC = () => {
                             </div>
                           </td>
                           <td className="p-2">
-                            <Badge 
-                              variant={user.credits > 0 ? "default" : "destructive"}
-                            >
-                              {user.isAdmin ? "Unlimited" : `${user.credits} credits`}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge 
+                                variant={(user.imageCredits > 0 || user.videoCredits > 0) ? "default" : "destructive"}
+                                className="mr-1"
+                              >
+                                {user.isAdmin ? "Unlimited" : `${user.imageCredits} img`}
+                              </Badge>
+                              <Badge 
+                                variant={(user.videoCredits > 0) ? "default" : "secondary"}
+                              >
+                                {user.isAdmin ? "Unlimited" : `${user.videoCredits} vid`}
+                              </Badge>
+                            </div>
                           </td>
                           <td className="p-2">
                             {user.totalCreditsUsed || 0}
@@ -344,7 +380,8 @@ export const AdminPanel: React.FC = () => {
                                   <CreditActionDialog
                                     userId={user.id}
                                     userEmail={user.email}
-                                    currentCredits={user.credits}
+                                    currentImageCredits={user.imageCredits}
+                                    currentVideoCredits={user.videoCredits}
                                     onClose={() => {}}
                                   />
                                 </Dialog>

@@ -425,7 +425,16 @@ export default function ImageGenerator() {
     migrateFromLocalStorage 
   } = useFirestore();
   const { uploadReferenceImage, uploadFile, uploading, uploadProgress } = useStorage();
-  const { credits, hasCredits, deductCredits, canGenerateImages, getCreditStatusMessage, loading: creditsLoading } = useCredits();
+  const { 
+    imageCredits, 
+    videoCredits, 
+    hasCreditsForType, 
+    deductCreditsForType, 
+    canGenerateImages, 
+    canGenerateVideos, 
+    getCreditStatusMessage, 
+    loading: creditsLoading 
+  } = useCredits();
   const { extendImage, extending, canExtend, getExtensionButtonText } = useImageExtension();
   const { lightTap, mediumTap, success, error, doubleTap } = useHaptic();
 
@@ -827,18 +836,29 @@ export default function ImageGenerator() {
       return;
     }
 
-    // Check if user has sufficient credits
-    if (!canGenerateImages()) {
-      error(); // Error haptic pattern
-      toast.error("No credits available! Contact administrator to get credits for image generation.");
-      return;
-    }
-
-    const requiredCredits = generationMode === 'video' ? 10 : 1;
-    if (!hasCredits(requiredCredits)) {
-      error(); // Error haptic pattern
-      toast.error(`Insufficient credits! You need ${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} but only have ${credits}.`);
-      return;
+    // Check if user has sufficient credits for the specific generation type
+    if (generationMode === 'video') {
+      if (!canGenerateVideos()) {
+        error(); // Error haptic pattern
+        toast.error("No video credits available! Contact administrator to get video credits.");
+        return;
+      }
+      if (!hasCreditsForType('video', 1)) {
+        error(); // Error haptic pattern
+        toast.error(`Insufficient video credits! You need 1 video credit but only have ${videoCredits}.`);
+        return;
+      }
+    } else {
+      if (!canGenerateImages()) {
+        error(); // Error haptic pattern
+        toast.error("No image credits available! Contact administrator to get image credits.");
+        return;
+      }
+      if (!hasCreditsForType('image', 1)) {
+        error(); // Error haptic pattern
+        toast.error(`Insufficient image credits! You need 1 image credit but only have ${imageCredits}.`);
+        return;
+      }
     }
 
 
@@ -1161,8 +1181,8 @@ export default function ImageGenerator() {
             
             // Deduct credits for successful generation
             try {
-              await deductCredits(requiredCredits);
-              console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
+              await deductCreditsForType(generationMode, 1);
+              console.log(`1 ${generationMode} credit deducted for successful generation`);
             } catch (creditError) {
               console.error("Failed to deduct credits:", creditError);
               // Note: We don't show error to user as image was already generated
@@ -1226,8 +1246,8 @@ export default function ImageGenerator() {
           
           // Deduct credits for successful generation
           try {
-            await deductCredits(requiredCredits);
-            console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
+            await deductCreditsForType(generationMode, 1);
+            console.log(`1 ${generationMode} credit deducted for successful generation`);
           } catch (creditError) {
             console.error("Failed to deduct credits:", creditError);
           }
@@ -1276,8 +1296,8 @@ export default function ImageGenerator() {
             
             // Deduct credits for each successful generation
             try {
-              await deductCredits(requiredCredits);
-              console.log(`${requiredCredits} credit${requiredCredits > 1 ? 's' : ''} deducted for successful ${generationMode} generation`);
+              await deductCreditsForType(generationMode, 1);
+              console.log(`1 ${generationMode} credit deducted for successful generation`);
             } catch (creditError) {
               console.error("Failed to deduct credits:", creditError);
             }

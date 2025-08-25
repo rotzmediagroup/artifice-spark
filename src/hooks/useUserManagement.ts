@@ -20,7 +20,10 @@ export interface UserProfile {
   id: string;
   email: string;
   displayName: string;
-  credits: number;
+  imageCredits: number;
+  videoCredits: number;
+  // Legacy support
+  credits?: number;
   isAdmin: boolean;
   createdAt: Date;
   lastLogin: Date;
@@ -33,6 +36,7 @@ export interface CreditTransaction {
   userId: string;
   adminUserId: string;
   type: 'grant' | 'deduct' | 'used' | 'adjustment';
+  creditType: 'image' | 'video';
   amount: number;
   previousBalance: number;
   newBalance: number;
@@ -64,12 +68,18 @@ export const useUserManagement = () => {
     const unsubscribeUsers = onSnapshot(
       usersQuery,
       (snapshot) => {
-        const userList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          lastLogin: doc.data().lastLogin?.toDate() || new Date()
-        } as UserProfile));
+        const userList = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Support both new dual credit system and legacy single credit system
+            imageCredits: data.imageCredits ?? data.credits ?? 0,
+            videoCredits: data.videoCredits ?? 0,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            lastLogin: data.lastLogin?.toDate() || new Date()
+          } as UserProfile;
+        });
         
         setUsers(userList);
         setLoading(false);
@@ -111,7 +121,7 @@ export const useUserManagement = () => {
   }, [isAdmin, user]);
 
   // Grant credits to a specific user
-  const grantCredits = async (userId: string, amount: number, reason: string = 'Admin credit grant'): Promise<boolean> => {
+  const grantCredits = async (userId: string, creditType: 'image' | 'video', amount: number, reason: string = 'Admin credit grant'): Promise<boolean> => {
     if (!verifyAdminAccess() || amount <= 0) {
       toast.error('Invalid operation or insufficient permissions');
       return false;
@@ -127,15 +137,29 @@ export const useUserManagement = () => {
           throw new Error('User profile not found');
         }
 
-        const currentCredits = profileDoc.data().credits || 0;
+        const data = profileDoc.data();
+        const currentImageCredits = data.imageCredits ?? data.credits ?? 0;
+        const currentVideoCredits = data.videoCredits ?? 0;
+        const currentCredits = creditType === 'image' ? currentImageCredits : currentVideoCredits;
         const newCredits = currentCredits + amount;
-        const newTotalGranted = (profileDoc.data().totalCreditsGranted || 0) + amount;
+        const newTotalGranted = (data.totalCreditsGranted || 0) + amount;
         
-        // Update user profile
-        transaction.update(userProfileRef, {
-          credits: newCredits,
+        // Update user profile with new dual credit structure
+        const updateData: any = {
           totalCreditsGranted: newTotalGranted
-        });
+        };
+        
+        if (creditType === 'image') {
+          updateData.imageCredits = newCredits;
+          // Preserve existing videoCredits
+          updateData.videoCredits = currentVideoCredits;
+        } else {
+          updateData.videoCredits = newCredits;
+          // Preserve existing imageCredits
+          updateData.imageCredits = currentImageCredits;
+        }
+        
+        transaction.update(userProfileRef, updateData);
 
         // Log the credit transaction
         const transactionRef = doc(collection(db, 'creditTransactions'));
@@ -143,6 +167,7 @@ export const useUserManagement = () => {
           userId,
           adminUserId: user!.uid,
           type: 'grant',
+          creditType,
           amount,
           previousBalance: currentCredits,
           newBalance: newCredits,
@@ -154,8 +179,8 @@ export const useUserManagement = () => {
       });
 
       if (success) {
-        toast.success(`Successfully granted ${amount} credits`);
-        console.log(`[ADMIN ACTION] Granted ${amount} credits to user ${userId}`);
+        toast.success(`Successfully granted ${amount} ${creditType} credits`);
+        console.log(`[ADMIN ACTION] Granted ${amount} ${creditType} credits to user ${userId}`);
       }
 
       return success;
@@ -167,7 +192,7 @@ export const useUserManagement = () => {
   };
 
   // Deduct credits from a specific user
-  const deductCredits = async (userId: string, amount: number, reason: string = 'Admin credit deduction'): Promise<boolean> => {
+  const deductCredits = async (userId: string, creditType: 'image' | 'video', amount: number, reason: string = 'Admin credit deduction'): Promise<boolean> => {
     if (!verifyAdminAccess() || amount <= 0) {
       toast.error('Invalid operation or insufficient permissions');
       return false;
@@ -183,13 +208,26 @@ export const useUserManagement = () => {
           throw new Error('User profile not found');
         }
 
-        const currentCredits = profileDoc.data().credits || 0;
+        const data = profileDoc.data();
+        const currentImageCredits = data.imageCredits ?? data.credits ?? 0;
+        const currentVideoCredits = data.videoCredits ?? 0;
+        const currentCredits = creditType === 'image' ? currentImageCredits : currentVideoCredits;
         const newCredits = Math.max(0, currentCredits - amount); // Don't allow negative credits
         
-        // Update user profile
-        transaction.update(userProfileRef, {
-          credits: newCredits
-        });
+        // Update user profile with new dual credit structure
+        const updateData: any = {};
+        
+        if (creditType === 'image') {
+          updateData.imageCredits = newCredits;
+          // Preserve existing videoCredits
+          updateData.videoCredits = currentVideoCredits;
+        } else {
+          updateData.videoCredits = newCredits;
+          // Preserve existing imageCredits
+          updateData.imageCredits = currentImageCredits;
+        }
+        
+        transaction.update(userProfileRef, updateData);
 
         // Log the credit transaction
         const transactionRef = doc(collection(db, 'creditTransactions'));
@@ -197,6 +235,7 @@ export const useUserManagement = () => {
           userId,
           adminUserId: user!.uid,
           type: 'deduct',
+          creditType,
           amount: -amount,
           previousBalance: currentCredits,
           newBalance: newCredits,
@@ -208,8 +247,8 @@ export const useUserManagement = () => {
       });
 
       if (success) {
-        toast.success(`Successfully deducted ${amount} credits`);
-        console.log(`[ADMIN ACTION] Deducted ${amount} credits from user ${userId}`);
+        toast.success(`Successfully deducted ${amount} ${creditType} credits`);
+        console.log(`[ADMIN ACTION] Deducted ${amount} ${creditType} credits from user ${userId}`);
       }
 
       return success;
@@ -319,15 +358,31 @@ export const useUserManagement = () => {
     };
   };
 
+  // Legacy wrapper functions for backwards compatibility
+  const grantCreditsLegacy = async (userId: string, amount: number, reason: string = 'Admin credit grant'): Promise<boolean> => {
+    // For legacy support, grant to image credits
+    return grantCredits(userId, 'image', amount, reason);
+  };
+
+  const deductCreditsLegacy = async (userId: string, amount: number, reason: string = 'Admin credit deduction'): Promise<boolean> => {
+    // For legacy support, deduct from image credits
+    return deductCredits(userId, 'image', amount, reason);
+  };
+
   return {
+    // New dual credit system functions
     users,
     loading,
     recentTransactions,
-    grantCredits,
-    deductCredits,
+    grantCreditsForType: grantCredits,
+    deductCreditsForType: deductCredits,
     setCredits,
     getUserTransactions,
     getSystemStats,
-    isAdminUser: isAdmin
+    isAdminUser: isAdmin,
+    
+    // Legacy compatibility
+    grantCredits: grantCreditsLegacy,
+    deductCredits: deductCreditsLegacy
   };
 };
