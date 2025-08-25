@@ -15,5 +15,11 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       allow read: if true; // Allow public read access for sharing
     }
+    
+    // Users can access generated videos
+    match /generated-videos/{userId}/{videoId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true; // Allow public read access for sharing
+    }
   }
 }

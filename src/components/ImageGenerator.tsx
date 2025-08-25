@@ -2051,50 +2051,50 @@ export default function ImageGenerator() {
                   <div className="grid grid-cols-1 gap-6">
                     {generatedImages.map((imageUrl, index) => (
                       <div key={index} className="relative group">
-                        <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
-                          {generationMode === 'video' ? (
-                            <video
-                              src={imageUrl}
-                              controls
-                              preload="metadata"
-                              playsInline
-                              muted
-                              className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
-                              onError={(e) => console.error('Video load error:', e)}
-                            />
-                          ) : (
+                        {generationMode === 'video' ? (
+                          // For videos: Structure without overlay buttons to avoid blocking video controls
+                          <div className="space-y-3">
+                            <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
+                              <video
+                                src={imageUrl}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                muted
+                                className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
+                                onError={(e) => console.error('Video load error:', e)}
+                              />
+                            </div>
+                            {/* Video buttons below the video player */}
+                            <div className="flex justify-center gap-3 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+                              <Button 
+                                size="sm" 
+                                className="glass bg-white/10 text-white border-white/20 hover:bg-white/20"
+                                onClick={() => downloadImage(imageUrl)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="glass bg-white/10 text-white border-white/20 hover:bg-white/20"
+                                onClick={() => shareImage(imageUrl)}
+                              >
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          // For images: Keep current overlay positioning
+                          <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
                             <img
                               src={imageUrl}
                               alt={`Generated image ${index + 1}`}
                               className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
                             />
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
-                          
-                          {/* Position buttons differently for video vs image to avoid blocking video controls */}
-                          {generationMode === 'video' ? (
-                            // For videos: Position buttons in top-right corner to avoid blocking video controls
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <div className="flex gap-2">
-                                <Button 
-                                  size="sm" 
-                                  className="glass text-white border-white/20 hover:bg-white/20"
-                                  onClick={() => downloadImage(imageUrl)}
-                                >
-                                  <Download className="h-3 w-3" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="glass text-white border-white/20 hover:bg-white/20"
-                                  onClick={() => shareImage(imageUrl)}
-                                >
-                                  <Share2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            // For images: Keep current bottom positioning
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
                             <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                               <div className="flex gap-2">
                                 <Button 
@@ -2116,8 +2116,8 @@ export default function ImageGenerator() {
                                 </Button>
                               </div>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
