@@ -10,6 +10,33 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Firebase SDK chunk
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          // React ecosystem chunk  
+          react: ['react', 'react-dom', 'react-router-dom'],
+          // UI components chunk
+          ui: [
+            '@radix-ui/react-dialog', 
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-popover'
+          ],
+          // Utility libraries chunk
+          utils: ['clsx', 'tailwind-merge', 'class-variance-authority', 'date-fns', 'zod'],
+          // Icons and visualization
+          icons: ['lucide-react', 'recharts']
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
