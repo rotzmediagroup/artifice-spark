@@ -25,6 +25,8 @@ export interface GeneratedImageData {
   style: string;
   timestamp: Date;
   liked: boolean;
+  contentType?: 'image' | 'video'; // Media type
+  fileExtension?: string;    // File extension (.png, .mp4)
   settings: {
     steps: number;
     cfgScale: number;
@@ -36,6 +38,10 @@ export interface GeneratedImageData {
     isCustomDimensions?: boolean;
     totalPixels?: number;
     megapixels?: number;
+    // Video-specific settings
+    videoDuration?: number;
+    videoFps?: number;
+    videoFormat?: string;
   };
   // Auto-deletion fields
   expiresAt: Date;           // Deletion date (14 days from creation)
@@ -88,6 +94,8 @@ export const useFirestore = () => {
       style: data.style,
       timestamp,
       liked: data.liked || false,
+      contentType: data.contentType || 'image', // Default to image for backward compatibility
+      fileExtension: data.fileExtension || '.png',
       settings: data.settings || {
         steps: 30,
         cfgScale: 7,

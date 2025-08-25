@@ -450,6 +450,10 @@ export default function ImageGenerator() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
+  // Filter history by content type
+  const imageHistory_images = imageHistory.filter(item => (item.contentType || 'image') === 'image');
+  const imageHistory_videos = imageHistory.filter(item => item.contentType === 'video');
+
   // Helper function to get current dimensions
   const getCurrentDimensions = () => {
     if (useCustomDimensions || aspectRatio.value === "custom") {
@@ -489,19 +493,21 @@ export default function ImageGenerator() {
     return `img_${timestamp}_${randomStr}`;
   };
   
-  // Helper function to upload image blob to Firebase Storage
-  const uploadImageToStorage = async (blob: Blob, imageId: string): Promise<string> => {
+  // Helper function to upload media blob to Firebase Storage
+  const uploadMediaToStorage = async (blob: Blob, mediaId: string, contentType: 'image' | 'video'): Promise<string> => {
     try {
-      const fileName = `generated-images/${user?.uid}/${imageId}.png`;
+      const extension = contentType === 'video' ? '.mp4' : '.png';
+      const folder = contentType === 'video' ? 'generated-videos' : 'generated-images';
+      const fileName = `${folder}/${user?.uid}/${mediaId}${extension}`;
       
       // Upload the blob to Firebase Storage using the uploadFile function from useStorage hook
       const downloadUrl = await uploadFile(blob, fileName);
-      console.log("Image uploaded to Firebase Storage:", downloadUrl);
+      console.log(`${contentType} uploaded to Firebase Storage:`, downloadUrl);
       
       return downloadUrl;
     } catch (error) {
       console.error("Error uploading to Firebase Storage:", error);
-      throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to upload ${contentType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -946,15 +952,18 @@ export default function ImageGenerator() {
         let result: any;
         let imageBlob: Blob | null = null;
         
-        if (contentType && contentType.includes('image/png')) {
-          // Handle binary PNG response
+        if (contentType && (contentType.includes('image/png') || contentType.includes('video/mp4'))) {
+          // Handle binary PNG or MP4 response
           imageBlob = await response.blob();
-          console.log("Received binary PNG response, size:", imageBlob.size);
+          const fileType = contentType.includes('video/mp4') ? 'video' : 'image';
+          console.log(`Received binary ${fileType} response, size:`, imageBlob.size);
           
           result = {
             is_binary: true,
             blob: imageBlob,
-            size: imageBlob.size
+            size: imageBlob.size,
+            contentType: fileType,
+            fileExtension: fileType === 'video' ? '.mp4' : '.png'
           };
         } else {
           // Handle JSON response (fallback)
@@ -990,13 +999,14 @@ export default function ImageGenerator() {
           toast.success(`🎨 ${generationMode === 'video' ? 'Video successfully generated!' : 'Image'} ${generationMode === 'video' ? 'Thank you for your patience.' : 'generated! Uploading to storage...'}`);
           
           try {
-            // Upload binary image to Firebase Storage in background
-            const firebaseImageUrl = await uploadImageToStorage(result.blob, imageId);
+            // Upload binary media to Firebase Storage in background
+            const mediaType = result.contentType || 'image';
+            const firebaseMediaUrl = await uploadMediaToStorage(result.blob, imageId, mediaType);
             console.log("Upload successful, replacing temp URL with Firebase URL");
             
             // Replace temporary URL with Firebase URL
             setGeneratedImages(prev => 
-              prev.map(url => url === tempImageUrl ? firebaseImageUrl : url)
+              prev.map(url => url === tempImageUrl ? firebaseMediaUrl : url)
             );
             
             // Create image data with Firebase Storage URL
@@ -1005,11 +1015,13 @@ export default function ImageGenerator() {
             
             const newImageData: GeneratedImageData = {
               id: imageId,
-              url: firebaseImageUrl,
+              url: firebaseMediaUrl,
               prompt: positivePrompt.trim(),
               style: selectedStyle,
               timestamp: new Date(),
               liked: false,
+              contentType: mediaType,
+              fileExtension: result.fileExtension,
               settings: {
                 steps: steps[0],
                 cfgScale: cfgScale[0],
@@ -1020,7 +1032,13 @@ export default function ImageGenerator() {
                 height: currentDims.height,
                 isCustomDimensions: currentDims.is_custom,
                 totalPixels: currentDims.total_pixels,
-                megapixels: currentDims.megapixels
+                megapixels: currentDims.megapixels,
+                // Video-specific settings (only if video)
+                ...(mediaType === 'video' && {
+                  videoDuration: videoDuration,
+                  videoFps: videoFps,
+                  videoFormat: "mp4"
+                })
               },
               // Auto-deletion fields
               expiresAt: expirationDate,
@@ -1066,6 +1084,8 @@ export default function ImageGenerator() {
             style: selectedStyle,
             timestamp: new Date(),
             liked: false,
+            contentType: generationMode === 'video' ? 'video' : 'image',
+            fileExtension: generationMode === 'video' ? '.mp4' : '.png',
             settings: {
               steps: steps[0],
               cfgScale: cfgScale[0],
@@ -1076,7 +1096,13 @@ export default function ImageGenerator() {
               height: currentDims.height,
               isCustomDimensions: currentDims.is_custom,
               totalPixels: currentDims.total_pixels,
-              megapixels: currentDims.megapixels
+              megapixels: currentDims.megapixels,
+              // Video-specific settings (only if video)
+              ...(generationMode === 'video' && {
+                videoDuration: videoDuration,
+                videoFps: videoFps,
+                videoFormat: "mp4"
+              })
             },
             expiresAt: expirationDate,
             extensionCount: 0,
@@ -1108,6 +1134,8 @@ export default function ImageGenerator() {
               style: selectedStyle,
               timestamp: new Date(),
               liked: false,
+              contentType: generationMode === 'video' ? 'video' : 'image',
+              fileExtension: generationMode === 'video' ? '.mp4' : '.png',
               settings: {
                 steps: steps[0],
                 cfgScale: cfgScale[0],
@@ -1118,7 +1146,13 @@ export default function ImageGenerator() {
                 height: currentDims.height,
                 isCustomDimensions: currentDims.is_custom,
                 totalPixels: currentDims.total_pixels,
-                megapixels: currentDims.megapixels
+                megapixels: currentDims.megapixels,
+                // Video-specific settings (only if video)
+                ...(generationMode === 'video' && {
+                  videoDuration: videoDuration,
+                  videoFps: videoFps,
+                  videoFormat: "mp4"
+                })
               },
               expiresAt: expirationDate,
               extensionCount: 0,
@@ -1156,7 +1190,7 @@ export default function ImageGenerator() {
             toast.success("🎨 Image detected! Processing...");
             
             try {
-              const firebaseImageUrl = await uploadImageToStorage(imageBlob, imageId);
+              const firebaseImageUrl = await uploadMediaToStorage(imageBlob, imageId, 'image');
               
               // Replace temporary URL with Firebase URL
               setGeneratedImages(prev => 
@@ -1172,6 +1206,8 @@ export default function ImageGenerator() {
                 style: selectedStyle,
                 timestamp: new Date(),
                 liked: false,
+                contentType: 'image', // This fallback path is image only
+                fileExtension: '.png',
                 settings: {
                   steps: steps[0],
                   cfgScale: cfgScale[0],
@@ -1805,14 +1841,18 @@ export default function ImageGenerator() {
           {/* Enhanced Results with Tabs */}
           <Card className="glass p-8 glow animate-scale-in" style={{animationDelay: '0.2s'}}>
             <Tabs defaultValue="current" className="w-full" onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="current" className="flex items-center gap-2">
                   <Image className="h-4 w-4" />
                   Current {generationMode === 'video' ? 'Videos' : 'Images'}
                 </TabsTrigger>
-                <TabsTrigger value="history" className="flex items-center gap-2">
-                  <History className="h-4 w-4" />
-                  History ({imageHistory.length})
+                <TabsTrigger value="images" className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Images ({imageHistory_images.length})
+                </TabsTrigger>
+                <TabsTrigger value="videos" className="flex items-center gap-2">
+                  <Video className="h-4 w-4" />
+                  Videos ({imageHistory_videos.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -1873,14 +1913,13 @@ export default function ImageGenerator() {
                 )}
               </TabsContent>
 
-              <TabsContent value="history" className="space-y-6">
+              <TabsContent value="images" className="space-y-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gradient">Image History</h2>
-                  {imageHistory.length > 0 && (
-                    <Badge variant="secondary">{imageHistory.length} images</Badge>
+                  {imageHistory_images.length > 0 && (
+                    <Badge variant="secondary">{imageHistory_images.length} images</Badge>
                   )}
                 </div>
-
                 {/* Auto-deletion Warning Banner */}
                 <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
                   <div className="flex items-start gap-3">
@@ -1896,10 +1935,11 @@ export default function ImageGenerator() {
                     </div>
                   </div>
                 </div>
-
-                {imageHistory.length > 0 ? (
+                {imageHistory_images.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {imageHistory.map((image) => {
+                    {imageHistory_images
+                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                      .map((image) => {
                       const expirationStatus = getExpirationStatus(image.expiresAt);
                       return (
                         <Dialog key={image.id}>
@@ -1910,8 +1950,212 @@ export default function ImageGenerator() {
                                   src={image.url}
                                   alt={image.prompt}
                                   className={`w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300 ${
-                                    image.isExpired ? 'opacity-50' : ''
+                                    image.isExpired ? 'opacity-50 grayscale' : ''
                                   }`}
+                                />
+                                {expirationStatus.isExpired && (
+                                  <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
+                                    <span className="text-red-600 font-medium text-sm bg-white/90 px-2 py-1 rounded">
+                                      Expired
+                                    </span>
+                                  </div>
+                                )}
+                                {expirationStatus.isExpiringSoon && (
+                                  <div className="absolute top-2 left-2 bg-amber-500 text-white px-2 py-1 rounded text-xs font-medium">
+                                    {expirationStatus.daysUntilExpiration}d left
+                                  </div>
+                                )}
+                                <div className="absolute top-2 right-2 flex gap-1">
+                                  {image.liked && <Heart className="h-4 w-4 text-red-500 fill-red-500" />}
+                                </div>
+                                <div className="absolute bottom-2 left-2 right-2">
+                                  <div className="bg-black/70 text-white px-2 py-1 rounded text-xs truncate">
+                                    {image.style}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle className="text-left">Image Details</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="relative">
+                                <img
+                                  src={image.url}
+                                  alt={image.prompt}
+                                  className={`w-full max-w-2xl mx-auto rounded-lg shadow-lg ${
+                                    image.isExpired ? 'opacity-50 grayscale' : ''
+                                  }`}
+                                />
+                                {expirationStatus.isExpired && (
+                                  <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
+                                    <span className="text-red-600 font-medium bg-white/90 px-3 py-2 rounded">
+                                      This image has expired and will be deleted soon
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <h4 className="font-semibold mb-2">Prompt</h4>
+                                  <p className="text-sm text-muted-foreground">{image.prompt}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold mb-2">Style</h4>
+                                  <p className="text-sm text-muted-foreground">{image.style}</p>
+                                </div>
+                                {image.settings.negativePrompt && (
+                                  <div>
+                                    <h4 className="font-semibold mb-2">Negative Prompt</h4>
+                                    <p className="text-sm text-muted-foreground">{image.settings.negativePrompt}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <h4 className="font-semibold mb-2">Settings</h4>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    <p>Steps: {image.settings.steps}</p>
+                                    <p>CFG Scale: {image.settings.cfgScale}</p>
+                                    <p>Aspect Ratio: {image.settings.aspectRatio}</p>
+                                    {image.settings.width && image.settings.height && (
+                                      <p>Dimensions: {image.settings.width} × {image.settings.height}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold mb-2">Info</h4>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    <p>Created: {image.timestamp.toLocaleString()}</p>
+                                    <p>Expires: {image.expiresAt.toLocaleDateString()} ({expirationStatus.daysUntilExpiration} days left)</p>
+                                    <p>Extensions: {image.extensionCount}/3</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = image.url;
+                                    link.download = `rotz-image-${image.id}${image.fileExtension || '.png'}`;
+                                    link.click();
+                                  }}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => toggleLike(image.id)}
+                                  className={image.liked ? "text-red-500 hover:text-red-600" : ""}
+                                >
+                                  <Heart className={`h-4 w-4 mr-2 ${image.liked ? 'fill-red-500' : ''}`} />
+                                  {image.liked ? 'Unlike' : 'Like'}
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => generateVariations(image)}
+                                  className="text-purple-500 hover:text-purple-600"
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => deleteFromHistory(image.id)}
+                                  className="text-red-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              
+                              {/* Extension Button */}
+                              {canExtend(image.extensionCount) && !image.isExpired && (
+                                <div className="pt-2">
+                                  <Button
+                                    onClick={() => extendImage(image.id)}
+                                    disabled={extending}
+                                    variant="outline"
+                                    className="w-full text-green-600 border-green-200 hover:bg-green-50"
+                                  >
+                                    {extending ? (
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin"></div>
+                                        Extending...
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <Clock className="h-4 w-4 mr-2" />
+                                        {getExtensionButtonText(image.extensionCount)}
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 space-y-4">
+                    <div className="p-6 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 w-24 h-24 mx-auto flex items-center justify-center">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-2xl font-semibold text-muted-foreground">No Images Yet</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Generate your first image to start building your creation history
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="videos" className="space-y-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gradient">Video History</h2>
+                  {imageHistory_videos.length > 0 && (
+                    <Badge variant="secondary">{imageHistory_videos.length} videos</Badge>
+                  )}
+                </div>
+
+                {/* Auto-deletion Warning Banner */}
+                <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                    <div className="space-y-1">
+                      <h3 className="font-medium text-amber-500">Automatic Video Deletion</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        • Regular users can extend storage up to 3 times (7 days each)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {imageHistory_videos.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imageHistory_videos
+                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                      .map((video) => {
+                      const expirationStatus = getExpirationStatus(video.expiresAt);
+                      return (
+                        <Dialog key={video.id}>
+                          <DialogTrigger asChild>
+                            <div className="relative group cursor-pointer">
+                              <div className="relative rounded-lg overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
+                                <video
+                                  src={video.url}
+                                  className={`w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300 ${
+                                    video.isExpired ? 'opacity-50' : ''
+                                  }`}
+                                  controls={false}
+                                  muted
+                                  poster={video.url} // Use the video as its own poster
                                 />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
                                   <Button size="sm" variant="ghost" className="text-white">
@@ -2055,11 +2299,11 @@ export default function ImageGenerator() {
                 ) : (
                   <div className="text-center py-16 space-y-4">
                     <div className="p-6 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 w-24 h-24 mx-auto flex items-center justify-center">
-                      <History className="h-12 w-12 text-muted-foreground" />
+                      <Video className="h-12 w-12 text-muted-foreground" />
                     </div>
-                    <h3 className="text-2xl font-semibold text-muted-foreground">No History Yet</h3>
+                    <h3 className="text-2xl font-semibold text-muted-foreground">No Videos Yet</h3>
                     <p className="text-muted-foreground max-w-md mx-auto">
-                      Generate your first image to start building your creation history
+                      Generate your first video to start building your video history
                     </p>
                   </div>
                 )}
