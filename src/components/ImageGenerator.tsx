@@ -970,12 +970,29 @@ export default function ImageGenerator() {
           throw new Error('Webhook API key is not configured. Please check your environment variables.');
         }
         
-        // Configure timeout based on generation mode - videos need much longer
-        const timeoutDuration = generationMode === 'video' ? 600000 : 120000; // 10min for video, 2min for images
+        // Configure timeout based on generation mode - no timeout for videos to avoid browser limitations
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+        let timeoutId: NodeJS.Timeout | null = null;
+        let heartbeatInterval: NodeJS.Timeout | null = null;
+        
+        if (generationMode === 'image') {
+          // Only set timeout for images (2 minutes)
+          timeoutId = setTimeout(() => controller.abort(), 120000);
+        } else {
+          // For videos: implement heartbeat to keep connection alive (no timeout)
+          heartbeatInterval = setInterval(() => {
+            console.log(`[HEARTBEAT] Video generation in progress... ${Math.floor((Date.now() - generationStartTime) / 1000)}s elapsed`);
+          }, 30000); // Heartbeat every 30 seconds
+        }
 
         console.log(`Starting ${generationMode} generation request at:`, new Date().toISOString());
+        
+        // Set user expectations for video generation
+        if (generationMode === 'video') {
+          toast.info('🎬 Video generation started. This may take several minutes - please be patient!', {
+            duration: 5000
+          });
+        }
         
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
@@ -994,8 +1011,9 @@ export default function ImageGenerator() {
         
         console.log(`Received response for ${generationMode} generation at:`, new Date().toISOString());
 
-        // Clear timeout if request completes successfully
-        clearTimeout(timeoutId);
+        // Clear timeout and heartbeat if request completes successfully
+        if (timeoutId) clearTimeout(timeoutId);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
 
         if (!response.ok) {
           // Handle authentication errors specifically
@@ -1359,22 +1377,21 @@ export default function ImageGenerator() {
       
       // Handle different types of errors
       if (error.name === 'AbortError') {
-        const mediaType = generationMode === 'video' ? 'video' : 'image';
-        const timeoutMin = generationMode === 'video' ? '10 minutes' : '2 minutes';
-        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out after ${timeoutMin}. Please try again.`);
-      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        // This is likely the 60-second timeout issue
-        const mediaType = generationMode === 'video' ? 'video' : 'image';
-        if (generationMode === 'video') {
-          toast.error('Video generation connection timed out, but your video may still be processing. Please check the Videos tab in a few minutes.');
+        // Only images should trigger AbortError now (videos have no timeout)
+        if (generationMode === 'image') {
+          toast.error('Image generation timed out after 2 minutes. Please try again.');
         } else {
-          toast.error(`Network error during ${mediaType} generation. Please try again.`);
+          toast.error('Video generation was cancelled.');
         }
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        // Handle network errors
+        const mediaType = generationMode === 'video' ? 'video' : 'image';
+        toast.error(`Network error during ${mediaType} generation. Please check your connection and try again.`);
       } else {
         toast.error(`Failed to generate ${generationMode === 'video' ? 'video' : 'image'}: ${error.message}`);
       }
     } finally {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setGenerationProgress(100);
       setIsGenerating(false);
       setTimeout(() => setGenerationProgress(0), 1000);
