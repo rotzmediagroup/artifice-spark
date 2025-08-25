@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Heart, Trash2, LogIn, Clock, AlertTriangle, Video, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -986,7 +987,7 @@ export default function ImageGenerator() {
           
           // Show image immediately
           setGeneratedImages(prev => [...prev, tempImageUrl]);
-          toast.success(`🎨 ${generationMode === 'video' ? 'Video' : 'Image'} generated! Uploading to storage...`);
+          toast.success(`🎨 ${generationMode === 'video' ? 'Video successfully generated!' : 'Image'} ${generationMode === 'video' ? 'Thank you for your patience.' : 'generated! Uploading to storage...'}`);
           
           try {
             // Upload binary image to Firebase Storage in background
@@ -1094,7 +1095,7 @@ export default function ImageGenerator() {
           }
           
           success(); // Success haptic pattern
-          toast.success(`🎨 ${generationMode === 'video' ? 'Video' : 'Image'} generated successfully!`);
+          toast.success(`🎨 ${generationMode === 'video' ? 'Video ready! Thank you for waiting.' : 'Image generated successfully!'}`);
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
           for (const imageUrl of result.images) {
@@ -1279,15 +1280,26 @@ export default function ImageGenerator() {
                   <Camera className="h-4 w-4" />
                   Images
                 </Button>
-                <Button
-                  variant={generationMode === 'video' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => handleModeChange('video')}
-                  className={`flex items-center gap-2 ${generationMode === 'video' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
-                >
-                  <Video className="h-4 w-4" />
-                  Videos
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={generationMode === 'video' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => handleModeChange('video')}
+                        className={`flex items-center gap-2 ${generationMode === 'video' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
+                      >
+                        <Video className="h-4 w-4" />
+                        Videos
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-sm">
+                        Video generation is more complex and requires 2-5 minutes of processing time
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
@@ -1644,6 +1656,25 @@ export default function ImageGenerator() {
                 />
               </div>
               
+              {/* Video Generation Warning */}
+              {generationMode === 'video' && (
+                <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 animate-slide-up">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      <Clock className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                        ⏱️ Video generation takes time
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Video processing typically takes 2-5 minutes. Please be patient while we create your video.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Video-specific controls */}
               {generationMode === 'video' && (
                 <>
@@ -1667,6 +1698,9 @@ export default function ImageGenerator() {
                       <span>3s</span>
                       <span>15s</span>
                       <span>30s</span>
+                    </div>
+                    <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Estimated generation time: {videoDuration <= 10 ? '2-4' : videoDuration <= 20 ? '3-5' : '4-7'} minutes
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -1754,12 +1788,14 @@ export default function ImageGenerator() {
               {isGenerating ? (
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Generating {generationMode === 'video' ? 'Video' : 'Magic'}...
+                  {generationMode === 'video' 
+                    ? 'Generating Video... This may take several minutes' 
+                    : 'Generating Magic...'}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Zap className="h-6 w-6" />
-                  Generate {generationMode === 'video' ? 'Video' : 'Images'}
+                  Generate {generationMode === 'video' ? 'Video (2-5 min)' : 'Images'}
                   <Star className="h-5 w-5 animate-pulse" />
                 </div>
               )}
