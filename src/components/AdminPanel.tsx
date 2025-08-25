@@ -26,6 +26,7 @@ import { useUserManagement, type CreditTransaction, type UserProfile } from '@/h
 import { useAdmin } from '@/hooks/useAdmin';
 import { toast } from 'sonner';
 import { UserAccountDialog } from './UserAccountDialog';
+import { UserTransactionHistoryDialog } from './UserTransactionHistoryDialog';
 
 interface CreditActionDialogProps {
   userId: string;
@@ -204,8 +205,10 @@ export const AdminPanel: React.FC = () => {
   } = useUserManagement();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string>('');
   const [userTransactions, setUserTransactions] = useState<CreditTransaction[]>([]);
   const [showTransactions, setShowTransactions] = useState(false);
+  const [transactionLoading, setTransactionLoading] = useState(false);
   const [accountDialogUser, setAccountDialogUser] = useState<UserProfile | null>(null);
   const [accountActionLoading, setAccountActionLoading] = useState(false);
 
@@ -224,11 +227,21 @@ export const AdminPanel: React.FC = () => {
     return matchesSearch;
   });
 
-  const handleViewTransactions = async (userId: string) => {
+  const handleViewTransactions = async (userId: string, userEmail: string) => {
     setSelectedUserId(userId);
-    const transactions = await getUserTransactions(userId);
-    setUserTransactions(transactions);
+    setSelectedUserEmail(userEmail);
+    setTransactionLoading(true);
     setShowTransactions(true);
+    
+    try {
+      const transactions = await getUserTransactions(userId);
+      setUserTransactions(transactions);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      setUserTransactions([]);
+    } finally {
+      setTransactionLoading(false);
+    }
   };
 
   const handleAccountAction = async (action: string, userId: string, reason?: string) => {
@@ -450,7 +463,7 @@ export const AdminPanel: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleViewTransactions(user.id)}
+                                onClick={() => handleViewTransactions(user.id, user.email)}
                               >
                                 <History className="h-4 w-4 mr-1" />
                                 History
@@ -618,6 +631,21 @@ export const AdminPanel: React.FC = () => {
           await handleAccountAction('reactivate', userId);
         }}
         isLoading={accountActionLoading}
+      />
+
+      {/* User Transaction History Dialog */}
+      <UserTransactionHistoryDialog
+        isOpen={showTransactions}
+        onClose={() => {
+          setShowTransactions(false);
+          setUserTransactions([]);
+          setSelectedUserId(null);
+          setSelectedUserEmail('');
+          setTransactionLoading(false);
+        }}
+        userEmail={selectedUserEmail}
+        transactions={userTransactions}
+        loading={transactionLoading}
       />
     </div>
   );

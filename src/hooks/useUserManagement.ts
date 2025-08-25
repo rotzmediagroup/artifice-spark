@@ -400,7 +400,7 @@ export const useUserManagement = () => {
   };
 
   // Unsuspend user account
-  const unsuspendUser = async (userId: string, reason: string): Promise<boolean> => {
+  const unsuspendUser = async (userId: string): Promise<boolean> => {
     if (!verifyAdminAccess()) {
       toast.error('Insufficient permissions');
       return false;
@@ -439,7 +439,7 @@ export const useUserManagement = () => {
           amount: 0,
           previousBalance: 0,
           newBalance: 0,
-          reason,
+          reason: 'Account unsuspended by admin',
           timestamp: new Date()
         });
 
@@ -529,7 +529,7 @@ export const useUserManagement = () => {
   };
 
   // Reactivate deleted user account
-  const reactivateUser = async (userId: string, reason: string): Promise<boolean> => {
+  const reactivateUser = async (userId: string): Promise<boolean> => {
     if (!verifyAdminAccess()) {
       toast.error('Insufficient permissions');
       return false;
@@ -569,7 +569,7 @@ export const useUserManagement = () => {
           amount: 0,
           previousBalance: 0,
           newBalance: 0,
-          reason,
+          reason: 'Account reactivated by admin',
           timestamp: new Date()
         });
 
