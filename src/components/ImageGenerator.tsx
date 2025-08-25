@@ -1993,8 +1993,11 @@ export default function ImageGenerator() {
                             <video
                               src={imageUrl}
                               controls
+                              preload="metadata"
+                              playsInline
+                              muted
                               className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
-                              poster={imageUrl}
+                              onError={(e) => console.error('Video load error:', e)}
                             />
                           ) : (
                             <img
@@ -2279,7 +2282,9 @@ export default function ImageGenerator() {
                                   }`}
                                   controls={false}
                                   muted
-                                  poster={video.url} // Use the video as its own poster
+                                  preload="metadata"
+                                  playsInline
+                                  onError={(e) => console.error('History video load error:', e)}
                                 />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
                                   <Button size="sm" variant="ghost" className="text-white">
@@ -2299,7 +2304,7 @@ export default function ImageGenerator() {
                                   </div>
                                 )}
                                 
-                                {image.liked && (
+                                {video.liked && (
                                   <div className="absolute top-2 right-2 bg-red-500/80 text-white p-1 rounded-full">
                                     <Heart className="h-3 w-3 fill-current" />
                                   </div>
@@ -2310,29 +2315,32 @@ export default function ImageGenerator() {
                         
                         <DialogContent className="max-w-4xl">
                           <DialogHeader>
-                            <DialogTitle>Image Details</DialogTitle>
+                            <DialogTitle>Video Details</DialogTitle>
                           </DialogHeader>
                           <div className="grid md:grid-cols-2 gap-6">
                             <div>
-                              <img
-                                src={image.url}
-                                alt={image.prompt}
+                              <video
+                                src={video.url}
+                                controls
+                                preload="metadata"
+                                playsInline
                                 className="w-full rounded-lg shadow-lg"
+                                onError={(e) => console.error('Dialog video load error:', e)}
                               />
                             </div>
                             <div className="space-y-4">
                               <div>
                                 <Label className="text-sm font-medium">Prompt</Label>
-                                <p className="text-sm text-muted-foreground mt-1">{image.prompt}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{video.prompt}</p>
                               </div>
                               <div>
                                 <Label className="text-sm font-medium">Style</Label>
-                                <p className="text-sm text-muted-foreground mt-1">{image.style || "Default"}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{video.style || "Default"}</p>
                               </div>
                               <div>
                                 <Label className="text-sm font-medium">Created</Label>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                  {image.timestamp.toLocaleDateString()} at {image.timestamp.toLocaleTimeString()}
+                                  {video.timestamp.toLocaleDateString()} at {video.timestamp.toLocaleTimeString()}
                                 </p>
                               </div>
                               
@@ -2344,11 +2352,11 @@ export default function ImageGenerator() {
                                     {expirationStatus.message}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Expires on: {formatExpirationDate(image.expiresAt)}
+                                    Expires on: {formatExpirationDate(video.expiresAt)}
                                   </p>
-                                  {image.extensionCount > 0 && (
+                                  {video.extensionCount > 0 && (
                                     <p className="text-xs text-muted-foreground">
-                                      Extensions used: {image.extensionCount}/3
+                                      Extensions used: {video.extensionCount}/3
                                     </p>
                                   )}
                                 </div>
@@ -2356,7 +2364,7 @@ export default function ImageGenerator() {
                               
                               <div className="flex gap-2 pt-4">
                                 <Button 
-                                  onClick={() => downloadImage(image.url, `rotz-ai-${image.id}.png`)}
+                                  onClick={() => downloadImage(video.url, `rotz-ai-${video.id}.mp4`)}
                                   className="flex-1"
                                 >
                                   <Download className="h-4 w-4 mr-2" />
@@ -2364,20 +2372,20 @@ export default function ImageGenerator() {
                                 </Button>
                                 <Button 
                                   variant="outline"
-                                  onClick={() => toggleLike(image.id)}
-                                  className={image.liked ? "text-red-500" : ""}
+                                  onClick={() => toggleLike(video.id)}
+                                  className={video.liked ? "text-red-500" : ""}
                                 >
-                                  <Heart className={`h-4 w-4 ${image.liked ? 'fill-current' : ''}`} />
+                                  <Heart className={`h-4 w-4 ${video.liked ? 'fill-current' : ''}`} />
                                 </Button>
                                 <Button 
                                   variant="outline"
-                                  onClick={() => generateVariations(image)}
+                                  onClick={() => generateVariations(video)}
                                 >
                                   <RotateCcw className="h-4 w-4" />
                                 </Button>
                                 <Button 
                                   variant="outline"
-                                  onClick={() => deleteFromHistory(image.id)}
+                                  onClick={() => deleteFromHistory(video.id)}
                                   className="text-red-500 hover:text-red-600"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -2385,21 +2393,21 @@ export default function ImageGenerator() {
                               </div>
                               
                               {/* Extension Button */}
-                              {canExtend(image.extensionCount) && !image.isExpired && (
+                              {canExtend(video.extensionCount) && !video.isExpired && (
                                 <div className="pt-2">
                                   <Button
                                     variant="outline"
                                     onClick={async () => {
-                                      const result = await extendImage(image.id);
+                                      const result = await extendImage(video.id);
                                       if (result) {
-                                        // Refresh the image data
+                                        // Refresh the video data
                                         window.location.reload();
                                       }
                                     }}
-                                    disabled={extending === image.id}
+                                    disabled={extending === video.id}
                                     className="w-full"
                                   >
-                                    {extending === image.id ? (
+                                    {extending === video.id ? (
                                       <>
                                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                                         Extending...
