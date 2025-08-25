@@ -932,14 +932,23 @@ export default function ImageGenerator() {
           throw new Error('Webhook API key is not configured. Please check your environment variables.');
         }
         
+        // Configure timeout based on generation mode - videos need much longer
+        const timeoutDuration = generationMode === 'video' ? 900000 : 120000; // 15min for video, 2min for images
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'key': apiKey
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+
+        // Clear timeout if request completes successfully
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           // Handle authentication errors specifically
@@ -1259,7 +1268,14 @@ export default function ImageGenerator() {
       
     } catch (error) {
       console.error("Error generating image:", error);
-      toast.error(`Failed to generate image: ${error.message}`);
+      
+      // Handle timeout errors specifically
+      if (error.name === 'AbortError') {
+        const mediaType = generationMode === 'video' ? 'video' : 'image';
+        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} generation timed out. This may happen during high demand. Please try again.`);
+      } else {
+        toast.error(`Failed to generate ${generationMode === 'video' ? 'video' : 'image'}: ${error.message}`);
+      }
     } finally {
       clearInterval(progressInterval);
       setGenerationProgress(100);
@@ -1873,12 +1889,12 @@ export default function ImageGenerator() {
               )}
             </Button>
             
-            {/* Video generation time notice */}
+            {/* Video generation time notice - styled like other badges */}
             {isGenerating && generationMode === 'video' && (
-              <div className="text-center mt-3">
-                <p className="text-sm text-muted-foreground">
-                  This may take several minutes
-                </p>
+              <div className="flex justify-center mt-3">
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50">
+                  ⏳ Generating video might take several minutes. Please stand by.
+                </Badge>
               </div>
             )}
           </Card>
