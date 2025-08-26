@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -413,6 +414,7 @@ interface GeneratedImageData {
 }
 
 export default function ImageGenerator() {
+  const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const { 
     imageHistory, 
@@ -1468,23 +1470,30 @@ export default function ImageGenerator() {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Enhanced Header with Logo and User Menu */}
         <div className="text-center mb-12 animate-fade-in relative">
-          <div className="absolute top-0 right-0 flex gap-3 items-center">
-            <LanguageSelector />
+          <div className="absolute top-0 right-0 flex gap-2 sm:gap-3 items-center z-20">
+            <div className="hidden sm:block">
+              <LanguageSelector />
+            </div>
             <UserMenu />
+          </div>
+          
+          {/* Mobile Language Selector */}
+          <div className="sm:hidden flex justify-end mb-2">
+            <LanguageSelector />
           </div>
           
           <div className="flex items-center justify-center mb-6">
             <img 
               src={rotzLogo} 
               alt="ROTZ.AI Logo" 
-              className="h-16 w-auto float animate-bounce-in"
+              className="h-14 w-auto float animate-bounce-in"
             />
           </div>
           <h1 className="text-5xl font-bold text-gradient mb-4 animate-slide-up">
-            AI {generationMode === 'video' ? 'Video' : 'Image'} Generator
+            AI {generationMode === 'video' ? t('generator:modes.video') : t('generator:modes.image')} Generator
           </h1>
           <p className="text-muted-foreground text-xl animate-fade-in" style={{animationDelay: '0.2s'}}>
-            Create stunning {generationMode === 'image' ? 'images' : 'videos'} with professional AI technology
+            {t('generator:subtitle')} {generationMode === 'image' ? t('generator:tabs.images').toLowerCase() : t('generator:tabs.videos').toLowerCase()}
           </p>
           
           {/* Generation Mode Toggle */}
@@ -1498,7 +1507,7 @@ export default function ImageGenerator() {
                   className={`flex items-center gap-2 ${generationMode === 'image' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
                 >
                   <Camera className="h-4 w-4" />
-                  Images
+                  {t('generator:tabs.images')}
                 </Button>
                 <TooltipProvider>
                   <Tooltip>
@@ -1510,12 +1519,12 @@ export default function ImageGenerator() {
                         className={`flex items-center gap-2 ${generationMode === 'video' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
                       >
                         <Video className="h-4 w-4" />
-                        Videos
+                        {t('generator:tabs.videos')}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                       <p className="text-sm">
-                        Video generation is more complex and requires 2-5 minutes of processing time
+                        {t('generator:warnings.videoProcessingMessage')}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -1567,12 +1576,12 @@ export default function ImageGenerator() {
                 <div className="p-1 rounded bg-gradient-to-r from-purple-500/20 to-cyan-500/20">
                   <Sparkles className="h-5 w-5 text-primary animate-pulse" />
                 </div>
-                Positive Prompt
-                <Badge variant="secondary" className="text-xs animate-bounce">Required</Badge>
+{t('generator:generation.prompt')}
+                <Badge variant="secondary" className="text-xs animate-bounce">{t('common:buttons.required')}</Badge>
               </Label>
               <Textarea
                 id="positive-prompt"
-                placeholder="Describe your vision... e.g., 'A majestic dragon flying over a cyberpunk city at sunset'"
+                placeholder={t('generator:generation.promptPlaceholder')}
                 value={positivePrompt}
                 onChange={(e) => setPositivePrompt(e.target.value)}
                 className="min-h-[120px] glass border-primary/30 focus:border-primary/60 hover:border-primary/40 transition-all duration-300 text-base leading-relaxed"
@@ -1585,12 +1594,12 @@ export default function ImageGenerator() {
                 <div className="p-1 rounded bg-gradient-to-r from-red-500/20 to-orange-500/20">
                   <Settings className="h-5 w-5 text-secondary animate-spin" style={{animationDuration: '3s'}} />
                 </div>
-                Negative Prompt
-                <Badge variant="outline" className="text-xs">Optional</Badge>
+{t('generator:generation.negativePrompt')}
+                <Badge variant="outline" className="text-xs">{t('common:buttons.optional')}</Badge>
               </Label>
               <Textarea
                 id="negative-prompt"
-                placeholder="What to avoid... e.g., 'blurry, low quality, distorted'"
+                placeholder={t('generator:generation.negativePromptPlaceholder')}
                 value={negativePrompt}
                 onChange={(e) => setNegativePrompt(e.target.value)}
                 className="min-h-[100px] glass border-secondary/30 focus:border-secondary/60 hover:border-secondary/40 transition-all duration-300"
@@ -1703,12 +1712,12 @@ export default function ImageGenerator() {
                 <div className="p-1 rounded bg-gradient-to-r from-pink-500/20 to-purple-500/20">
                   <Palette className="h-5 w-5 text-accent animate-pulse" />
                 </div>
-                Art Style
-                <Badge variant="secondary" className="text-xs animate-bounce">Required</Badge>
+{t('generator:generation.style')}
+                <Badge variant="secondary" className="text-xs animate-bounce">{t('common:buttons.required')}</Badge>
               </Label>
               <Select value={selectedStyle} onValueChange={handleStyleChange}>
                 <SelectTrigger className="glass border-accent/20">
-                  <SelectValue placeholder="Choose an art style..." />
+                  <SelectValue placeholder={t('generator:generation.stylePlaceholder')} />
                 </SelectTrigger>
                 <SelectContent className="glass border-accent/20 max-h-60">
                   {artStyles.map((style) => (
@@ -1998,7 +2007,7 @@ export default function ImageGenerator() {
             {isGenerating && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Generating...</span>
+                  <span>{t('generator:generation.generating')}</span>
                   <span>{Math.round(generationProgress)}%</span>
                 </div>
                 <Progress value={generationProgress} className="w-full" />
@@ -2011,7 +2020,7 @@ export default function ImageGenerator() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">Credits Available:</Label>
+                      <Label className="text-sm font-medium">{t('common:general.credits')} {t('common:general.available')}:</Label>
                     </div>
                     <CreditDisplay variant="inline" />
                   </div>
@@ -2029,13 +2038,13 @@ export default function ImageGenerator() {
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   {generationMode === 'video' 
-                    ? 'Generating Video...' 
-                    : 'Generating Magic...'}
+                    ? t('generator:generation.generatingVideo')
+                    : t('generator:generation.generatingMagic')}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Zap className="h-6 w-6" />
-                  Generate {generationMode === 'video' ? 'Video (2-5 min)' : 'Images'}
+{t('generator:generation.generate')} {generationMode === 'video' ? t('generator:tabs.videos') + ' (2-5 min)' : t('generator:tabs.images')}
                   <Star className="h-5 w-5 animate-pulse" />
                 </div>
               )}
@@ -2050,10 +2059,10 @@ export default function ImageGenerator() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                      ⏱️ Video generation takes time
+⏱️ {t('generator:warnings.videoGenerationTime')}
                     </p>
                     <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                      Video processing typically takes 2-5 minutes. Please be patient while we create your video.
+{t('generator:warnings.videoProcessingMessage')}
                     </p>
                   </div>
                 </div>
@@ -2067,15 +2076,15 @@ export default function ImageGenerator() {
               <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="current" className="flex items-center gap-2">
                   <Image className="h-4 w-4" />
-                  Current {generationMode === 'video' ? 'Videos' : 'Images'}
+{t('generator:tabs.current')} {generationMode === 'video' ? t('generator:tabs.videos') : t('generator:tabs.images')}
                 </TabsTrigger>
                 <TabsTrigger value="images" className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" />
-                  Images ({imageHistory_images.length})
+{t('generator:tabs.images')} ({imageHistory_images.length})
                 </TabsTrigger>
                 <TabsTrigger value="videos" className="flex items-center gap-2">
                   <Video className="h-4 w-4" />
-                  Videos ({imageHistory_videos.length})
+{t('generator:tabs.videos')} ({imageHistory_videos.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -2084,7 +2093,7 @@ export default function ImageGenerator() {
                   <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
                     <Image className="h-6 w-6 text-accent" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gradient">Generated {generationMode === 'video' ? 'Videos' : 'Images'}</h2>
+                  <h2 className="text-2xl font-bold text-gradient">{t('generator:results.generated' + (generationMode === 'video' ? 'Videos' : 'Images'))}</h2>
                 </div>
 
                 {generatedImages.length > 0 ? (

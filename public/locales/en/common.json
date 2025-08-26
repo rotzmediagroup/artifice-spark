@@ -15,7 +15,9 @@
     "copy": "Copy",
     "delete": "Delete",
     "edit": "Edit",
-    "view": "View"
+    "view": "View",
+    "required": "Required",
+    "optional": "Optional"
   },
   "navigation": {
     "home": "Home",
