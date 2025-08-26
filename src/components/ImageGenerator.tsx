@@ -414,7 +414,7 @@ interface GeneratedImageData {
 }
 
 export default function ImageGenerator() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const { 
     imageHistory, 
