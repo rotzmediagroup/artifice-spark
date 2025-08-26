@@ -1,0 +1,171 @@
+{
+  "title": "KI Bild Generator",
+  "subtitle": "Erstelle atemberaubende Bilder mit KI",
+  "tabs": {
+    "current": "Aktuell",
+    "images": "Bilder",
+    "videos": "Videos"
+  },
+  "modes": {
+    "image": "Bild",
+    "video": "Video"
+  },
+  "generation": {
+    "generate": "Generieren",
+    "generating": "Generieren...",
+    "generatingVideo": "Video Generieren...",
+    "generatingMagic": "Magie Erschaffen...",
+    "prompt": "Beschreiben Sie, was Sie erstellen möchten",
+    "promptPlaceholder": "Ein wunderschöner Sonnenuntergang über den Bergen...",
+    "negativePrompt": "Negative Eingabe",
+    "negativePromptPlaceholder": "Was im Bild vermieden werden soll...",
+    "style": "Kunststil",
+    "stylePlaceholder": "Wählen Sie einen Kunststil...",
+    "aspectRatio": "Seitenverhältnis",
+    "customDimensions": "Benutzerdefinierte Abmessungen",
+    "width": "Breite",
+    "height": "Höhe",
+    "steps": "Schritte",
+    "cfgScale": "CFG Skala",
+    "duration": "Dauer",
+    "frameRate": "Bildrate",
+    "settings": "Einstellungen",
+    "advancedSettings": "Erweiterte Einstellungen",
+    "presets": "Vorlagen",
+    "savePreset": "Vorlage Speichern"
+  },
+  "results": {
+    "generatedImages": "Generierte Bilder",
+    "generatedVideos": "Generierte Videos", 
+    "noImagesYet": "Noch Keine Bilder",
+    "noImagesMessage": "Generieren Sie Ihr erstes Bild, um Ihren Erstellungsverlauf aufzubauen",
+    "imageHistory": "Bild Verlauf",
+    "videoHistory": "Video Verlauf",
+    "currentImages": "Aktuelle Bilder",
+    "currentVideos": "Aktuelle Videos"
+  },
+  "upload": {
+    "referenceImage": "Referenzbild",
+    "dragDropMessage": "Ziehen Sie ein Bild hierher oder klicken Sie zum Durchsuchen",
+    "signInToUpload": "Melden Sie sich an, um Referenzbilder hochzuladen",
+    "supportedFormats": "Unterstützt JPG, PNG, WEBP bis 10MB",
+    "uploadSuccess": "Referenzbild erfolgreich hochgeladen!",
+    "uploadError": "Bild-Upload fehlgeschlagen",
+    "removeImage": "Entfernen"
+  },
+  "dimensions": {
+    "title": "Bild-Abmessungen",
+    "presets": "Vorlagen",
+    "large": "Groß", 
+    "custom": "Benutzerdefiniert",
+    "width": "Breite",
+    "height": "Höhe",
+    "aspectRatio": "Seitenverhältnis",
+    "pixels": "Pixel",
+    "total": "gesamt",
+    "widthPlaceholder": "Breite (256-2000)",
+    "heightPlaceholder": "Höhe (256-2000)",
+    "largeDimensionsWarning": "Große Abmessungen können länger zum Generieren dauern",
+    "ratios": {
+      "square": "Quadrat (1:1)",
+      "portrait": "Hochformat (4:5)", 
+      "landscape": "Querformat (16:9)",
+      "wide": "Breit (21:9)",
+      "phone": "Telefon (9:16)",
+      "largeSquare": "Großes Quadrat (1600x1600)",
+      "largePortrait": "Großes Hochformat (1280x1600)",
+      "largeLandscape": "Großes Querformat (1600x1280)",
+      "ultraSquare": "Ultra Quadrat (2000x2000)",
+      "ultraLandscape": "Ultra Querformat (2000x1600)",
+      "customDimensions": "Benutzerdefinierte Abmessungen"
+    }
+  },
+  "readyToCreate": {
+    "title": "Bereit zu Erstellen",
+    "description": "Geben Sie Ihren kreativen Prompt oben ein und sehen Sie, wie KI Ihre Vorstellungskraft in atemberaubende visuelle Kunst verwandelt"
+  },
+  "templates": {
+    "title": "Prompt-Vorlagen",
+    "categories": {
+      "portrait": "Porträt",
+      "landscape": "Landschaft", 
+      "abstract": "Abstrakt",
+      "artistic": "Künstlerisch",
+      "photo": "Foto",
+      "architecture": "Architektur"
+    },
+    "names": {
+      "fantasyPortrait": "Fantasy-Porträt",
+      "realisticPortrait": "Realistisches Porträt", 
+      "heroicCharacter": "Heldenhafter Charakter",
+      "cyberpunkPortrait": "Cyberpunk-Porträt",
+      "sciFiLandscape": "Sci-Fi-Landschaft",
+      "natureScene": "Naturszene",
+      "fantasyRealm": "Fantasy-Reich",
+      "postApocalyptic": "Post-Apokalyptisch"
+    },
+    "appliedMessage": "Vorlage angewendet:",
+    "prompts": {
+      "fantasyPortrait": "Ein mystisches Fantasy-Porträt, magische Atmosphäre, ätherische Beleuchtung, detailliertes Charakterdesign, verzauberte Augen",
+      "realisticPortrait": "Professionelle Kopfaufnahme-Fotografie, Studiobelechtung, scharfer Fokus, detaillierte Gesichtszüge, natürlicher Ausdruck",
+      "heroicCharacter": "Episches Helden-Charakterporträt, dramatische Beleuchtung, mächtige Haltung, detaillierte Rüstung oder Kostüm, inspirierende Präsenz",
+      "cyberpunkPortrait": "Futuristisches Cyberpunk-Porträt, Neonbeleuchtung, technologische Verbesserungen, städtische Umgebung, dystopische Atmosphäre",
+      "sciFiLandscape": "Futuristische außerirdische Landschaft, Cyberpunk-Stadt, Neonlichter, fliegende Fahrzeuge, ferne Planeten, atmosphärische Perspektive",
+      "natureScene": "Ruhige natürliche Landschaft, goldene Stunden-Beleuchtung, friedliche Atmosphäre, hohe Detailgenauigkeit, unberührte Wildnis",
+      "fantasyRealm": "Magische Fantasy-Landschaft, schwebende Inseln, mystische Wälder, alte Ruinen, ätherische Atmosphäre",
+      "postApocalyptic": "Post-apokalyptische Einöde, verlassene Gebäude, dramatischer Himmel, trostlose Atmosphäre, Überlebens-Setting",
+      "abstractArt": "Abstrakte geometrische Komposition, lebendige Farben, dynamische Formen, moderner Kunststil, fließende Formen",
+      "fluidDynamics": "Flüssigkeits-Farbspritzer, Strömungsdynamik, wirbelnde Farben, organische Muster, weiche Verläufe",
+      "sacredGeometry": "Heilige geometrische Muster, Mandala-Design, symmetrische Komposition, spirituelle Symbolik, komplizierte Details",
+      "modernArchitecture": "Zeitgenössisches architektonisches Design, klare Linien, Glas und Stahl, minimalistische Ästhetik, städtische Umgebung",
+      "ancientTemple": "Antike Tempelarchitektur, kunstvolle Schnitzereien, historisches Steinwerk, mystische Atmosphäre, kulturelles Erbe",
+      "futuristicBuilding": "Futuristische Architekturstruktur, innovatives Design, fortschrittliche Materialien, Sci-Fi-Stadtbild, High-Tech-Ästhetik",
+      "productShot": "Professionelle Produktfotografie, sauberer weißer Hintergrund, Studiobeleuchtung, kommerzielle Qualität, detaillierte Texturen",
+      "vintageStillLife": "Klassisches Stillleben-Arrangement, Vintage-Objekte, warme Beleuchtung, künstlerische Komposition, nostalgische Atmosphäre",
+      "magicalArtifact": "Verzaubertes magisches Artefakt, leuchtende Runen, mystische Energie, Fantasy-Gegenstand, detaillierte Handwerkskunst",
+      "wildlifePortrait": "Majestätisches Wildtier-Porträt, natürlicher Lebensraum, detailliertes Fell oder Federn, ausdrucksvolle Augen, Naturfotografie",
+      "mythicalCreature": "Legendäre mythische Kreatur, Drache oder Phönix, magische Kräfte, Fantasy-Setting, epische Dimensionen",
+      "cutePet": "Süßes Haustier-Porträt, verspielter Ausdruck, weiche Beleuchtung, gemütliche häusliche Umgebung, herzerwärmender Moment",
+      "epicBattle": "Dynamische Kampfszene, Krieger im Kampf, dramatische Action, epische Dimensionen, kinematografische Komposition",
+      "peacefulMoment": "Ruhige friedliche Szene, ruhige Atmosphäre, sanfte Beleuchtung, heitere Stimmung, kontemplative Umgebung"
+    }
+  },
+  "settings": {
+    "steps": "Schritte",
+    "cfgScale": "CFG-Skala",
+    "savePreset": "Voreinstellung Speichern"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Einstellungen", 
+    "dimensions": "Abmessungen",
+    "steps": "Schritte",
+    "cfgScale": "CFG-Skala",
+    "aspectRatio": "Seitenverhältnis",
+    "expiredMessage": "Dieses Bild ist abgelaufen und wird bald gelöscht"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Automatische Bild-Löschung",
+    "automaticVideoDeletion": "Automatische Video-Löschung",
+    "imageWarning": "Bilder werden nach 14 Tagen automatisch gelöscht, um den Speicher zu verwalten. Laden Sie Bilder herunter, die Sie dauerhaft behalten möchten.",
+    "videoWarning": "Videos werden nach 14 Tagen automatisch gelöscht, um den Speicher zu verwalten. Laden Sie Videos herunter, die Sie dauerhaft behalten möchten.",
+    "extensionInfoImages": "Normale Benutzer können Speicher bis zu 3 Mal verlängern (je 7 Tage)",
+    "extensionInfoVideos": "Normale Benutzer können Speicher 1 Mal verlängern (7 Tage extra)"
+  },
+  "referenceImage": {
+    "remove": "Entfernen",
+    "badge": "Referenzbild", 
+    "removedMessage": "Referenzbild entfernt"
+  },
+  "warnings": {
+    "videoGenerationTime": "Video-Generierung dauert Zeit",
+    "videoProcessingMessage": "Video-Verarbeitung dauert normalerweise 2-5 Minuten. Haben Sie Geduld, während wir Ihr Video erstellen.",
+    "largeDimensions": "Große Abmessungen können länger zum Generieren dauern",
+    "autoDeletion": "Automatische Video-Löschung",
+    "autoDeleteionMessage": "Videos werden nach 14 Tagen automatisch gelöscht, um Speicher zu verwalten. Laden Sie Videos herunter, die Sie dauerhaft behalten möchten.",
+    "extensionInfo": "Normale Benutzer können Speicher 1 Mal verlängern (7 Tage extra)"
+  },
+  "sharing": {
+    "shareMessage": "Schau dir an, was ROTZ AI gerade für mich gemacht hat!"
+  }
+}
