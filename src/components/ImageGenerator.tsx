@@ -1170,7 +1170,7 @@ export default function ImageGenerator() {
           const formData = new FormData();
           
           // Add the complete JSON payload as a single field
-          formData.append('payload', JSON.stringify(payload));
+          // Wrap payload in N8N expected format with exact structure\n          const n8nPayload = [{\n            headers: {\n              'connection': 'close',\n              'host': 'agents.rotz.ai',\n              'content-type': 'multipart/form-data',\n              'cache-control': 'no-cache',\n              'key': apiKey,\n              'user-agent': navigator.userAgent || 'Mozilla/5.0 (compatible; ROTZ-Image-Generator)',\n              'dnt': '1',\n              'accept': '*/*',\n              'origin': window.location.origin,\n              'sec-fetch-site': 'same-site',\n              'sec-fetch-mode': 'cors',\n              'sec-fetch-dest': 'empty',\n              'referer': window.location.href,\n              'accept-language': i18n.language + '-' + i18n.language.toUpperCase() + ',' + i18n.language + ';q=0.9,en-US;q=0.8,en;q=0.7',\n              'priority': 'u=1, i'\n            },\n            params: {},\n            query: {},\n            body: payload,\n            webhookUrl: 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496',\n            executionMode: 'production'\n          }];\n          formData.append('payload', JSON.stringify(n8nPayload));
           
           // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
@@ -1184,7 +1184,7 @@ export default function ImageGenerator() {
           };
         } else {
           // Use original JSON method for non-reference image requests
-          requestBody = JSON.stringify(payload);
+          // Wrap payload in N8N expected format with exact structure\n          const n8nPayload = [{\n            headers: {\n              'connection': 'close',\n              'host': 'agents.rotz.ai',\n              'content-type': 'application/json',\n              'cache-control': 'no-cache',\n              'key': apiKey,\n              'user-agent': navigator.userAgent || 'Mozilla/5.0 (compatible; ROTZ-Image-Generator)',\n              'dnt': '1',\n              'accept': '*/*',\n              'origin': window.location.origin,\n              'sec-fetch-site': 'same-site',\n              'sec-fetch-mode': 'cors',\n              'sec-fetch-dest': 'empty',\n              'referer': window.location.href,\n              'accept-language': i18n.language + '-' + i18n.language.toUpperCase() + ',' + i18n.language + ';q=0.9,en-US;q=0.8,en;q=0.7',\n              'priority': 'u=1, i'\n            },\n            params: {},\n            query: {},\n            body: payload,\n            webhookUrl: 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496',\n            executionMode: 'production'\n          }];\n          requestBody = JSON.stringify(n8nPayload);
           requestHeaders = {
             'Content-Type': 'application/json',
             'key': apiKey,
