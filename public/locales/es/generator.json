@@ -1,0 +1,64 @@
+{
+  "title": "Generador de Imágenes IA",
+  "subtitle": "Crea imágenes impresionantes con IA",
+  "tabs": {
+    "current": "Actual",
+    "images": "Imágenes",
+    "videos": "Videos"
+  },
+  "modes": {
+    "image": "Imagen",
+    "video": "Video"
+  },
+  "generation": {
+    "generate": "Generar",
+    "generating": "Generando...",
+    "generatingVideo": "Generando Video...",
+    "generatingMagic": "Creando Magia...",
+    "prompt": "Describe lo que quieres crear",
+    "promptPlaceholder": "Una hermosa puesta de sol sobre las montañas...",
+    "negativePrompt": "Prompt Negativo",
+    "negativePromptPlaceholder": "Qué evitar en la imagen...",
+    "style": "Estilo Artístico",
+    "stylePlaceholder": "Elige un estilo artístico...",
+    "aspectRatio": "Relación de Aspecto",
+    "customDimensions": "Dimensiones Personalizadas",
+    "width": "Ancho",
+    "height": "Alto",
+    "steps": "Pasos",
+    "cfgScale": "Escala CFG",
+    "duration": "Duración",
+    "frameRate": "Tasa de Fotogramas",
+    "settings": "Configuración",
+    "advancedSettings": "Configuración Avanzada",
+    "presets": "Preestablecidos",
+    "savePreset": "Guardar Preestablecido"
+  },
+  "results": {
+    "generatedImages": "Imágenes Generadas",
+    "generatedVideos": "Videos Generados", 
+    "noImagesYet": "Sin Imágenes Aún",
+    "noImagesMessage": "Genera tu primera imagen para comenzar tu historial de creaciones",
+    "imageHistory": "Historial de Imágenes",
+    "videoHistory": "Historial de Videos",
+    "currentImages": "Imágenes Actuales",
+    "currentVideos": "Videos Actuales"
+  },
+  "upload": {
+    "referenceImage": "Imagen de Referencia",
+    "dragDropMessage": "Arrastra una imagen aquí o haz clic para explorar",
+    "signInToUpload": "Inicia sesión para subir imágenes de referencia",
+    "supportedFormats": "Soporta JPG, PNG, WEBP hasta 10MB",
+    "uploadSuccess": "¡Imagen de referencia subida exitosamente!",
+    "uploadError": "Error al subir imagen",
+    "removeImage": "Eliminar"
+  },
+  "warnings": {
+    "videoGenerationTime": "La generación de video toma tiempo",
+    "videoProcessingMessage": "El procesamiento de video generalmente toma 2-5 minutos. Ten paciencia mientras creamos tu video.",
+    "largeDimensions": "Las dimensiones grandes pueden tomar más tiempo para generar",
+    "autoDeletion": "Eliminación Automática de Videos",
+    "autoDeleteionMessage": "Los videos se eliminan automáticamente después de 14 días para administrar el almacenamiento. Descarga los videos que quieras conservar permanentemente.",
+    "extensionInfo": "Los usuarios regulares pueden extender el almacenamiento 1 vez (7 días extra)"
+  }
+}

@@ -1478,7 +1478,7 @@ export default function ImageGenerator() {
           </div>
           
           {/* Mobile Language Selector */}
-          <div className="sm:hidden flex justify-end mb-2">
+          <div className="sm:hidden flex justify-center mb-2 pr-16">
             <LanguageSelector />
           </div>
           

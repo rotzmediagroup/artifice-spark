@@ -1,0 +1,64 @@
+{
+  "title": "AI图像生成器",
+  "subtitle": "用AI创建令人惊艳的图像",
+  "tabs": {
+    "current": "当前",
+    "images": "图像",
+    "videos": "视频"
+  },
+  "modes": {
+    "image": "图像",
+    "video": "视频"
+  },
+  "generation": {
+    "generate": "生成",
+    "generating": "生成中...",
+    "generatingVideo": "生成视频中...",
+    "generatingMagic": "创造魔法中...",
+    "prompt": "描述您想要创建的内容",
+    "promptPlaceholder": "山峰上的美丽日落...",
+    "negativePrompt": "反向提示",
+    "negativePromptPlaceholder": "要在图像中避免的内容...",
+    "style": "艺术风格",
+    "stylePlaceholder": "选择艺术风格...",
+    "aspectRatio": "宽高比",
+    "customDimensions": "自定义尺寸",
+    "width": "宽度",
+    "height": "高度",
+    "steps": "步骤",
+    "cfgScale": "CFG比例",
+    "duration": "持续时间",
+    "frameRate": "帧率",
+    "settings": "设置",
+    "advancedSettings": "高级设置",
+    "presets": "预设",
+    "savePreset": "保存预设"
+  },
+  "results": {
+    "generatedImages": "生成的图像",
+    "generatedVideos": "生成的视频", 
+    "noImagesYet": "暂无图像",
+    "noImagesMessage": "生成您的第一张图像以开始构建创作历史",
+    "imageHistory": "图像历史",
+    "videoHistory": "视频历史",
+    "currentImages": "当前图像",
+    "currentVideos": "当前视频"
+  },
+  "upload": {
+    "referenceImage": "参考图像",
+    "dragDropMessage": "拖拽图像到此处，或点击浏览",
+    "signInToUpload": "登录以上传参考图像",
+    "supportedFormats": "支持JPG、PNG、WEBP，最大10MB",
+    "uploadSuccess": "参考图像上传成功！",
+    "uploadError": "图像上传失败",
+    "removeImage": "移除"
+  },
+  "warnings": {
+    "videoGenerationTime": "视频生成需要时间",
+    "videoProcessingMessage": "视频处理通常需要2-5分钟。请耐心等待，我们正在为您创建视频。",
+    "largeDimensions": "大尺寸可能需要更长时间生成",
+    "autoDeletion": "自动视频删除",
+    "autoDeleteionMessage": "视频会在14天后自动删除以管理存储。下载您想要永久保存的视频。",
+    "extensionInfo": "普通用户可以延长存储1次（额外7天）"
+  }
+}

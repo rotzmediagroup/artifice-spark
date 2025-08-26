@@ -1,0 +1,41 @@
+{
+  "title": "Super Admin Panel",
+  "adminPanel": "Admin Panel",
+  "userManagement": "User Management",
+  "creditManagement": "Credit Management",
+  "overview": "Overview",
+  "users": "Users",
+  "transactions": "Transactions",
+  "settings": "Settings",
+  "filters": {
+    "searchUsers": "Search users by email or name...",
+    "filterByStatus": "Filter by status",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Suspended",
+    "deleted": "Deleted"
+  },
+  "userDetails": {
+    "user": "User",
+    "status": "Status",
+    "credits": "Credits",
+    "creditsImgVid": "Credits (Img/Vid)",
+    "totalUsed": "Total Used",
+    "mfaStatus": "MFA Status", 
+    "lastLogin": "Last Login",
+    "actions": "Actions",
+    "manage": "Manage",
+    "history": "History",
+    "account": "Account",
+    "unlimited": "Unlimited"
+  },
+  "actions": {
+    "grantCredits": "Grant Credits",
+    "deductCredits": "Deduct Credits",
+    "viewHistory": "View History",
+    "suspendUser": "Suspend User",
+    "activateUser": "Activate User",
+    "deleteUser": "Delete User"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "buttons": {
+    "signIn": "登录",
+    "signUp": "注册", 
+    "signOut": "退出",
+    "download": "下载",
+    "share": "分享",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "close": "关闭",
+    "back": "返回",
+    "next": "下一步",
+    "retry": "重试",
+    "copy": "复制",
+    "delete": "删除",
+    "edit": "编辑",
+    "view": "查看",
+    "required": "必填",
+    "optional": "可选"
+  },
+  "navigation": {
+    "home": "首页",
+    "gallery": "图库", 
+    "history": "历史",
+    "settings": "设置",
+    "help": "帮助",
+    "about": "关于"
+  },
+  "general": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息",
+    "yes": "是",
+    "no": "否",
+    "credits": "积分",
+    "available": "可用",
+    "used": "已使用",
+    "total": "总计",
+    "none": "无",
+    "user": "用户"
+  },
+  "time": {
+    "seconds": "秒",
+    "minutes": "分钟", 
+    "hours": "小时",
+    "days": "天",
+    "weeks": "周",
+    "months": "月",
+    "ago": "前",
+    "remaining": "剩余"
+  }
+}

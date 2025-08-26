@@ -1,0 +1,64 @@
+{
+  "title": "AI Afbeelding Generator",
+  "subtitle": "Maak prachtige afbeeldingen met AI",
+  "tabs": {
+    "current": "Huidige",
+    "images": "Afbeeldingen",
+    "videos": "Video's"
+  },
+  "modes": {
+    "image": "Afbeelding",
+    "video": "Video"
+  },
+  "generation": {
+    "generate": "Genereren",
+    "generating": "Genereren...",
+    "generatingVideo": "Video Genereren...",
+    "generatingMagic": "Magie Creëren...",
+    "prompt": "Beschrijf wat je wilt maken",
+    "promptPlaceholder": "Een prachtige zonsondergang boven de bergen...",
+    "negativePrompt": "Negatieve Prompt",
+    "negativePromptPlaceholder": "Wat te vermijden in de afbeelding...",
+    "style": "Kunststijl",
+    "stylePlaceholder": "Kies een kunststijl...",
+    "aspectRatio": "Beeldverhouding",
+    "customDimensions": "Aangepaste Afmetingen",
+    "width": "Breedte",
+    "height": "Hoogte",
+    "steps": "Stappen",
+    "cfgScale": "CFG Schaal",
+    "duration": "Duur",
+    "frameRate": "Frame Rate",
+    "settings": "Instellingen",
+    "advancedSettings": "Geavanceerde Instellingen",
+    "presets": "Voorinstellingen",
+    "savePreset": "Voorinstelling Opslaan"
+  },
+  "results": {
+    "generatedImages": "Gegenereerde Afbeeldingen",
+    "generatedVideos": "Gegenereerde Video's", 
+    "noImagesYet": "Nog Geen Afbeeldingen",
+    "noImagesMessage": "Genereer je eerste afbeelding om je creatie geschiedenis op te bouwen",
+    "imageHistory": "Afbeelding Geschiedenis",
+    "videoHistory": "Video Geschiedenis",
+    "currentImages": "Huidige Afbeeldingen",
+    "currentVideos": "Huidige Video's"
+  },
+  "upload": {
+    "referenceImage": "Referentie Afbeelding",
+    "dragDropMessage": "Sleep een afbeelding hierheen of klik om te bladeren",
+    "signInToUpload": "Log in om referentie afbeeldingen te uploaden",
+    "supportedFormats": "Ondersteunt JPG, PNG, WEBP tot 10MB",
+    "uploadSuccess": "Referentie afbeelding succesvol geüpload!",
+    "uploadError": "Afbeelding uploaden mislukt",
+    "removeImage": "Verwijderen"
+  },
+  "warnings": {
+    "videoGenerationTime": "Video generatie duurt tijd",
+    "videoProcessingMessage": "Video verwerking duurt meestal 2-5 minuten. Wees geduldig terwijl we je video maken.",
+    "largeDimensions": "Grote afmetingen kunnen langer duren om te genereren",
+    "autoDeletion": "Automatische Video Verwijdering",
+    "autoDeleteionMessage": "Video's worden automatisch verwijderd na 14 dagen om opslag te beheren. Download video's die je permanent wilt bewaren.",
+    "extensionInfo": "Gewone gebruikers kunnen opslag 1 keer verlengen (7 dagen extra)"
+  }
+}

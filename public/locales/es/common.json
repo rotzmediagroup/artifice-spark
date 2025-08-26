@@ -1,0 +1,55 @@
+{
+  "buttons": {
+    "signIn": "Iniciar Sesión",
+    "signUp": "Registrarse", 
+    "signOut": "Cerrar Sesión",
+    "download": "Descargar",
+    "share": "Compartir",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "retry": "Reintentar",
+    "copy": "Copiar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "view": "Ver",
+    "required": "Requerido",
+    "optional": "Opcional"
+  },
+  "navigation": {
+    "home": "Inicio",
+    "gallery": "Galería", 
+    "history": "Historial",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "about": "Acerca de"
+  },
+  "general": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Info",
+    "yes": "Sí",
+    "no": "No",
+    "credits": "Créditos",
+    "available": "Disponible",
+    "used": "Usado",
+    "total": "Total",
+    "none": "Ninguno",
+    "user": "Usuario"
+  },
+  "time": {
+    "seconds": "segundos",
+    "minutes": "minutos", 
+    "hours": "horas",
+    "days": "días",
+    "weeks": "semanas",
+    "months": "meses",
+    "ago": "hace",
+    "remaining": "restante"
+  }
+}

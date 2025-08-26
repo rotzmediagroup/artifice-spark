@@ -1,0 +1,64 @@
+{
+  "title": "AI Image Generator",
+  "subtitle": "Create stunning images with AI",
+  "tabs": {
+    "current": "Current",
+    "images": "Images",
+    "videos": "Videos"
+  },
+  "modes": {
+    "image": "Image",
+    "video": "Video"
+  },
+  "generation": {
+    "generate": "Generate",
+    "generating": "Generating...",
+    "generatingVideo": "Generating Video...",
+    "generatingMagic": "Generating Magic...",
+    "prompt": "Describe what you want to create",
+    "promptPlaceholder": "A beautiful sunset over the mountains...",
+    "negativePrompt": "Negative Prompt",
+    "negativePromptPlaceholder": "What to avoid in the image...",
+    "style": "Art Style",
+    "stylePlaceholder": "Choose an art style...",
+    "aspectRatio": "Aspect Ratio",
+    "customDimensions": "Custom Dimensions",
+    "width": "Width",
+    "height": "Height",
+    "steps": "Steps",
+    "cfgScale": "CFG Scale",
+    "duration": "Duration",
+    "frameRate": "Frame Rate",
+    "settings": "Settings",
+    "advancedSettings": "Advanced Settings",
+    "presets": "Presets",
+    "savePreset": "Save Preset"
+  },
+  "results": {
+    "generatedImages": "Generated Images",
+    "generatedVideos": "Generated Videos", 
+    "noImagesYet": "No Images Yet",
+    "noImagesMessage": "Generate your first image to start building your creation history",
+    "imageHistory": "Image History",
+    "videoHistory": "Video History",
+    "currentImages": "Current Images",
+    "currentVideos": "Current Videos"
+  },
+  "upload": {
+    "referenceImage": "Reference Image",
+    "dragDropMessage": "Drag & drop an image here, or click to browse",
+    "signInToUpload": "Sign in to upload reference images",
+    "supportedFormats": "Supports JPG, PNG, WEBP up to 10MB",
+    "uploadSuccess": "Reference image uploaded successfully!",
+    "uploadError": "Failed to upload image",
+    "removeImage": "Remove"
+  },
+  "warnings": {
+    "videoGenerationTime": "Video generation takes time",
+    "videoProcessingMessage": "Video processing typically takes 2-5 minutes. Please be patient while we create your video.",
+    "largeDimensions": "Large dimensions may take longer to generate",
+    "autoDeletion": "Automatic Video Deletion",
+    "autoDeleteionMessage": "Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.",
+    "extensionInfo": "Regular users can extend storage up to 1 time (7 days extra)"
+  }
+}

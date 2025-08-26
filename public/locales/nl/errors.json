@@ -1,0 +1,33 @@
+{
+  "network": {
+    "connectionFailed": "Netwerkverbinding mislukt",
+    "timeout": "Verzoek verlopen",
+    "serverError": "Server fout opgetreden",
+    "unknownError": "Een onbekende fout is opgetreden"
+  },
+  "auth": {
+    "invalidCredentials": "Ongeldige e-mail of wachtwoord",
+    "emailAlreadyExists": "E-mail bestaat al",
+    "weakPassword": "Wachtwoord is te zwak",
+    "emailNotVerified": "E-mail niet geverifieerd",
+    "accountDisabled": "Account is uitgeschakeld",
+    "tooManyAttempts": "Te veel inlogpogingen"
+  },
+  "upload": {
+    "fileTooLarge": "Bestand te groot",
+    "invalidFileType": "Ongeldig bestandstype",
+    "uploadFailed": "Upload mislukt",
+    "corruptedFile": "Bestand lijkt beschadigd te zijn"
+  },
+  "generation": {
+    "insufficientCredits": "Onvoldoende credits",
+    "promptTooLong": "Prompt is te lang",
+    "generationFailed": "Generatie mislukt",
+    "invalidSettings": "Ongeldige generatie instellingen"
+  },
+  "download": {
+    "downloadFailed": "Download mislukt",
+    "networkError": "Netwerkfout tijdens download",
+    "urlCopied": "URL gekopieerd naar klembord - plak in browser om handmatig te downloaden"
+  }
+}

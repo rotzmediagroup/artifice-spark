@@ -36,7 +36,15 @@ i18n
     // Backend configuration
     backend: {
       loadPath: '/locales/{{lng}}/{{ns}}.json',
+      // Add cache busting
+      queryStringParams: { v: Date.now() },
+      // Force reload resources
+      reloadInterval: false,
     },
+    
+    // Resource loading
+    load: 'languageOnly', // Load only language, not region (en instead of en-US)
+    preload: ['en'], // Always preload English as fallback
 
     // Namespaces
     ns: ['common', 'generator', 'auth', 'admin', 'errors'],

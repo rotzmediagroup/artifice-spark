@@ -1,0 +1,55 @@
+{
+  "buttons": {
+    "signIn": "Anmelden",
+    "signUp": "Registrieren", 
+    "signOut": "Abmelden",
+    "download": "Herunterladen",
+    "share": "Teilen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "close": "Schließen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "retry": "Wiederholen",
+    "copy": "Kopieren",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "view": "Anzeigen",
+    "required": "Erforderlich",
+    "optional": "Optional"
+  },
+  "navigation": {
+    "home": "Startseite",
+    "gallery": "Galerie", 
+    "history": "Verlauf",
+    "settings": "Einstellungen",
+    "help": "Hilfe",
+    "about": "Über"
+  },
+  "general": {
+    "loading": "Laden...",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "warning": "Warnung",
+    "info": "Info",
+    "yes": "Ja",
+    "no": "Nein",
+    "credits": "Credits",
+    "available": "Verfügbar",
+    "used": "Verwendet",
+    "total": "Gesamt",
+    "none": "Keine",
+    "user": "Benutzer"
+  },
+  "time": {
+    "seconds": "Sekunden",
+    "minutes": "Minuten", 
+    "hours": "Stunden",
+    "days": "Tage",
+    "weeks": "Wochen",
+    "months": "Monate",
+    "ago": "her",
+    "remaining": "verbleibend"
+  }
+}

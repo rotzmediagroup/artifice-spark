@@ -1,0 +1,33 @@
+{
+  "network": {
+    "connectionFailed": "Network connection failed",
+    "timeout": "Request timed out",
+    "serverError": "Server error occurred",
+    "unknownError": "An unknown error occurred"
+  },
+  "auth": {
+    "invalidCredentials": "Invalid email or password",
+    "emailAlreadyExists": "Email already exists",
+    "weakPassword": "Password is too weak",
+    "emailNotVerified": "Email not verified",
+    "accountDisabled": "Account has been disabled",
+    "tooManyAttempts": "Too many login attempts"
+  },
+  "upload": {
+    "fileTooLarge": "File size too large",
+    "invalidFileType": "Invalid file type",
+    "uploadFailed": "Upload failed",
+    "corruptedFile": "File appears to be corrupted"
+  },
+  "generation": {
+    "insufficientCredits": "Insufficient credits",
+    "promptTooLong": "Prompt is too long",
+    "generationFailed": "Generation failed",
+    "invalidSettings": "Invalid generation settings"
+  },
+  "download": {
+    "downloadFailed": "Download failed",
+    "networkError": "Network error during download",
+    "urlCopied": "URL copied to clipboard - paste in browser to download manually"
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "title": "KI Bild Generator",
+  "subtitle": "Erstelle atemberaubende Bilder mit KI",
+  "tabs": {
+    "current": "Aktuell",
+    "images": "Bilder",
+    "videos": "Videos"
+  },
+  "modes": {
+    "image": "Bild",
+    "video": "Video"
+  },
+  "generation": {
+    "generate": "Generieren",
+    "generating": "Generieren...",
+    "generatingVideo": "Video Generieren...",
+    "generatingMagic": "Magie Erschaffen...",
+    "prompt": "Beschreiben Sie, was Sie erstellen möchten",
+    "promptPlaceholder": "Ein wunderschöner Sonnenuntergang über den Bergen...",
+    "negativePrompt": "Negative Eingabe",
+    "negativePromptPlaceholder": "Was im Bild vermieden werden soll...",
+    "style": "Kunststil",
+    "stylePlaceholder": "Wählen Sie einen Kunststil...",
+    "aspectRatio": "Seitenverhältnis",
+    "customDimensions": "Benutzerdefinierte Abmessungen",
+    "width": "Breite",
+    "height": "Höhe",
+    "steps": "Schritte",
+    "cfgScale": "CFG Skala",
+    "duration": "Dauer",
+    "frameRate": "Bildrate",
+    "settings": "Einstellungen",
+    "advancedSettings": "Erweiterte Einstellungen",
+    "presets": "Vorlagen",
+    "savePreset": "Vorlage Speichern"
+  },
+  "results": {
+    "generatedImages": "Generierte Bilder",
+    "generatedVideos": "Generierte Videos", 
+    "noImagesYet": "Noch Keine Bilder",
+    "noImagesMessage": "Generieren Sie Ihr erstes Bild, um Ihren Erstellungsverlauf aufzubauen",
+    "imageHistory": "Bild Verlauf",
+    "videoHistory": "Video Verlauf",
+    "currentImages": "Aktuelle Bilder",
+    "currentVideos": "Aktuelle Videos"
+  },
+  "upload": {
+    "referenceImage": "Referenzbild",
+    "dragDropMessage": "Ziehen Sie ein Bild hierher oder klicken Sie zum Durchsuchen",
+    "signInToUpload": "Melden Sie sich an, um Referenzbilder hochzuladen",
+    "supportedFormats": "Unterstützt JPG, PNG, WEBP bis 10MB",
+    "uploadSuccess": "Referenzbild erfolgreich hochgeladen!",
+    "uploadError": "Bild-Upload fehlgeschlagen",
+    "removeImage": "Entfernen"
+  },
+  "warnings": {
+    "videoGenerationTime": "Video-Generierung dauert Zeit",
+    "videoProcessingMessage": "Video-Verarbeitung dauert normalerweise 2-5 Minuten. Haben Sie Geduld, während wir Ihr Video erstellen.",
+    "largeDimensions": "Große Abmessungen können länger zum Generieren dauern",
+    "autoDeletion": "Automatische Video-Löschung",
+    "autoDeleteionMessage": "Videos werden nach 14 Tagen automatisch gelöscht, um Speicher zu verwalten. Laden Sie Videos herunter, die Sie dauerhaft behalten möchten.",
+    "extensionInfo": "Normale Benutzer können Speicher 1 Mal verlängern (7 Tage extra)"
+  }
+}

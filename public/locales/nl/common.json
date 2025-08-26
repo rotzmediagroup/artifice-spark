@@ -1,0 +1,55 @@
+{
+  "buttons": {
+    "signIn": "Inloggen",
+    "signUp": "Registreren", 
+    "signOut": "Uitloggen",
+    "download": "Downloaden",
+    "share": "Delen",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "close": "Sluiten",
+    "back": "Terug",
+    "next": "Volgende",
+    "retry": "Opnieuw proberen",
+    "copy": "Kopiëren",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "view": "Bekijken",
+    "required": "Vereist",
+    "optional": "Optioneel"
+  },
+  "navigation": {
+    "home": "Home",
+    "gallery": "Galerij", 
+    "history": "Geschiedenis",
+    "settings": "Instellingen",
+    "help": "Help",
+    "about": "Over"
+  },
+  "general": {
+    "loading": "Laden...",
+    "error": "Fout",
+    "success": "Succes",
+    "warning": "Waarschuwing",
+    "info": "Info",
+    "yes": "Ja",
+    "no": "Nee",
+    "credits": "Credits",
+    "available": "Beschikbaar",
+    "used": "Gebruikt",
+    "total": "Totaal",
+    "none": "Geen",
+    "user": "Gebruiker"
+  },
+  "time": {
+    "seconds": "seconden",
+    "minutes": "minuten", 
+    "hours": "uren",
+    "days": "dagen",
+    "weeks": "weken",
+    "months": "maanden",
+    "ago": "geleden",
+    "remaining": "resterend"
+  }
+}
