@@ -1161,36 +1161,31 @@ export default function ImageGenerator() {
           });
         }
         
-        // Conditional upload: FormData for reference images, JSON otherwise
+        // Use single unified approach for all image generation
         let requestBody;
-        let requestHeaders;
+        let requestHeaders = {
+          'Content-Type': 'application/json',
+          'key': apiKey,
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
+        };
         
+        // Default: send payload as JSON (works for both with/without reference images)
+        requestBody = JSON.stringify(payload);
+        
+        // When reference image exists, use FormData to attach binary file alongside same payload
         if (referenceImageFile) {
-          // Use FormData for binary reference image upload  
           const formData = new FormData();
           
-          // Add the structured payload directly (same as regular requests)
-          formData.append('data', JSON.stringify(payload));
+          // Add the same payload as 'json' field
+          formData.append('json', JSON.stringify(payload));
           
           // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
           
           requestBody = formData;
-          requestHeaders = {
-            // No Content-Type - let browser set multipart/form-data with boundary
-            'key': apiKey,
-            'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache'
-          };
-        } else {
-          // Use direct JSON payload (same structure as FormData)
-          requestBody = JSON.stringify(payload);
-          requestHeaders = {
-            'Content-Type': 'application/json',
-            'key': apiKey,
-            'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache'
-          };
+          // Remove Content-Type header - let browser set multipart/form-data with boundary
+          delete requestHeaders['Content-Type'];
         }
         
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
