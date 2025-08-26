@@ -458,16 +458,46 @@ export default function ImageGenerator() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
   
-  // Get translated templates - ALL templates that exist in translation files
+  // Get translated templates - COMPREHENSIVE collection (75+ templates)
   const translatedTemplates = useMemo(() => {
     const templateKeys = [
-      'fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 
+      // Portraits (15 templates)
+      'fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait',
+      'vintagePortrait', 'glamourPortrait', 'businessPortrait', 'artisticPortrait',
+      'darkPortrait', 'colorfulPortrait', 'minimalistPortrait', 'retroPortrait',
+      'gothicPortrait', 'elegantPortrait', 'casualPortrait',
+      
+      // Landscapes & Nature (15 templates)
       'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic',
-      'abstractArt', 'fluidDynamics', 'sacredGeometry',
-      'modernArchitecture', 'ancientTemple', 'futuristicBuilding',
-      'productShot', 'vintageStillLife', 'magicalArtifact',
-      'wildlifePortrait', 'mythicalCreature', 'cutePet',
-      'epicBattle', 'peacefulMoment'
+      'mountainLandscape', 'oceanScene', 'forestScene', 'desertLandscape',
+      'cityscape', 'countryside', 'tropicalParadise', 'arcticScene',
+      'autumnForest', 'springMeadow', 'stormySkies',
+      
+      // Abstract & Artistic (15 templates)
+      'abstractArt', 'fluidDynamics', 'sacredGeometry', 'geometricPatterns',
+      'colorExplosion', 'minimalistArt', 'psychedelicArt', 'motionBlur',
+      'texturalArt', 'gradientArt', 'fractalArt', 'liquidArt',
+      'smokeArt', 'lightRays', 'energyField',
+      
+      // Architecture & Buildings (10 templates)  
+      'modernArchitecture', 'ancientTemple', 'futuristicBuilding', 'gothicCathedral',
+      'industrialBuilding', 'residentialHouse', 'skyscraper', 'bridge',
+      'castle', 'modernInterior',
+      
+      // Objects & Still Life (10 templates)
+      'productShot', 'vintageStillLife', 'magicalArtifact', 'foodPhotography',
+      'jewelryShot', 'techGadget', 'bookCollection', 'flowerArrangement',
+      'antiques', 'modernSculpture',
+      
+      // Animals & Creatures (10 templates)
+      'wildlifePortrait', 'mythicalCreature', 'cutePet', 'birdInFlight',
+      'oceanCreatures', 'farmAnimals', 'exoticPets', 'dinosaurs',
+      'fantasyAnimals', 'insectMacro',
+      
+      // Action & Scenes (10 templates)
+      'epicBattle', 'peacefulMoment', 'sportsAction', 'dancingFigure',
+      'musicalPerformance', 'workingProfessional', 'familyGathering', 'travelScene',
+      'adventureQuest', 'romanticScene'
     ];
     
     try {
@@ -490,13 +520,43 @@ export default function ImageGenerator() {
 
   const getTemplateCategoryKey = (templateKey: string) => {
     const categoryMap: Record<string, string> = {
+      // Portraits
       fantasyPortrait: 'portrait', realisticPortrait: 'portrait', heroicCharacter: 'portrait', cyberpunkPortrait: 'portrait',
+      vintagePortrait: 'portrait', glamourPortrait: 'portrait', businessPortrait: 'portrait', artisticPortrait: 'portrait',
+      darkPortrait: 'portrait', colorfulPortrait: 'portrait', minimalistPortrait: 'portrait', retroPortrait: 'portrait',
+      gothicPortrait: 'portrait', elegantPortrait: 'portrait', casualPortrait: 'portrait',
+      
+      // Landscapes & Nature  
       sciFiLandscape: 'landscape', natureScene: 'landscape', fantasyRealm: 'landscape', postApocalyptic: 'landscape',
-      abstractArt: 'abstract', fluidDynamics: 'abstract', sacredGeometry: 'abstract',
-      modernArchitecture: 'architecture', ancientTemple: 'architecture', futuristicBuilding: 'architecture',
-      productShot: 'photo', vintageStillLife: 'artistic', magicalArtifact: 'artistic',
-      wildlifePortrait: 'photo', mythicalCreature: 'artistic', cutePet: 'photo',
-      epicBattle: 'artistic', peacefulMoment: 'artistic'
+      mountainLandscape: 'landscape', oceanScene: 'landscape', forestScene: 'landscape', desertLandscape: 'landscape',
+      cityscape: 'landscape', countryside: 'landscape', tropicalParadise: 'landscape', arcticScene: 'landscape',
+      autumnForest: 'landscape', springMeadow: 'landscape', stormySkies: 'landscape',
+      
+      // Abstract & Artistic
+      abstractArt: 'abstract', fluidDynamics: 'abstract', sacredGeometry: 'abstract', geometricPatterns: 'abstract',
+      colorExplosion: 'abstract', minimalistArt: 'abstract', psychedelicArt: 'abstract', motionBlur: 'abstract',
+      texturalArt: 'abstract', gradientArt: 'abstract', fractalArt: 'abstract', liquidArt: 'abstract',
+      smokeArt: 'abstract', lightRays: 'abstract', energyField: 'abstract',
+      
+      // Architecture
+      modernArchitecture: 'architecture', ancientTemple: 'architecture', futuristicBuilding: 'architecture', gothicCathedral: 'architecture',
+      industrialBuilding: 'architecture', residentialHouse: 'architecture', skyscraper: 'architecture', bridge: 'architecture',
+      castle: 'architecture', modernInterior: 'architecture',
+      
+      // Objects & Still Life
+      productShot: 'photo', vintageStillLife: 'artistic', magicalArtifact: 'artistic', foodPhotography: 'photo',
+      jewelryShot: 'photo', techGadget: 'photo', bookCollection: 'artistic', flowerArrangement: 'artistic',
+      antiques: 'artistic', modernSculpture: 'artistic',
+      
+      // Animals & Creatures
+      wildlifePortrait: 'photo', mythicalCreature: 'artistic', cutePet: 'photo', birdInFlight: 'photo',
+      oceanCreatures: 'photo', farmAnimals: 'photo', exoticPets: 'photo', dinosaurs: 'artistic',
+      fantasyAnimals: 'artistic', insectMacro: 'photo',
+      
+      // Action & Scenes
+      epicBattle: 'artistic', peacefulMoment: 'artistic', sportsAction: 'photo', dancingFigure: 'artistic',
+      musicalPerformance: 'artistic', workingProfessional: 'photo', familyGathering: 'photo', travelScene: 'photo',
+      adventureQuest: 'artistic', romanticScene: 'artistic'
     };
     return categoryMap[templateKey] || 'artistic';
   };
@@ -978,7 +1038,7 @@ export default function ImageGenerator() {
             cfg_scale: cfgScale[0],
             batch_count: 1,
             template_used: selectedTemplate || null,
-            reference_image: null, // Binary file sent separately in FormData when present
+            reference_image: hasReferenceImage ? true : null,
             reference_image_metadata: referenceImageFile ? {
               name: referenceImageFile.name,
               size: referenceImageFile.size,
@@ -1091,13 +1151,11 @@ export default function ImageGenerator() {
         let requestHeaders;
         
         if (referenceImageFile) {
-          // Use FormData for binary reference image upload
+          // Use FormData for binary reference image upload  
           const formData = new FormData();
           
-          // Add the complete JSON structure (not as a nested 'payload' field!)
-          Object.keys(payload).forEach(key => {
-            formData.append(key, JSON.stringify(payload[key as keyof typeof payload]));
-          });
+          // Add the complete JSON payload as a single field
+          formData.append('payload', JSON.stringify(payload));
           
           // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
