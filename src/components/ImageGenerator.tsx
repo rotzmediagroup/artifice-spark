@@ -978,7 +978,7 @@ export default function ImageGenerator() {
             cfg_scale: cfgScale[0],
             batch_count: 1,
             template_used: selectedTemplate || null,
-            has_reference_image: hasReferenceImage,
+            reference_image: null, // Binary file sent separately in FormData when present
             reference_image_metadata: referenceImageFile ? {
               name: referenceImageFile.name,
               size: referenceImageFile.size,
@@ -1086,27 +1086,44 @@ export default function ImageGenerator() {
           });
         }
         
-        // Create FormData for binary file upload
-        const formData = new FormData();
+        // Conditional upload: FormData for reference images, JSON otherwise
+        let requestBody;
+        let requestHeaders;
         
-        // Add JSON payload as a field
-        formData.append('payload', JSON.stringify(payload));
-        
-        // Add reference image as binary file if present
         if (referenceImageFile) {
+          // Use FormData for binary reference image upload
+          const formData = new FormData();
+          
+          // Add the complete JSON structure (not as a nested 'payload' field!)
+          Object.keys(payload).forEach(key => {
+            formData.append(key, JSON.stringify(payload[key as keyof typeof payload]));
+          });
+          
+          // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
+          
+          requestBody = formData;
+          requestHeaders = {
+            // No Content-Type - let browser set multipart/form-data with boundary
+            'key': apiKey,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache'
+          };
+        } else {
+          // Use original JSON method for non-reference image requests
+          requestBody = JSON.stringify(payload);
+          requestHeaders = {
+            'Content-Type': 'application/json',
+            'key': apiKey,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache'
+          };
         }
         
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
-          headers: {
-            // Remove Content-Type header - let browser set it for FormData with boundary
-            'key': apiKey,
-            // Add headers that might help with long requests
-            'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache'
-          },
-          body: formData,
+          headers: requestHeaders,
+          body: requestBody,
           signal: controller.signal,
           // Additional fetch options for long requests
           keepalive: true
