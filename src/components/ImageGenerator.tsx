@@ -458,9 +458,17 @@ export default function ImageGenerator() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
   
-  // Get translated templates - using only keys that exist in all language files
+  // Get translated templates - ALL templates that exist in translation files
   const translatedTemplates = useMemo(() => {
-    const templateKeys = ['fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic'];
+    const templateKeys = [
+      'fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 
+      'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic',
+      'abstractArt', 'fluidDynamics', 'sacredGeometry',
+      'modernArchitecture', 'ancientTemple', 'futuristicBuilding',
+      'productShot', 'vintageStillLife', 'magicalArtifact',
+      'wildlifePortrait', 'mythicalCreature', 'cutePet',
+      'epicBattle', 'peacefulMoment'
+    ];
     
     try {
       return templateKeys.map(key => ({
@@ -473,7 +481,9 @@ export default function ImageGenerator() {
       console.error('Translation error:', error);
       // Fallback templates
       return [
-        { key: 'fallback', name: 'Fantasy Portrait', prompt: 'A mystical fantasy portrait with magical atmosphere', category: 'Portrait' }
+        { key: 'fantasyPortrait', name: 'Fantasy Portrait', prompt: 'A mystical fantasy portrait with magical atmosphere', category: 'Portrait' },
+        { key: 'realisticPortrait', name: 'Realistic Portrait', prompt: 'Professional headshot photography with studio lighting', category: 'Portrait' },
+        { key: 'abstractArt', name: 'Abstract Art', prompt: 'Abstract geometric composition with vibrant colors', category: 'Abstract' }
       ];
     }
   }, [t]);
@@ -947,8 +957,8 @@ export default function ImageGenerator() {
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       const currentDimensions = getCurrentDimensions();
       
-      // Convert reference image to base64 if present
-      const referenceImageBase64 = referenceImageFile ? await convertFileToBase64(referenceImageFile) : null;
+      // Prepare binary file upload (no base64 conversion)
+      const hasReferenceImage = !!referenceImageFile;
       
       const payload = {
           // Generation settings - primary parameters
@@ -968,7 +978,7 @@ export default function ImageGenerator() {
             cfg_scale: cfgScale[0],
             batch_count: 1,
             template_used: selectedTemplate || null,
-            reference_image: referenceImageBase64,
+            has_reference_image: hasReferenceImage,
             reference_image_metadata: referenceImageFile ? {
               name: referenceImageFile.name,
               size: referenceImageFile.size,
@@ -1076,16 +1086,27 @@ export default function ImageGenerator() {
           });
         }
         
+        // Create FormData for binary file upload
+        const formData = new FormData();
+        
+        // Add JSON payload as a field
+        formData.append('payload', JSON.stringify(payload));
+        
+        // Add reference image as binary file if present
+        if (referenceImageFile) {
+          formData.append('reference_image', referenceImageFile, referenceImageFile.name);
+        }
+        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            // Remove Content-Type header - let browser set it for FormData with boundary
             'key': apiKey,
             // Add headers that might help with long requests
             'Connection': 'keep-alive',
             'Cache-Control': 'no-cache'
           },
-          body: JSON.stringify(payload),
+          body: formData,
           signal: controller.signal,
           // Additional fetch options for long requests
           keepalive: true
