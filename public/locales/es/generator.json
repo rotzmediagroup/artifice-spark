@@ -53,6 +53,86 @@
     "uploadError": "Error al subir imagen",
     "removeImage": "Eliminar"
   },
+  "dimensions": {
+    "title": "Dimensiones de Imagen",
+    "presets": "Preajustes",
+    "large": "Grande", 
+    "custom": "Personalizado",
+    "width": "Ancho",
+    "height": "Alto",
+    "aspectRatio": "Relación de Aspecto",
+    "pixels": "píxeles",
+    "total": "total",
+    "widthPlaceholder": "Ancho (256-2000)",
+    "heightPlaceholder": "Alto (256-2000)",
+    "largeDimensionsWarning": "Las dimensiones grandes pueden tomar más tiempo para generar",
+    "ratios": {
+      "square": "Cuadrado (1:1)",
+      "portrait": "Retrato (4:5)", 
+      "landscape": "Paisaje (16:9)",
+      "wide": "Ancho (21:9)",
+      "phone": "Teléfono (9:16)",
+      "largeSquare": "Cuadrado Grande (1600x1600)",
+      "largePortrait": "Retrato Grande (1280x1600)",
+      "largeLandscape": "Paisaje Grande (1600x1280)",
+      "ultraSquare": "Ultra Cuadrado (2000x2000)",
+      "ultraLandscape": "Ultra Paisaje (2000x1600)",
+      "customDimensions": "Dimensiones Personalizadas"
+    }
+  },
+  "readyToCreate": {
+    "title": "Listo para Crear",
+    "description": "Ingresa tu prompt creativo arriba y observa cómo la IA transforma tu imaginación en arte visual impresionante"
+  },
+  "templates": {
+    "title": "Plantillas de Prompts",
+    "categories": {
+      "portrait": "Retrato",
+      "landscape": "Paisaje", 
+      "abstract": "Abstracto",
+      "artistic": "Artístico",
+      "photo": "Foto",
+      "architecture": "Arquitectura"
+    },
+    "names": {
+      "fantasyPortrait": "Retrato de Fantasía",
+      "realisticPortrait": "Retrato Realista", 
+      "heroicCharacter": "Personaje Heroico",
+      "cyberpunkPortrait": "Retrato Cyberpunk",
+      "sciFiLandscape": "Paisaje Sci-Fi",
+      "natureScene": "Escena Natural",
+      "fantasyRealm": "Reino de Fantasía",
+      "postApocalyptic": "Post-Apocalíptico"
+    },
+    "appliedMessage": "Plantilla aplicada:"
+  },
+  "settings": {
+    "steps": "Pasos",
+    "cfgScale": "Escala CFG",
+    "savePreset": "Guardar Preajuste"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Configuración", 
+    "dimensions": "Dimensiones",
+    "steps": "Pasos",
+    "cfgScale": "Escala CFG",
+    "aspectRatio": "Relación de Aspecto",
+    "expiredMessage": "Esta imagen ha expirado y será eliminada pronto"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Eliminación Automática de Imágenes",
+    "automaticVideoDeletion": "Eliminación Automática de Videos",
+    "imageWarning": "Las imágenes se eliminan automáticamente después de 14 días para administrar el almacenamiento. Descarga las imágenes que quieras conservar permanentemente.",
+    "videoWarning": "Los videos se eliminan automáticamente después de 14 días para administrar el almacenamiento. Descarga los videos que quieras conservar permanentemente.",
+    "extensionInfoImages": "Los usuarios regulares pueden extender el almacenamiento hasta 3 veces (7 días cada una)",
+    "extensionInfoVideos": "Los usuarios regulares pueden extender el almacenamiento 1 vez (7 días extra)"
+  },
+  "referenceImage": {
+    "remove": "Eliminar",
+    "badge": "Imagen de Referencia", 
+    "removedMessage": "Imagen de referencia eliminada"
+  },
   "warnings": {
     "videoGenerationTime": "La generación de video toma tiempo",
     "videoProcessingMessage": "El procesamiento de video generalmente toma 2-5 minutos. Ten paciencia mientras creamos tu video.",

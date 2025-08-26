@@ -53,6 +53,86 @@
     "uploadError": "Bild-Upload fehlgeschlagen",
     "removeImage": "Entfernen"
   },
+  "dimensions": {
+    "title": "Bild-Abmessungen",
+    "presets": "Vorlagen",
+    "large": "Groß", 
+    "custom": "Benutzerdefiniert",
+    "width": "Breite",
+    "height": "Höhe",
+    "aspectRatio": "Seitenverhältnis",
+    "pixels": "Pixel",
+    "total": "gesamt",
+    "widthPlaceholder": "Breite (256-2000)",
+    "heightPlaceholder": "Höhe (256-2000)",
+    "largeDimensionsWarning": "Große Abmessungen können länger zum Generieren dauern",
+    "ratios": {
+      "square": "Quadrat (1:1)",
+      "portrait": "Hochformat (4:5)", 
+      "landscape": "Querformat (16:9)",
+      "wide": "Breit (21:9)",
+      "phone": "Telefon (9:16)",
+      "largeSquare": "Großes Quadrat (1600x1600)",
+      "largePortrait": "Großes Hochformat (1280x1600)",
+      "largeLandscape": "Großes Querformat (1600x1280)",
+      "ultraSquare": "Ultra Quadrat (2000x2000)",
+      "ultraLandscape": "Ultra Querformat (2000x1600)",
+      "customDimensions": "Benutzerdefinierte Abmessungen"
+    }
+  },
+  "readyToCreate": {
+    "title": "Bereit zu Erstellen",
+    "description": "Geben Sie Ihren kreativen Prompt oben ein und sehen Sie, wie KI Ihre Vorstellungskraft in atemberaubende visuelle Kunst verwandelt"
+  },
+  "templates": {
+    "title": "Prompt-Vorlagen",
+    "categories": {
+      "portrait": "Porträt",
+      "landscape": "Landschaft", 
+      "abstract": "Abstrakt",
+      "artistic": "Künstlerisch",
+      "photo": "Foto",
+      "architecture": "Architektur"
+    },
+    "names": {
+      "fantasyPortrait": "Fantasy-Porträt",
+      "realisticPortrait": "Realistisches Porträt", 
+      "heroicCharacter": "Heldenhafter Charakter",
+      "cyberpunkPortrait": "Cyberpunk-Porträt",
+      "sciFiLandscape": "Sci-Fi-Landschaft",
+      "natureScene": "Naturszene",
+      "fantasyRealm": "Fantasy-Reich",
+      "postApocalyptic": "Post-Apokalyptisch"
+    },
+    "appliedMessage": "Vorlage angewendet:"
+  },
+  "settings": {
+    "steps": "Schritte",
+    "cfgScale": "CFG-Skala",
+    "savePreset": "Voreinstellung Speichern"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Einstellungen", 
+    "dimensions": "Abmessungen",
+    "steps": "Schritte",
+    "cfgScale": "CFG-Skala",
+    "aspectRatio": "Seitenverhältnis",
+    "expiredMessage": "Dieses Bild ist abgelaufen und wird bald gelöscht"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Automatische Bild-Löschung",
+    "automaticVideoDeletion": "Automatische Video-Löschung",
+    "imageWarning": "Bilder werden nach 14 Tagen automatisch gelöscht, um den Speicher zu verwalten. Laden Sie Bilder herunter, die Sie dauerhaft behalten möchten.",
+    "videoWarning": "Videos werden nach 14 Tagen automatisch gelöscht, um den Speicher zu verwalten. Laden Sie Videos herunter, die Sie dauerhaft behalten möchten.",
+    "extensionInfoImages": "Normale Benutzer können Speicher bis zu 3 Mal verlängern (je 7 Tage)",
+    "extensionInfoVideos": "Normale Benutzer können Speicher 1 Mal verlängern (7 Tage extra)"
+  },
+  "referenceImage": {
+    "remove": "Entfernen",
+    "badge": "Referenzbild", 
+    "removedMessage": "Referenzbild entfernt"
+  },
   "warnings": {
     "videoGenerationTime": "Video-Generierung dauert Zeit",
     "videoProcessingMessage": "Video-Verarbeitung dauert normalerweise 2-5 Minuten. Haben Sie Geduld, während wir Ihr Video erstellen.",

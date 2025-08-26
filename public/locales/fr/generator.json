@@ -1,64 +1,160 @@
 {
-  "title": "AI Image Generator",
-  "subtitle": "Create stunning images with AI",
+  "title": "Générateur d'Images IA",
+  "subtitle": "Créez des images époustouflantes avec l'IA",
   "tabs": {
-    "current": "Current",
+    "current": "Actuel",
     "images": "Images",
-    "videos": "Videos"
+    "videos": "Vidéos"
   },
   "modes": {
     "image": "Image",
-    "video": "Video"
+    "video": "Vidéo"
   },
   "generation": {
-    "generate": "Generate",
-    "generating": "Generating...",
-    "generatingVideo": "Generating Video...",
-    "generatingMagic": "Generating Magic...",
-    "prompt": "Describe what you want to create",
-    "promptPlaceholder": "A beautiful sunset over the mountains...",
-    "negativePrompt": "Negative Prompt",
-    "negativePromptPlaceholder": "What to avoid in the image...",
-    "style": "Art Style",
-    "stylePlaceholder": "Choose an art style...",
-    "aspectRatio": "Aspect Ratio",
-    "customDimensions": "Custom Dimensions",
-    "width": "Width",
-    "height": "Height",
-    "steps": "Steps",
-    "cfgScale": "CFG Scale",
-    "duration": "Duration",
-    "frameRate": "Frame Rate",
-    "settings": "Settings",
-    "advancedSettings": "Advanced Settings",
-    "presets": "Presets",
-    "savePreset": "Save Preset"
+    "generate": "Générer",
+    "generating": "Génération...",
+    "generatingVideo": "Génération de Vidéo...",
+    "generatingMagic": "Création de Magie...",
+    "prompt": "Décrivez ce que vous voulez créer",
+    "promptPlaceholder": "Un magnifique coucher de soleil sur les montagnes...",
+    "negativePrompt": "Prompt Négatif",
+    "negativePromptPlaceholder": "Ce qu'il faut éviter dans l'image...",
+    "style": "Style Artistique",
+    "stylePlaceholder": "Choisissez un style artistique...",
+    "aspectRatio": "Rapport d'Aspect",
+    "customDimensions": "Dimensions Personnalisées",
+    "width": "Largeur",
+    "height": "Hauteur",
+    "steps": "Étapes",
+    "cfgScale": "Échelle CFG",
+    "duration": "Durée",
+    "frameRate": "Images par Seconde",
+    "settings": "Paramètres",
+    "advancedSettings": "Paramètres Avancés",
+    "presets": "Préréglages",
+    "savePreset": "Sauvegarder le Préréglage"
+  },
+  "dimensions": {
+    "title": "Dimensions de l'Image",
+    "presets": "Préréglages",
+    "large": "Grand", 
+    "custom": "Personnalisé",
+    "width": "Largeur",
+    "height": "Hauteur",
+    "aspectRatio": "Rapport d'Aspect",
+    "pixels": "pixels",
+    "total": "total",
+    "widthPlaceholder": "Largeur (256-2000)",
+    "heightPlaceholder": "Hauteur (256-2000)",
+    "largeDimensionsWarning": "Les grandes dimensions peuvent prendre plus de temps à générer",
+    "ratios": {
+      "square": "Carré (1:1)",
+      "portrait": "Portrait (4:5)", 
+      "landscape": "Paysage (16:9)",
+      "wide": "Large (21:9)",
+      "phone": "Téléphone (9:16)",
+      "largeSquare": "Grand Carré (1600x1600)",
+      "largePortrait": "Grand Portrait (1280x1600)",
+      "largeLandscape": "Grand Paysage (1600x1280)",
+      "ultraSquare": "Ultra Carré (2000x2000)",
+      "ultraLandscape": "Ultra Paysage (2000x1600)",
+      "customDimensions": "Dimensions Personnalisées"
+    }
+  },
+  "readyToCreate": {
+    "title": "Prêt à Créer",
+    "description": "Entrez votre prompt créatif ci-dessus et regardez l'IA transformer votre imagination en art visuel époustouflant"
+  },
+  "templates": {
+    "title": "Modèles de Prompts",
+    "categories": {
+      "portrait": "Portrait",
+      "landscape": "Paysage", 
+      "abstract": "Abstrait",
+      "artistic": "Artistique",
+      "photo": "Photo",
+      "architecture": "Architecture"
+    },
+    "names": {
+      "fantasyPortrait": "Portrait Fantasy",
+      "realisticPortrait": "Portrait Réaliste", 
+      "heroicCharacter": "Personnage Héroïque",
+      "cyberpunkPortrait": "Portrait Cyberpunk",
+      "sciFiLandscape": "Paysage Sci-Fi",
+      "natureScene": "Scène de Nature",
+      "fantasyRealm": "Royaume Fantasy",
+      "postApocalyptic": "Post-Apocalyptique",
+      "abstractArt": "Art Abstrait",
+      "geometricPattern": "Motif Géométrique",
+      "fluidArt": "Art Fluide",
+      "minimalistDesign": "Design Minimaliste",
+      "oilPainting": "Peinture à l'Huile",
+      "watercolorStyle": "Style Aquarelle",
+      "digitalArt": "Art Numérique",
+      "popArt": "Pop Art",
+      "streetPhotography": "Photographie de Rue",
+      "portraitPhotography": "Photographie de Portrait",
+      "landscapePhotography": "Photographie de Paysage",
+      "architecturalPhotography": "Photographie Architecturale",
+      "modernArchitecture": "Architecture Moderne",
+      "classicalArchitecture": "Architecture Classique",
+      "futuristicBuilding": "Bâtiment Futuriste",
+      "interiorDesign": "Design d'Intérieur"
+    },
+    "appliedMessage": "Modèle appliqué :"
+  },
+  "settings": {
+    "steps": "Étapes",
+    "cfgScale": "Échelle CFG",
+    "savePreset": "Sauvegarder le Préréglage"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Paramètres", 
+    "dimensions": "Dimensions",
+    "steps": "Étapes",
+    "cfgScale": "Échelle CFG",
+    "aspectRatio": "Rapport d'Aspect",
+    "expiredMessage": "Cette image a expiré et sera bientôt supprimée"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Suppression Automatique d'Images",
+    "automaticVideoDeletion": "Suppression Automatique de Vidéos",
+    "imageWarning": "Les images sont automatiquement supprimées après 14 jours pour gérer le stockage. Téléchargez les images que vous voulez conserver de façon permanente.",
+    "videoWarning": "Les vidéos sont automatiquement supprimées après 14 jours pour gérer le stockage. Téléchargez les vidéos que vous voulez conserver de façon permanente.",
+    "extensionInfoImages": "Les utilisateurs réguliers peuvent prolonger le stockage jusqu'à 3 fois (7 jours chacune)",
+    "extensionInfoVideos": "Les utilisateurs réguliers peuvent prolonger le stockage 1 fois (7 jours supplémentaires)"
+  },
+  "referenceImage": {
+    "remove": "Supprimer",
+    "badge": "Image de Référence", 
+    "removedMessage": "Image de référence supprimée"
   },
   "results": {
-    "generatedImages": "Generated Images",
-    "generatedVideos": "Generated Videos", 
-    "noImagesYet": "No Images Yet",
-    "noImagesMessage": "Generate your first image to start building your creation history",
-    "imageHistory": "Image History",
-    "videoHistory": "Video History",
-    "currentImages": "Current Images",
-    "currentVideos": "Current Videos"
+    "generatedImages": "Images Générées",
+    "generatedVideos": "Vidéos Générées", 
+    "noImagesYet": "Pas encore d'Images",
+    "noImagesMessage": "Générez votre première image pour commencer à construire votre historique de créations",
+    "imageHistory": "Historique des Images",
+    "videoHistory": "Historique des Vidéos",
+    "currentImages": "Images Actuelles",
+    "currentVideos": "Vidéos Actuelles"
   },
   "upload": {
-    "referenceImage": "Reference Image",
-    "dragDropMessage": "Drag & drop an image here, or click to browse",
-    "signInToUpload": "Sign in to upload reference images",
-    "supportedFormats": "Supports JPG, PNG, WEBP up to 10MB",
-    "uploadSuccess": "Reference image uploaded successfully!",
-    "uploadError": "Failed to upload image",
-    "removeImage": "Remove"
+    "referenceImage": "Image de Référence",
+    "dragDropMessage": "Glissez-déposez une image ici, ou cliquez pour parcourir",
+    "signInToUpload": "Connectez-vous pour télécharger des images de référence",
+    "supportedFormats": "Prend en charge JPG, PNG, WEBP jusqu'à 10 MB",
+    "uploadSuccess": "Image de référence téléchargée avec succès !",
+    "uploadError": "Échec du téléchargement de l'image",
+    "removeImage": "Supprimer"
   },
   "warnings": {
-    "videoGenerationTime": "Video generation takes time",
-    "videoProcessingMessage": "Video processing typically takes 2-5 minutes. Please be patient while we create your video.",
-    "largeDimensions": "Large dimensions may take longer to generate",
-    "autoDeletion": "Automatic Video Deletion",
-    "autoDeleteionMessage": "Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.",
-    "extensionInfo": "Regular users can extend storage up to 1 time (7 days extra)"
+    "videoGenerationTime": "La génération de vidéo prend du temps",
+    "videoProcessingMessage": "Le traitement des vidéos prend généralement 2 à 5 minutes. Veuillez patienter pendant que nous créons votre vidéo.",
+    "largeDimensions": "Les grandes dimensions peuvent prendre plus de temps à générer",
+    "autoDeletion": "Suppression Automatique de Vidéos",
+    "autoDeleteionMessage": "Les vidéos sont automatiquement supprimées après 14 jours pour gérer le stockage. Téléchargez les vidéos que vous voulez conserver de façon permanente.",
+    "extensionInfo": "Les utilisateurs réguliers peuvent prolonger le stockage 1 fois (7 jours supplémentaires)"
   }
 }

@@ -53,6 +53,102 @@
     "uploadError": "图像上传失败",
     "removeImage": "移除"
   },
+  "dimensions": {
+    "title": "图像尺寸",
+    "presets": "预设",
+    "large": "大", 
+    "custom": "自定义",
+    "width": "宽度",
+    "height": "高度",
+    "aspectRatio": "宽高比",
+    "pixels": "像素",
+    "total": "总计",
+    "widthPlaceholder": "宽度 (256-2000)",
+    "heightPlaceholder": "高度 (256-2000)",
+    "largeDimensionsWarning": "大尺寸可能需要更长的生成时间",
+    "ratios": {
+      "square": "正方形 (1:1)",
+      "portrait": "纵向 (4:5)", 
+      "landscape": "横向 (16:9)",
+      "wide": "宽屏 (21:9)",
+      "phone": "手机 (9:16)",
+      "largeSquare": "大正方形 (1600x1600)",
+      "largePortrait": "大纵向 (1280x1600)",
+      "largeLandscape": "大横向 (1600x1280)",
+      "ultraSquare": "超大正方形 (2000x2000)",
+      "ultraLandscape": "超大横向 (2000x1600)",
+      "customDimensions": "自定义尺寸"
+    }
+  },
+  "readyToCreate": {
+    "title": "准备创作",
+    "description": "在上方输入您的创意提示，观看AI将您的想象力转化为令人惊叹的视觉艺术"
+  },
+  "templates": {
+    "title": "提示模板",
+    "categories": {
+      "portrait": "肖像",
+      "landscape": "风景", 
+      "abstract": "抽象",
+      "artistic": "艺术",
+      "photo": "照片",
+      "architecture": "建筑"
+    },
+    "names": {
+      "fantasyPortrait": "幻想肖像",
+      "realisticPortrait": "写实肖像", 
+      "heroicCharacter": "英雄角色",
+      "cyberpunkPortrait": "赛博朋克肖像",
+      "sciFiLandscape": "科幻风景",
+      "natureScene": "自然场景",
+      "fantasyRealm": "幻想王国",
+      "postApocalyptic": "后启示录",
+      "abstractArt": "抽象艺术",
+      "geometricPattern": "几何图案",
+      "fluidArt": "流体艺术",
+      "minimalistDesign": "极简设计",
+      "oilPainting": "油画",
+      "watercolorStyle": "水彩风格",
+      "digitalArt": "数字艺术",
+      "popArt": "波普艺术",
+      "streetPhotography": "街头摄影",
+      "portraitPhotography": "肖像摄影",
+      "landscapePhotography": "风景摄影",
+      "architecturalPhotography": "建筑摄影",
+      "modernArchitecture": "现代建筑",
+      "classicalArchitecture": "古典建筑",
+      "futuristicBuilding": "未来建筑",
+      "interiorDesign": "室内设计"
+    },
+    "appliedMessage": "已应用模板："
+  },
+  "settings": {
+    "steps": "步骤",
+    "cfgScale": "CFG比例",
+    "savePreset": "保存预设"
+  },
+  "history": {
+    "prompt": "提示",
+    "settings": "设置", 
+    "dimensions": "尺寸",
+    "steps": "步骤",
+    "cfgScale": "CFG比例",
+    "aspectRatio": "宽高比",
+    "expiredMessage": "此图像已过期，即将被删除"
+  },
+  "deletion": {
+    "automaticImageDeletion": "自动图像删除",
+    "automaticVideoDeletion": "自动视频删除",
+    "imageWarning": "图像会在14天后自动删除以管理存储。下载您想要永久保存的图像。",
+    "videoWarning": "视频会在14天后自动删除以管理存储。下载您想要永久保存的视频。",
+    "extensionInfoImages": "普通用户可以延长存储最多3次（每次7天）",
+    "extensionInfoVideos": "普通用户可以延长存储1次（额外7天）"
+  },
+  "referenceImage": {
+    "remove": "移除",
+    "badge": "参考图像", 
+    "removedMessage": "参考图像已移除"
+  },
   "warnings": {
     "videoGenerationTime": "视频生成需要时间",
     "videoProcessingMessage": "视频处理通常需要2-5分钟。请耐心等待，我们正在为您创建视频。",
