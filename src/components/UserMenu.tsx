@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +22,7 @@ import { useCredits } from "@/hooks/useCredits";
 import { useTOTP } from "@/hooks/useTOTP";
 
 export default function UserMenu() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const { credits } = useCredits();
@@ -37,7 +39,7 @@ export default function UserMenu() {
           className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
         >
           <User className="h-4 w-4 mr-2" />
-          Sign In
+{t('auth:signIn')}
         </Button>
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       </>
@@ -70,7 +72,7 @@ export default function UserMenu() {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">
-                {user.displayName || "User"}
+                {user.displayName || t('common:general.user')}
               </p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user.email}
@@ -82,7 +84,7 @@ export default function UserMenu() {
           {/* Credit Display */}
           <div className="px-2 py-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Credits</span>
+              <span className="text-xs text-muted-foreground">{t('common:general.credits')}</span>
               <CreditDisplay variant="badge" />
             </div>
           </div>
@@ -94,7 +96,7 @@ export default function UserMenu() {
             <>
               <DropdownMenuItem onClick={() => setAdminPanelOpen(true)}>
                 <Crown className="mr-2 h-4 w-4 text-yellow-500" />
-                <span>Admin Panel</span>
+                <span>{t('admin:adminPanel')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
@@ -102,7 +104,7 @@ export default function UserMenu() {
           
           <DropdownMenuItem onClick={() => setSecurityPanelOpen(true)}>
             <Shield className="mr-2 h-4 w-4" />
-            <span>Security</span>
+            <span>{t('auth:security')}</span>
             {mfaEnabled && (
               <span className="ml-auto text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                 2FA
@@ -111,12 +113,12 @@ export default function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem disabled>
             <Upload className="mr-2 h-4 w-4" />
-            <span>Export Data</span>
+            <span>{t('auth:exportData')}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" />
-            <span>Sign Out</span>
+            <span>{t('auth:signOut')}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -127,7 +129,7 @@ export default function UserMenu() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Crown className="h-6 w-6 text-yellow-500" />
-              Super Admin Panel
+{t('admin:title')}
             </DialogTitle>
           </DialogHeader>
           <AdminPanel />

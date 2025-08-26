@@ -18,6 +18,7 @@ import { useFirestore, GeneratedImageData, PresetData } from "@/hooks/useFiresto
 import { useStorage } from "@/hooks/useStorage";
 import UserMenu from "@/components/UserMenu";
 import AuthModal from "@/components/AuthModal";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { CreditDisplay } from "@/components/CreditDisplay";
 import { useCredits } from "@/hooks/useCredits";
@@ -1467,7 +1468,8 @@ export default function ImageGenerator() {
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Enhanced Header with Logo and User Menu */}
         <div className="text-center mb-12 animate-fade-in relative">
-          <div className="absolute top-0 right-0 flex gap-2">
+          <div className="absolute top-0 right-0 flex gap-3 items-center">
+            <LanguageSelector />
             <UserMenu />
           </div>
           
