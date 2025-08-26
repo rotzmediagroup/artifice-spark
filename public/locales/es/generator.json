@@ -104,7 +104,31 @@
       "fantasyRealm": "Reino de Fantasía",
       "postApocalyptic": "Post-Apocalíptico"
     },
-    "appliedMessage": "Plantilla aplicada:"
+    "appliedMessage": "Plantilla aplicada:",
+    "prompts": {
+      "fantasyPortrait": "Un retrato fantástico místico, atmósfera mágica, iluminación etérea, diseño detallado de personaje, ojos encantados",
+      "realisticPortrait": "Fotografía profesional de retrato, iluminación de estudio, enfoque nítido, características faciales detalladas, expresión natural",
+      "heroicCharacter": "Retrato épico de personaje heroico, iluminación dramática, postura poderosa, armadura o traje detallado, presencia inspiradora",
+      "cyberpunkPortrait": "Retrato cyberpunk futurista, iluminación de neón, mejoras tecnológicas, entorno urbano, atmósfera distópica",
+      "sciFiLandscape": "Paisaje alienígena futurista, ciudad cyberpunk, luces de neón, vehículos voladores, planetas distantes, perspectiva atmosférica",
+      "natureScene": "Paisaje natural sereno, iluminación de hora dorada, atmósfera pacífica, alto detalle, naturaleza prístina",
+      "fantasyRealm": "Paisaje fantástico mágico, islas flotantes, bosques místicos, ruinas antiguas, atmósfera etérea",
+      "postApocalyptic": "Páramo post-apocalíptico, edificios abandonados, cielo dramático, atmósfera desolada, entorno de supervivencia",
+      "abstractArt": "Composición geométrica abstracta, colores vibrantes, formas dinámicas, estilo de arte moderno, formas fluidas",
+      "fluidDynamics": "Salpicadura de pintura líquida, dinámica de fluidos, colores arremolinados, patrones orgánicos, gradientes suaves",
+      "sacredGeometry": "Patrones geométricos sagrados, diseño de mandala, composición simétrica, simbolismo espiritual, detalles intrincados",
+      "modernArchitecture": "Diseño arquitectónico contemporáneo, líneas limpias, vidrio y acero, estética minimalista, entorno urbano",
+      "ancientTemple": "Arquitectura de templo antiguo, tallados ornamentados, mampostería histórica, atmósfera mística, patrimonio cultural",
+      "futuristicBuilding": "Estructura arquitectónica futurista, diseño innovador, materiales avanzados, paisaje urbano sci-fi, estética high-tech",
+      "productShot": "Fotografía profesional de producto, fondo blanco limpio, iluminación de estudio, calidad comercial, texturas detalladas",
+      "vintageStillLife": "Arreglo clásico de naturaleza muerta, objetos vintage, iluminación cálida, composición artística, atmósfera nostálgica",
+      "magicalArtifact": "Artefacto mágico encantado, runas brillantes, energía mística, objeto de fantasía, artesanía detallada",
+      "wildlifePortrait": "Retrato majestuoso de vida silvestre, hábitat natural, pelaje o plumas detalladas, ojos expresivos, fotografía de naturaleza",
+      "mythicalCreature": "Criatura mítica legendaria, dragón o fénix, poderes mágicos, entorno fantástico, escala épica",
+      "cutePet": "Retrato adorable de mascota, expresión juguetona, iluminación suave, entorno doméstico acogedor, momento conmovedor",
+      "epicBattle": "Escena de batalla dinámica, guerreros en combate, acción dramática, escala épica, composición cinematográfica",
+      "peacefulMoment": "Escena tranquila y pacífica, atmósfera calmada, iluminación suave, estado de ánimo sereno, entorno contemplativo"
+    }
   },
   "settings": {
     "steps": "Pasos",
@@ -140,5 +164,8 @@
     "autoDeletion": "Eliminación Automática de Videos",
     "autoDeleteionMessage": "Los videos se eliminan automáticamente después de 14 días para administrar el almacenamiento. Descarga los videos que quieras conservar permanentemente.",
     "extensionInfo": "Los usuarios regulares pueden extender el almacenamiento 1 vez (7 días extra)"
+  },
+  "sharing": {
+    "shareMessage": "¡Mira lo que ROTZ AI acaba de hacer para mí!"
   }
 }

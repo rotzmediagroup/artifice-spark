@@ -104,7 +104,31 @@
       "fantasyRealm": "Fantasy Rijk",
       "postApocalyptic": "Post-Apocalyptisch"
     },
-    "appliedMessage": "Sjabloon toegepast:"
+    "appliedMessage": "Sjabloon toegepast:",
+    "prompts": {
+      "fantasyPortrait": "Een mystiek fantasy portret, magische sfeer, etherische belichting, gedetailleerd karakter ontwerp, betoverde ogen",
+      "realisticPortrait": "Professionele headshot fotografie, studio belichting, scherpe focus, gedetailleerde gelaatstrekken, natuurlijke expressie",
+      "heroicCharacter": "Episch heroïsch karakter portret, dramatische belichting, krachtige houding, gedetailleerde harnas of kostuum, inspirerende aanwezigheid",
+      "cyberpunkPortrait": "Futuristisch cyberpunk portret, neon belichting, technologische verbeteringen, stedelijke omgeving, dystopische sfeer",
+      "sciFiLandscape": "Futuristisch buitenaards landschap, cyberpunk stad, neon lichten, vliegende voertuigen, verre planeten, atmosferisch perspectief",
+      "natureScene": "Serene natuurlijke landschap, gouden uur belichting, vreedzame sfeer, hoog detail, ongerepte wildernis",
+      "fantasyRealm": "Magisch fantasy landschap, zwevende eilanden, mystieke bossen, oude ruïnes, etherische sfeer",
+      "postApocalyptic": "Post-apocalyptische woestenij, verlaten gebouwen, dramatische lucht, desolate sfeer, overlevings setting",
+      "abstractArt": "Abstracte geometrische compositie, levendige kleuren, dynamische vormen, moderne kunststijl, vloeiende vormen",
+      "fluidDynamics": "Vloeibare verf spat, vloeistof dynamiek, wervelende kleuren, organische patronen, soepele overgangen",
+      "sacredGeometry": "Heilige geometrische patronen, mandala ontwerp, symmetrische compositie, spirituele symboliek, ingewikkelde details",
+      "modernArchitecture": "Eigentijds architectonisch ontwerp, strakke lijnen, glas en staal, minimalistische esthetiek, stedelijke omgeving",
+      "ancientTemple": "Oude tempel architectuur, sierlijke gravures, historisch steenwerk, mystieke sfeer, cultureel erfgoed",
+      "futuristicBuilding": "Futuristische architectonische structuur, innovatief ontwerp, geavanceerde materialen, sci-fi stadsgezicht, high-tech esthetiek",
+      "productShot": "Professionele productfotografie, schone witte achtergrond, studio belichting, commerciële kwaliteit, gedetailleerde texturen",
+      "vintageStillLife": "Klassieke stilleven arrangement, vintage objecten, warme belichting, artistieke compositie, nostalgische sfeer",
+      "magicalArtifact": "Betoverd magisch artefact, gloeiende runen, mystieke energie, fantasy item, gedetailleerd vakmanschap",
+      "wildlifePortrait": "Majestueus wilde dieren portret, natuurlijke habitat, gedetailleerde vacht of veren, expressieve ogen, natuurfotografie",
+      "mythicalCreature": "Legendarisch mythisch wezen, draak of phoenix, magische krachten, fantasy setting, epische schaal",
+      "cutePet": "Schattig huisdier portret, speelse expressie, zachte belichting, gezellige thuisomgeving, hartverwarmend moment",
+      "epicBattle": "Dynamische gevechtsscène, krijgers in gevecht, dramatische actie, epische schaal, filmische compositie",
+      "peacefulMoment": "Rustige vredige scène, kalme sfeer, zachte belichting, serene stemming, contemplatieve setting"
+    }
   },
   "settings": {
     "steps": "Stappen",
@@ -140,5 +164,8 @@
     "autoDeletion": "Automatische Video Verwijdering",
     "autoDeleteionMessage": "Video's worden automatisch verwijderd na 14 dagen om opslag te beheren. Download video's die je permanent wilt bewaren.",
     "extensionInfo": "Gewone gebruikers kunnen opslag 1 keer verlengen (7 dagen extra)"
+  },
+  "sharing": {
+    "shareMessage": "Kijk wat ROTZ AI net voor me heeft gemaakt!"
   }
 }

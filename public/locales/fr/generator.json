@@ -101,7 +101,31 @@
       "futuristicBuilding": "Bâtiment Futuriste",
       "interiorDesign": "Design d'Intérieur"
     },
-    "appliedMessage": "Modèle appliqué :"
+    "appliedMessage": "Modèle appliqué :",
+    "prompts": {
+      "fantasyPortrait": "Un portrait fantasy mystique, atmosphère magique, éclairage éthéré, design de personnage détaillé, yeux enchantés",
+      "realisticPortrait": "Photographie de portrait professionnelle, éclairage de studio, mise au point nette, traits du visage détaillés, expression naturelle",
+      "heroicCharacter": "Portrait de personnage héroïque épique, éclairage dramatique, posture puissante, armure ou costume détaillé, présence inspirante",
+      "cyberpunkPortrait": "Portrait cyberpunk futuriste, éclairage au néon, améliorations technologiques, environnement urbain, atmosphère dystopique",
+      "sciFiLandscape": "Paysage alien futuriste, ville cyberpunk, lumières néon, véhicules volants, planètes lointaines, perspective atmosphérique",
+      "natureScene": "Paysage naturel serein, éclairage d'heure dorée, atmosphère paisible, haute définition, nature sauvage immaculée",
+      "fantasyRealm": "Paysage fantasy magique, îles flottantes, forêts mystiques, ruines anciennes, atmosphère éthérée",
+      "postApocalyptic": "Terre désolée post-apocalyptique, bâtiments abandonnés, ciel dramatique, atmosphère désolée, environnement de survie",
+      "abstractArt": "Composition géométrique abstraite, couleurs vibrantes, formes dynamiques, style d'art moderne, formes fluides",
+      "fluidDynamics": "Éclaboussure de peinture liquide, dynamique des fluides, couleurs tourbillonnantes, motifs organiques, dégradés lisses",
+      "sacredGeometry": "Motifs géométriques sacrés, design mandala, composition symétrique, symbolisme spirituel, détails complexes",
+      "modernArchitecture": "Design architectural contemporain, lignes épurées, verre et acier, esthétique minimaliste, environnement urbain",
+      "ancientTemple": "Architecture de temple ancien, sculptures ornementées, maçonnerie historique, atmosphère mystique, patrimoine culturel",
+      "futuristicBuilding": "Structure architecturale futuriste, design innovant, matériaux avancés, paysage urbain sci-fi, esthétique high-tech",
+      "productShot": "Photographie de produit professionnelle, fond blanc propre, éclairage de studio, qualité commerciale, textures détaillées",
+      "vintageStillLife": "Arrangement de nature morte classique, objets vintage, éclairage chaleureux, composition artistique, atmosphère nostalgique",
+      "magicalArtifact": "Artefact magique enchanté, runes brillantes, énergie mystique, objet fantasy, artisanat détaillé",
+      "wildlifePortrait": "Portrait majestueux d'animal sauvage, habitat naturel, fourrure ou plumes détaillées, yeux expressifs, photographie de nature",
+      "mythicalCreature": "Créature mythique légendaire, dragon ou phénix, pouvoirs magiques, environnement fantasy, échelle épique",
+      "cutePet": "Portrait adorable d'animal de compagnie, expression joueuse, éclairage doux, environnement domestique confortable, moment touchant",
+      "epicBattle": "Scène de bataille dynamique, guerriers au combat, action dramatique, échelle épique, composition cinématographique",
+      "peacefulMoment": "Scène tranquille et paisible, atmosphère calme, éclairage doux, ambiance sereine, environnement contemplatif"
+    }
   },
   "settings": {
     "steps": "Étapes",
@@ -156,5 +180,8 @@
     "autoDeletion": "Suppression Automatique de Vidéos",
     "autoDeleteionMessage": "Les vidéos sont automatiquement supprimées après 14 jours pour gérer le stockage. Téléchargez les vidéos que vous voulez conserver de façon permanente.",
     "extensionInfo": "Les utilisateurs réguliers peuvent prolonger le stockage 1 fois (7 jours supplémentaires)"
+  },
+  "sharing": {
+    "shareMessage": "Regardez ce que ROTZ AI vient de créer pour moi !"
   }
 }

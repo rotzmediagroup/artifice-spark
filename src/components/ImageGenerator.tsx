@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -457,6 +457,31 @@ export default function ImageGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
+  
+  // Get translated templates
+  const translatedTemplates = useMemo(() => {
+    const templateKeys = ['fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic', 'abstractArt', 'fluidDynamics', 'sacredGeometry', 'modernArchitecture', 'ancientTemple', 'futuristicBuilding', 'productShot', 'vintageStillLife', 'magicalArtifact', 'wildlifePortrait', 'mythicalCreature', 'cutePet', 'epicBattle', 'peacefulMoment'];
+    
+    return templateKeys.map(key => ({
+      key,
+      name: t(`generator:templates.names.${key}`),
+      prompt: t(`generator:templates.prompts.${key}`),
+      category: t(`generator:templates.categories.${getTemplateCategoryKey(key)}`)
+    }));
+  }, [t]);
+
+  const getTemplateCategoryKey = (templateKey: string) => {
+    const categoryMap: Record<string, string> = {
+      fantasyPortrait: 'portrait', realisticPortrait: 'portrait', heroicCharacter: 'portrait', cyberpunkPortrait: 'portrait',
+      sciFiLandscape: 'landscape', natureScene: 'landscape', fantasyRealm: 'landscape', postApocalyptic: 'landscape',
+      abstractArt: 'abstract', fluidDynamics: 'abstract', sacredGeometry: 'abstract',
+      modernArchitecture: 'architecture', ancientTemple: 'architecture', futuristicBuilding: 'architecture',
+      productShot: 'photo', vintageStillLife: 'artistic', magicalArtifact: 'artistic',
+      wildlifePortrait: 'photo', mythicalCreature: 'artistic', cutePet: 'photo',
+      epicBattle: 'artistic', peacefulMoment: 'artistic'
+    };
+    return categoryMap[templateKey] || 'artistic';
+  };
   const [videoDuration, setVideoDuration] = useState(5); // Default 5 seconds
   const [videoFps, setVideoFps] = useState(24); // Default 24 FPS
   const [videoWithAudio, setVideoWithAudio] = useState(false); // Default silent
@@ -798,7 +823,7 @@ export default function ImageGenerator() {
     try {
       await navigator.share({
         title: 'Generated with ROTZ.AI',
-        text: 'Check out this AI-generated image!',
+        text: t('generator:sharing.shareMessage'),
         url: url
       });
     } catch (error) {
@@ -1684,9 +1709,9 @@ export default function ImageGenerator() {
 {t('generator:templates.title')}
               </Label>
               <div className="max-h-60 overflow-y-auto scroll-smooth space-y-2">
-                {promptTemplates.map((template) => (
+                {translatedTemplates.map((template) => (
                   <Button
-                    key={template.name}
+                    key={template.key}
                     variant="outline"
                     size="sm"
                     onClick={() => applyTemplate(template)}

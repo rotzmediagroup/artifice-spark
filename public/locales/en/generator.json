@@ -120,7 +120,31 @@
       "futuristicBuilding": "Futuristic Building",
       "interiorDesign": "Interior Design"
     },
-    "appliedMessage": "Applied template:"
+    "appliedMessage": "Applied template:",
+    "prompts": {
+      "fantasyPortrait": "A mystical fantasy portrait, magical atmosphere, ethereal lighting, detailed character design, enchanted eyes",
+      "realisticPortrait": "Professional headshot photography, studio lighting, sharp focus, detailed facial features, natural expression",
+      "heroicCharacter": "Epic heroic character portrait, dramatic lighting, powerful stance, detailed armor or costume, inspiring presence",
+      "cyberpunkPortrait": "Futuristic cyberpunk portrait, neon lighting, technological augmentations, urban setting, dystopian atmosphere",
+      "sciFiLandscape": "Futuristic alien landscape, cyberpunk city, neon lights, flying vehicles, distant planets, atmospheric perspective",
+      "natureScene": "Serene natural landscape, golden hour lighting, peaceful atmosphere, high detail, pristine wilderness",
+      "fantasyRealm": "Magical fantasy landscape, floating islands, mystical forests, ancient ruins, ethereal atmosphere",
+      "postApocalyptic": "Post-apocalyptic wasteland, abandoned buildings, dramatic sky, desolate atmosphere, survival setting",
+      "abstractArt": "Abstract geometric composition, vibrant colors, dynamic shapes, modern art style, flowing forms",
+      "fluidDynamics": "Liquid paint splash, fluid dynamics, swirling colors, organic patterns, smooth gradients",
+      "sacredGeometry": "Sacred geometric patterns, mandala design, symmetrical composition, spiritual symbolism, intricate details",
+      "modernArchitecture": "Contemporary architectural design, clean lines, glass and steel, minimalist aesthetic, urban environment",
+      "ancientTemple": "Ancient temple architecture, ornate carvings, historical stonework, mystical atmosphere, cultural heritage",
+      "futuristicBuilding": "Futuristic architectural structure, innovative design, advanced materials, sci-fi cityscape, high-tech aesthetic",
+      "productShot": "Professional product photography, clean white background, studio lighting, commercial quality, detailed textures",
+      "vintageStillLife": "Classic still life arrangement, vintage objects, warm lighting, artistic composition, nostalgic atmosphere",
+      "magicalArtifact": "Enchanted magical artifact, glowing runes, mystical energy, fantasy item, detailed craftsmanship",
+      "wildlifePortrait": "Majestic wildlife animal portrait, natural habitat, detailed fur or feathers, expressive eyes, nature photography",
+      "mythicalCreature": "Legendary mythical creature, dragon or phoenix, magical powers, fantasy setting, epic scale",
+      "cutePet": "Adorable pet portrait, playful expression, soft lighting, cozy domestic setting, heartwarming moment",
+      "epicBattle": "Dynamic battle scene, warriors in combat, dramatic action, epic scale, cinematic composition",
+      "peacefulMoment": "Tranquil peaceful scene, calm atmosphere, gentle lighting, serene mood, contemplative setting"
+    }
   },
   "settings": {
     "steps": "Steps",
@@ -156,5 +180,8 @@
     "autoDeletion": "Automatic Video Deletion",
     "autoDeleteionMessage": "Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.",
     "extensionInfo": "Regular users can extend storage up to 1 time (7 days extra)"
+  },
+  "sharing": {
+    "shareMessage": "Check out what ROTZ AI just made for me!"
   }
 }

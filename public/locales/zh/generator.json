@@ -120,7 +120,31 @@
       "futuristicBuilding": "未来建筑",
       "interiorDesign": "室内设计"
     },
-    "appliedMessage": "已应用模板："
+    "appliedMessage": "已应用模板：",
+    "prompts": {
+      "fantasyPortrait": "神秘幻想肖像，魔法氛围，空灵光线，精细角色设计，迷人眼神",
+      "realisticPortrait": "专业头像摄影，工作室光线，清晰焦点，精细面部特征，自然表情",
+      "heroicCharacter": "史诗英雄角色肖像，戏剧性光线，有力姿态，精细盔甲或服装，鼓舞人心的存在",
+      "cyberpunkPortrait": "未来主义赛博朋克肖像，霓虹灯光，技术增强，城市环境，反乌托邦氛围",
+      "sciFiLandscape": "未来外星景观，赛博朋克城市，霓虹灯光，飞行载具，遥远星球，大气透视",
+      "natureScene": "宁静自然景观，黄金时光照明，和平氛围，高细节，原始荒野",
+      "fantasyRealm": "魔法幻想景观，漂浮岛屿，神秘森林，古代废墟，空灵氛围",
+      "postApocalyptic": "后启示录荒地，废弃建筑，戏剧性天空，荒凉氛围，生存环境",
+      "abstractArt": "抽象几何构图，鲜艳色彩，动态形状，现代艺术风格，流动形式",
+      "fluidDynamics": "液体颜料飞溅，流体动力学，旋转色彩，有机图案，平滑渐变",
+      "sacredGeometry": "神圣几何图案，曼陀罗设计，对称构图，精神象征，复杂细节",
+      "modernArchitecture": "当代建筑设计，简洁线条，玻璃和钢铁，极简主义美学，城市环境",
+      "ancientTemple": "古代寺庙建筑，华丽雕刻，历史石工，神秘氛围，文化遗产",
+      "futuristicBuilding": "未来主义建筑结构，创新设计，先进材料，科幻城市景观，高科技美学",
+      "productShot": "专业产品摄影，干净白色背景，工作室照明，商业品质，细致纹理",
+      "vintageStillLife": "经典静物摆放，复古物品，温暖照明，艺术构图，怀旧氛围",
+      "magicalArtifact": "魔法神器，发光符文，神秘能量，幻想物品，精细工艺",
+      "wildlifePortrait": "雄伟野生动物肖像，自然栖息地，精细毛发或羽毛，表现力眼神，自然摄影",
+      "mythicalCreature": "传奇神话生物，龙或凤凰，魔法力量，幻想环境，史诗规模",
+      "cutePet": "可爱宠物肖像，顽皮表情，柔和照明，舒适家居环境，温暖时刻",
+      "epicBattle": "动态战斗场景，战士搏斗，戏剧性动作，史诗规模，电影构图",
+      "peacefulMoment": "宁静和平场景，平静氛围，温柔照明，安详心境，沉思环境"
+    }
   },
   "settings": {
     "steps": "步骤",
@@ -156,5 +180,8 @@
     "autoDeletion": "自动视频删除",
     "autoDeleteionMessage": "视频会在14天后自动删除以管理存储。下载您想要永久保存的视频。",
     "extensionInfo": "普通用户可以延长存储1次（额外7天）"
+  },
+  "sharing": {
+    "shareMessage": "看看ROTZ AI刚为我制作的作品！"
   }
 }
