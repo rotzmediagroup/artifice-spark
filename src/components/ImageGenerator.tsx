@@ -501,20 +501,35 @@ export default function ImageGenerator() {
     ];
     
     try {
+      console.log('Loading templates...', templateKeys.length, 'keys');
+      
+      const templates = templateKeys.map(key => {
+        const name = t(`generator:templates.names.${key}`, { defaultValue: key });
+        const prompt = t(`generator:templates.prompts.${key}`, { defaultValue: 'Creative prompt for ' + key });
+        const categoryKey = getTemplateCategoryKey(key);
+        const category = t(`generator:templates.categories.${categoryKey}`, { defaultValue: 'Artistic' });
+        
+        return {
+          key,
+          name,
+          prompt,
+          category
+        };
+      });
+      
+      console.log('Templates loaded successfully:', templates.length);
+      return templates;
+      
+    } catch (error) {
+      console.error('Template loading failed:', error);
+      console.log('Falling back to basic templates');
+      // Return all 85 templates with fallback text instead of just 3
       return templateKeys.map(key => ({
         key,
-        name: t(`generator:templates.names.${key}`, { defaultValue: key }),
-        prompt: t(`generator:templates.prompts.${key}`, { defaultValue: 'Creative prompt for ' + key }),
-        category: t(`generator:templates.categories.${getTemplateCategoryKey(key)}`, { defaultValue: 'Artistic' })
+        name: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+        prompt: `Creative ${key.replace(/([A-Z])/g, ' $1').toLowerCase()} prompt with artistic vision and detailed composition`,
+        category: 'Artistic'
       }));
-    } catch (error) {
-      console.error('Translation error:', error);
-      // Fallback templates
-      return [
-        { key: 'fantasyPortrait', name: 'Fantasy Portrait', prompt: 'A mystical fantasy portrait with magical atmosphere', category: 'Portrait' },
-        { key: 'realisticPortrait', name: 'Realistic Portrait', prompt: 'Professional headshot photography with studio lighting', category: 'Portrait' },
-        { key: 'abstractArt', name: 'Abstract Art', prompt: 'Abstract geometric composition with vibrant colors', category: 'Abstract' }
-      ];
     }
   }, [t]);
 
