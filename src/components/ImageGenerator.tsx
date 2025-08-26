@@ -717,57 +717,76 @@ export default function ImageGenerator() {
     try {
       console.log("Downloading file:", url, "as:", filename);
       
-      // Configure timeout for download - videos need more time to download
+      // Determine if this is a video
       const isVideo = filename?.includes('.mp4') || 
                       url.includes('generated-videos') ||
                       url.includes('video') ||
                       filename?.includes('video');
-      const downloadTimeout = isVideo ? 300000 : 60000; // 5min for videos, 1min for images
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), downloadTimeout);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        mode: 'cors',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Try direct fetch first (without CORS mode to avoid blocking)
+      try {
+        const downloadTimeout = isVideo ? 300000 : 60000; // 5min for videos, 1min for images
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), downloadTimeout);
+        
+        // Remove 'mode: cors' to let browser handle it naturally
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename || `rotz-ai-${Date.now()}.${blob.type.includes('video') ? 'mp4' : 'png'}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+        lightTap(); // Haptic feedback for successful download
+        
+        const mediaType = blob.type.includes('video') ? 'Video' : 'Image';
+        toast.success(`${mediaType} downloaded successfully!`);
+        
+      } catch (fetchError) {
+        console.error("Fetch download failed, trying fallback method:", fetchError);
+        
+        // Fallback: Open URL directly in new tab/window for browser to handle download
+        // This works even with CORS restrictions
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || `rotz-ai-${Date.now()}.${isVideo ? 'mp4' : 'png'}`;
+        link.target = '_blank'; // Open in new tab
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show info toast for fallback method
+        toast.info(`Opening ${isVideo ? 'video' : 'image'} in new tab for download. Check your downloads folder.`);
+        lightTap(); // Haptic feedback
       }
       
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename || `rotz-ai-${Date.now()}.${blob.type.includes('video') ? 'mp4' : 'png'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      lightTap(); // Haptic feedback for successful download
-      
-      const mediaType = blob.type.includes('video') ? 'Video' : 'Image';
-      toast.success(`${mediaType} downloaded successfully!`);
     } catch (error) {
-      console.error("Download failed:", error);
+      console.error("Download completely failed:", error);
       
-      // Handle different download error types
-      if (error.name === 'AbortError') {
-        const isVideo = filename?.includes('.mp4') || 
-                      url.includes('generated-videos') ||
-                      url.includes('video') ||
-                      filename?.includes('video');
-        const mediaType = isVideo ? 'video' : 'image';
-        const timeoutMin = isVideo ? '5 minutes' : '1 minute';
-        toast.error(`${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)} download timed out after ${timeoutMin}. The file may be too large. Try sharing the link instead.`);
-      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        toast.error("Network error during download. Please check your connection and try again.");
+      // Last resort: Copy URL to clipboard
+      if (navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.error("Download failed. URL copied to clipboard - paste in browser to download manually.");
+        } catch (clipboardError) {
+          toast.error("Download failed. Please try again or use the share button.");
+        }
       } else {
-        toast.error("Failed to download file. Please try again.");
+        toast.error("Download failed. Please try again or use the share button.");
       }
     }
   };
