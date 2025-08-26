@@ -1183,33 +1183,8 @@ export default function ImageGenerator() {
             'Cache-Control': 'no-cache'
           };
         } else {
-          // Use original JSON method for non-reference image requests
-          // Wrap payload in N8N expected format with exact structure
-          const n8nPayload = [{
-            headers: {
-              'connection': 'close',
-              'host': 'agents.rotz.ai',
-              'content-type': 'application/json',
-              'cache-control': 'no-cache',
-              'key': apiKey,
-              'user-agent': navigator.userAgent || 'Mozilla/5.0 (compatible; ROTZ-Image-Generator)',
-              'dnt': '1',
-              'accept': '*/*',
-              'origin': window.location.origin,
-              'sec-fetch-site': 'same-site',
-              'sec-fetch-mode': 'cors',
-              'sec-fetch-dest': 'empty',
-              'referer': window.location.href,
-              'accept-language': i18n.language + '-' + i18n.language.toUpperCase() + ',' + i18n.language + ';q=0.9,en-US;q=0.8,en;q=0.7',
-              'priority': 'u=1, i'
-            },
-            params: {},
-            query: {},
-            body: payload,
-            webhookUrl: 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496',
-            executionMode: 'production'
-          }];
-          requestBody = JSON.stringify(n8nPayload);
+          // Use direct JSON payload (same structure as FormData)
+          requestBody = JSON.stringify(payload);
           requestHeaders = {
             'Content-Type': 'application/json',
             'key': apiKey,
