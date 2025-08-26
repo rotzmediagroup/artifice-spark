@@ -53,6 +53,102 @@
     "uploadError": "Failed to upload image",
     "removeImage": "Remove"
   },
+  "dimensions": {
+    "title": "Image Dimensions",
+    "presets": "Presets",
+    "large": "Large", 
+    "custom": "Custom",
+    "width": "Width",
+    "height": "Height",
+    "aspectRatio": "Aspect Ratio",
+    "pixels": "pixels",
+    "total": "total",
+    "widthPlaceholder": "Width (256-2000)",
+    "heightPlaceholder": "Height (256-2000)",
+    "largeDimensionsWarning": "Large dimensions may take longer to generate",
+    "ratios": {
+      "square": "Square (1:1)",
+      "portrait": "Portrait (4:5)", 
+      "landscape": "Landscape (16:9)",
+      "wide": "Wide (21:9)",
+      "phone": "Phone (9:16)",
+      "largeSquare": "Large Square (1600x1600)",
+      "largePortrait": "Large Portrait (1280x1600)",
+      "largeLandscape": "Large Landscape (1600x1280)",
+      "ultraSquare": "Ultra Square (2000x2000)",
+      "ultraLandscape": "Ultra Landscape (2000x1600)",
+      "customDimensions": "Custom Dimensions"
+    }
+  },
+  "readyToCreate": {
+    "title": "Ready to Create",
+    "description": "Enter your creative prompt above and watch AI transform your imagination into stunning visual art"
+  },
+  "templates": {
+    "title": "Prompt Templates",
+    "categories": {
+      "portrait": "Portrait",
+      "landscape": "Landscape", 
+      "abstract": "Abstract",
+      "artistic": "Artistic",
+      "photo": "Photo",
+      "architecture": "Architecture"
+    },
+    "names": {
+      "fantasyPortrait": "Fantasy Portrait",
+      "realisticPortrait": "Realistic Portrait", 
+      "heroicCharacter": "Heroic Character",
+      "cyberpunkPortrait": "Cyberpunk Portrait",
+      "sciFiLandscape": "Sci-Fi Landscape",
+      "natureScene": "Nature Scene",
+      "fantasyRealm": "Fantasy Realm",
+      "postApocalyptic": "Post-Apocalyptic",
+      "abstractArt": "Abstract Art",
+      "geometricPattern": "Geometric Pattern",
+      "fluidArt": "Fluid Art",
+      "minimalistDesign": "Minimalist Design",
+      "oilPainting": "Oil Painting",
+      "watercolorStyle": "Watercolor Style",
+      "digitalArt": "Digital Art",
+      "popArt": "Pop Art",
+      "streetPhotography": "Street Photography",
+      "portraitPhotography": "Portrait Photography",
+      "landscapePhotography": "Landscape Photography",
+      "architecturalPhotography": "Architectural Photography",
+      "modernArchitecture": "Modern Architecture",
+      "classicalArchitecture": "Classical Architecture",
+      "futuristicBuilding": "Futuristic Building",
+      "interiorDesign": "Interior Design"
+    },
+    "appliedMessage": "Applied template:"
+  },
+  "settings": {
+    "steps": "Steps",
+    "cfgScale": "CFG Scale",
+    "savePreset": "Save Preset"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Settings", 
+    "dimensions": "Dimensions",
+    "steps": "Steps",
+    "cfgScale": "CFG Scale",
+    "aspectRatio": "Aspect Ratio",
+    "expiredMessage": "This image has expired and will be deleted soon"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Automatic Image Deletion",
+    "automaticVideoDeletion": "Automatic Video Deletion",
+    "imageWarning": "Images are automatically deleted after 14 days to manage storage. Download images you want to keep permanently.",
+    "videoWarning": "Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.",
+    "extensionInfoImages": "Regular users can extend storage up to 3 times (7 days each)",
+    "extensionInfoVideos": "Regular users can extend storage up to 1 time (7 days extra)"
+  },
+  "referenceImage": {
+    "remove": "Remove",
+    "badge": "Reference Image", 
+    "removedMessage": "Reference image removed"
+  },
   "warnings": {
     "videoGenerationTime": "Video generation takes time",
     "videoProcessingMessage": "Video processing typically takes 2-5 minutes. Please be patient while we create your video.",

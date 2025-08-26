@@ -53,6 +53,86 @@
     "uploadError": "Afbeelding uploaden mislukt",
     "removeImage": "Verwijderen"
   },
+  "dimensions": {
+    "title": "Afbeelding Afmetingen",
+    "presets": "Voorinstellingen",
+    "large": "Groot", 
+    "custom": "Aangepast",
+    "width": "Breedte",
+    "height": "Hoogte",
+    "aspectRatio": "Beeldverhouding",
+    "pixels": "pixels",
+    "total": "totaal",
+    "widthPlaceholder": "Breedte (256-2000)",
+    "heightPlaceholder": "Hoogte (256-2000)",
+    "largeDimensionsWarning": "Grote afmetingen kunnen langer duren om te genereren",
+    "ratios": {
+      "square": "Vierkant (1:1)",
+      "portrait": "Portret (4:5)", 
+      "landscape": "Landschap (16:9)",
+      "wide": "Breed (21:9)",
+      "phone": "Telefoon (9:16)",
+      "largeSquare": "Groot Vierkant (1600x1600)",
+      "largePortrait": "Groot Portret (1280x1600)",
+      "largeLandscape": "Groot Landschap (1600x1280)",
+      "ultraSquare": "Ultra Vierkant (2000x2000)",
+      "ultraLandscape": "Ultra Landschap (2000x1600)",
+      "customDimensions": "Aangepaste Afmetingen"
+    }
+  },
+  "readyToCreate": {
+    "title": "Klaar om te Creëren",
+    "description": "Voer je creatieve prompt hierboven in en kijk hoe AI je verbeelding omzet in prachtige visuele kunst"
+  },
+  "templates": {
+    "title": "Prompt Sjablonen",
+    "categories": {
+      "portrait": "Portret",
+      "landscape": "Landschap", 
+      "abstract": "Abstract",
+      "artistic": "Artistiek",
+      "photo": "Foto",
+      "architecture": "Architectuur"
+    },
+    "names": {
+      "fantasyPortrait": "Fantasy Portret",
+      "realisticPortrait": "Realistisch Portret", 
+      "heroicCharacter": "Heroïsch Karakter",
+      "cyberpunkPortrait": "Cyberpunk Portret",
+      "sciFiLandscape": "Sci-Fi Landschap",
+      "natureScene": "Natuur Scène",
+      "fantasyRealm": "Fantasy Rijk",
+      "postApocalyptic": "Post-Apocalyptisch"
+    },
+    "appliedMessage": "Sjabloon toegepast:"
+  },
+  "settings": {
+    "steps": "Stappen",
+    "cfgScale": "CFG Schaal",
+    "savePreset": "Voorinstelling Opslaan"
+  },
+  "history": {
+    "prompt": "Prompt",
+    "settings": "Instellingen", 
+    "dimensions": "Afmetingen",
+    "steps": "Stappen",
+    "cfgScale": "CFG Schaal",
+    "aspectRatio": "Beeldverhouding",
+    "expiredMessage": "Deze afbeelding is verlopen en zal binnenkort worden verwijderd"
+  },
+  "deletion": {
+    "automaticImageDeletion": "Automatische Afbeelding Verwijdering",
+    "automaticVideoDeletion": "Automatische Video Verwijdering",
+    "imageWarning": "Afbeeldingen worden automatisch verwijderd na 14 dagen om opslag te beheren. Download afbeeldingen die je permanent wilt bewaren.",
+    "videoWarning": "Video's worden automatisch verwijderd na 14 dagen om opslag te beheren. Download video's die je permanent wilt bewaren.",
+    "extensionInfoImages": "Gewone gebruikers kunnen opslag tot 3 keer verlengen (7 dagen elke keer)",
+    "extensionInfoVideos": "Gewone gebruikers kunnen opslag 1 keer verlengen (7 dagen extra)"
+  },
+  "referenceImage": {
+    "remove": "Verwijderen",
+    "badge": "Referentie Afbeelding", 
+    "removedMessage": "Referentie afbeelding verwijderd"
+  },
   "warnings": {
     "videoGenerationTime": "Video generatie duurt tijd",
     "videoProcessingMessage": "Video verwerking duurt meestal 2-5 minuten. Wees geduldig terwijl we je video maken.",

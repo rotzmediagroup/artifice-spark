@@ -597,7 +597,7 @@ export default function ImageGenerator() {
   const handleRemoveImage = () => {
     setReferenceImageUrl(null);
     setReferenceImageFile(null); // Also clear the file
-    toast.success("Reference image removed");
+    toast.success(t('generator:referenceImage.removedMessage'));
   };
 
 
@@ -617,7 +617,7 @@ export default function ImageGenerator() {
     lightTap(); // Light haptic feedback for template selection
     setPositivePrompt(template.prompt);
     setSelectedTemplate(template.name);
-    toast.success(`Applied template: ${template.name}`);
+    toast.success(`${t('generator:templates.appliedMessage')} ${template.name}`);
   };
 
   const handleStyleChange = (style: string) => {
@@ -1664,11 +1664,11 @@ export default function ImageGenerator() {
                         className="bg-red-500/80 hover:bg-red-600"
                       >
                         <X className="h-4 w-4 mr-2" />
-                        Remove
+{t('generator:referenceImage.remove')}
                       </Button>
                     </div>
                     <div className="absolute top-2 right-2 bg-green-500/80 text-white px-2 py-1 rounded text-xs font-medium">
-                      Reference Image
+{t('generator:referenceImage.badge')}
                     </div>
                   </div>
                 )}
@@ -1681,7 +1681,7 @@ export default function ImageGenerator() {
                 <div className="p-1 rounded bg-gradient-to-r from-yellow-500/20 to-orange-500/20">
                   <Star className="h-5 w-5 text-accent animate-pulse" />
                 </div>
-                Prompt Templates
+{t('generator:templates.title')}
               </Label>
               <div className="max-h-60 overflow-y-auto scroll-smooth space-y-2">
                 {promptTemplates.map((template) => (
@@ -1735,14 +1735,14 @@ export default function ImageGenerator() {
                 <div className="p-1 rounded bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
                   <Image className="h-5 w-5 text-primary animate-pulse" />
                 </div>
-                Image Dimensions
+{t('generator:dimensions.title')}
               </Label>
               
               <Tabs defaultValue="presets" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="presets">Presets</TabsTrigger>
-                  <TabsTrigger value="large">Large</TabsTrigger>
-                  <TabsTrigger value="custom">Custom</TabsTrigger>
+                  <TabsTrigger value="presets">{t('generator:dimensions.presets')}</TabsTrigger>
+                  <TabsTrigger value="large">{t('generator:dimensions.large')}</TabsTrigger>
+                  <TabsTrigger value="custom">{t('generator:dimensions.custom')}</TabsTrigger>
                 </TabsList>
                 
                 {/* Standard & Large Presets */}
@@ -1792,7 +1792,7 @@ export default function ImageGenerator() {
                 <TabsContent value="custom" className="space-y-3 mt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-sm mb-1 block">Width</Label>
+                      <Label className="text-sm mb-1 block">{t('generator:dimensions.width')}</Label>
                       <Input
                         type="number"
                         min={256}
@@ -1804,11 +1804,11 @@ export default function ImageGenerator() {
                           setUseCustomDimensions(true);
                         }}
                         className="text-sm"
-                        placeholder="Width (256-2000)"
+                        placeholder={t('generator:dimensions.widthPlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label className="text-sm mb-1 block">Height</Label>
+                      <Label className="text-sm mb-1 block">{t('generator:dimensions.height')}</Label>
                       <Input
                         type="number"
                         min={256}
@@ -1820,7 +1820,7 @@ export default function ImageGenerator() {
                           setUseCustomDimensions(true);
                         }}
                         className="text-sm"
-                        placeholder="Height (256-2000)"
+                        placeholder={t('generator:dimensions.heightPlaceholder')}
                       />
                     </div>
                   </div>
@@ -1829,15 +1829,15 @@ export default function ImageGenerator() {
                   {(useCustomDimensions) && (
                     <div className="p-3 bg-muted/50 rounded-lg text-sm">
                       <div className="flex items-center justify-between">
-                        <span>Aspect Ratio: {calculateAspectRatio(customWidth, customHeight)}</span>
+                        <span>{t('generator:dimensions.aspectRatio')}: {calculateAspectRatio(customWidth, customHeight)}</span>
                         <Badge variant="outline">{Math.round((customWidth * customHeight) / 1000000 * 100) / 100}MP</Badge>
                       </div>
                       <div className="text-muted-foreground mt-1">
-                        {customWidth} × {customHeight} pixels ({(customWidth * customHeight).toLocaleString()} total)
+                        {customWidth} × {customHeight} {t('generator:dimensions.pixels')} ({(customWidth * customHeight).toLocaleString()} {t('generator:dimensions.total')})
                       </div>
                       {(customWidth * customHeight > 2000000) && (
                         <div className="text-amber-600 text-xs mt-2">
-                          ⚠️ Large dimensions may take longer to generate
+                          ⚠️ {t('generator:dimensions.largeDimensionsWarning')}
                         </div>
                       )}
                     </div>
@@ -1857,12 +1857,12 @@ export default function ImageGenerator() {
                   onClick={saveCurrentPreset}
                   className="text-xs"
                 >
-                  Save Preset
+{t('generator:settings.savePreset')}
                 </Button>
               </div>
               
               <div className="space-y-2">
-                <Label className="text-sm">Steps: {steps[0]}</Label>
+                <Label className="text-sm">{t('generator:settings.steps')}: {steps[0]}</Label>
                 <Slider
                   value={steps}
                   onValueChange={handleStepsChange}
@@ -1874,7 +1874,7 @@ export default function ImageGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm">CFG Scale: {cfgScale[0]}</Label>
+                <Label className="text-sm">{t('generator:settings.cfgScale')}: {cfgScale[0]}</Label>
                 <Slider
                   value={cfgScale}
                   onValueChange={handleCfgScaleChange}
@@ -2175,9 +2175,9 @@ export default function ImageGenerator() {
                     <div className="p-6 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 w-24 h-24 mx-auto flex items-center justify-center animate-pulse-glow">
                       <Image className="h-12 w-12 text-muted-foreground" />
                     </div>
-                    <h3 className="text-2xl font-semibold text-muted-foreground">Ready to Create</h3>
+                    <h3 className="text-2xl font-semibold text-muted-foreground">{t('generator:readyToCreate.title')}</h3>
                     <p className="text-muted-foreground max-w-md mx-auto">
-                      Enter your creative prompt above and watch AI transform your imagination into stunning visual art
+                      {t('generator:readyToCreate.description')}
                     </p>
                   </div>
                 )}
@@ -2195,12 +2195,12 @@ export default function ImageGenerator() {
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
                     <div className="space-y-1">
-                      <h3 className="font-medium text-amber-500">Automatic Image Deletion</h3>
+                      <h3 className="font-medium text-amber-500">{t('generator:deletion.automaticImageDeletion')}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Images are automatically deleted after 14 days to manage storage. Download images you want to keep permanently.
+                        {t('generator:deletion.imageWarning')}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        • Regular users can extend storage up to 3 times (7 days each)
+                        • {t('generator:deletion.extensionInfoImages')}
                       </p>
                     </div>
                   </div>
@@ -2262,7 +2262,7 @@ export default function ImageGenerator() {
                                 {expirationStatus.isExpired && (
                                   <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
                                     <span className="text-red-600 font-medium bg-white/90 px-3 py-2 rounded">
-                                      This image has expired and will be deleted soon
+                                      {t('generator:history.expiredMessage')}
                                     </span>
                                   </div>
                                 )}
@@ -2270,7 +2270,7 @@ export default function ImageGenerator() {
                               
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                  <h4 className="font-semibold mb-2">Prompt</h4>
+                                  <h4 className="font-semibold mb-2">{t('generator:history.prompt')}</h4>
                                   <p className="text-sm text-muted-foreground">{image.prompt}</p>
                                 </div>
                                 <div>
@@ -2284,13 +2284,13 @@ export default function ImageGenerator() {
                                   </div>
                                 )}
                                 <div>
-                                  <h4 className="font-semibold mb-2">Settings</h4>
+                                  <h4 className="font-semibold mb-2">{t('generator:history.settings')}</h4>
                                   <div className="text-sm text-muted-foreground space-y-1">
-                                    <p>Steps: {image.settings.steps}</p>
-                                    <p>CFG Scale: {image.settings.cfgScale}</p>
-                                    <p>Aspect Ratio: {image.settings.aspectRatio}</p>
+                                    <p>{t('generator:history.steps')}: {image.settings.steps}</p>
+                                    <p>{t('generator:history.cfgScale')}: {image.settings.cfgScale}</p>
+                                    <p>{t('generator:history.aspectRatio')}: {image.settings.aspectRatio}</p>
                                     {image.settings.width && image.settings.height && (
-                                      <p>Dimensions: {image.settings.width} × {image.settings.height}</p>
+                                      <p>{t('generator:history.dimensions')}: {image.settings.width} × {image.settings.height}</p>
                                     )}
                                   </div>
                                 </div>
@@ -2391,12 +2391,12 @@ export default function ImageGenerator() {
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
                     <div className="space-y-1">
-                      <h3 className="font-medium text-amber-500">Automatic Video Deletion</h3>
+                      <h3 className="font-medium text-amber-500">{t('generator:deletion.automaticVideoDeletion')}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Videos are automatically deleted after 14 days to manage storage. Download videos you want to keep permanently.
+                        {t('generator:deletion.videoWarning')}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        • Regular users can extend storage up to 1 time (7 days extra)
+                        • {t('generator:deletion.extensionInfoVideos')}
                       </p>
                     </div>
                   </div>
