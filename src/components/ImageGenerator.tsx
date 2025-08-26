@@ -597,6 +597,7 @@ export default function ImageGenerator() {
     toast.success("Reference image removed");
   };
 
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
@@ -1993,14 +1994,6 @@ export default function ImageGenerator() {
                     </div>
                     <CreditDisplay variant="inline" />
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Image generation cost:</span>
-                    <span className="font-medium">1 credit</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Video generation cost:</span>
-                    <span className="font-medium">10 credits</span>
-                  </div>
                 </div>
               </div>
             )}
@@ -2126,7 +2119,7 @@ export default function ImageGenerator() {
                                 <Button 
                                   size="sm" 
                                   className="glass text-white border-white/20 hover:bg-white/20"
-                                  onClick={() => downloadImage(imageUrl, `rotz-video-${Date.now()}.mp4`)}
+                                  onClick={() => downloadImage(imageUrl, `rotz-image-${Date.now()}.png`)}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
                                   Download
