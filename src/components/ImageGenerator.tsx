@@ -458,16 +458,24 @@ export default function ImageGenerator() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
   
-  // Get translated templates
+  // Get translated templates - using only keys that exist in all language files
   const translatedTemplates = useMemo(() => {
-    const templateKeys = ['fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic', 'abstractArt', 'fluidDynamics', 'sacredGeometry', 'modernArchitecture', 'ancientTemple', 'futuristicBuilding', 'productShot', 'vintageStillLife', 'magicalArtifact', 'wildlifePortrait', 'mythicalCreature', 'cutePet', 'epicBattle', 'peacefulMoment'];
+    const templateKeys = ['fantasyPortrait', 'realisticPortrait', 'heroicCharacter', 'cyberpunkPortrait', 'sciFiLandscape', 'natureScene', 'fantasyRealm', 'postApocalyptic'];
     
-    return templateKeys.map(key => ({
-      key,
-      name: t(`generator:templates.names.${key}`),
-      prompt: t(`generator:templates.prompts.${key}`),
-      category: t(`generator:templates.categories.${getTemplateCategoryKey(key)}`)
-    }));
+    try {
+      return templateKeys.map(key => ({
+        key,
+        name: t(`generator:templates.names.${key}`, { defaultValue: key }),
+        prompt: t(`generator:templates.prompts.${key}`, { defaultValue: 'Creative prompt for ' + key }),
+        category: t(`generator:templates.categories.${getTemplateCategoryKey(key)}`, { defaultValue: 'Artistic' })
+      }));
+    } catch (error) {
+      console.error('Translation error:', error);
+      // Fallback templates
+      return [
+        { key: 'fallback', name: 'Fantasy Portrait', prompt: 'A mystical fantasy portrait with magical atmosphere', category: 'Portrait' }
+      ];
+    }
   }, [t]);
 
   const getTemplateCategoryKey = (templateKey: string) => {
