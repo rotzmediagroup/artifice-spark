@@ -36,17 +36,10 @@ i18n
     // Backend configuration
     backend: {
       loadPath: '/locales/{{lng}}/{{ns}}.json',
-      // Aggressive cache busting
-      queryStringParams: { 
-        v: Date.now(),
-        t: Math.random(),
-        force: 'true'
-      },
+      // Add cache busting
+      queryStringParams: { v: Date.now() },
       // Force reload resources
       reloadInterval: false,
-      // Disable caching completely
-      allowMultiLoading: false,
-      crossDomain: true,
     },
     
     // Resource loading
@@ -62,10 +55,6 @@ i18n
       useSuspense: false, // Avoid suspense for now
       bindI18n: 'languageChanged loaded',
       bindI18nStore: 'added removed',
-      // Add error handling
-      transEmptyNodeValue: '',
-      transSupportBasicHtmlNodes: true,
-      transKeepBasicHtmlNodesFor: ['br', 'strong', 'i'],
     },
 
     // Interpolation
