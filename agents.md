@@ -357,4 +357,6 @@ Before any commit/deployment:
 
 **REMEMBER: The primary directive is to maintain the existing UI while enhancing backend functionality. When in doubt about UI impact, ask the user for explicit permission before proceeding.**
 
+**Never change the payload structure that is being sent with the webhook call**
+
 **This agents.md file is the single source of truth for development standards and must be updated after each session with progress and lessons learned.**
