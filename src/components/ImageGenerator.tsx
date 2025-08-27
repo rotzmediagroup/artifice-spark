@@ -1044,11 +1044,15 @@ export default function ImageGenerator() {
             generation_type: generationMode, // 'image' or 'video'
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
-            style: (referenceImageFile && preserveOriginalStyle) ? undefined : (selectedStyle || undefined),
-            style_description: (referenceImageFile && preserveOriginalStyle) ? undefined : selectedStyle 
-              ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
-                 || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
-              : undefined,
+            style: (referenceImageFile && preserveOriginalStyle) 
+              ? "Please use the style of the provided image" 
+              : (selectedStyle || undefined),
+            style_description: (referenceImageFile && preserveOriginalStyle) 
+              ? "Please use the style of the provided image" 
+              : selectedStyle 
+                ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
+                   || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
+                : undefined,
             aspect_ratio: currentDimensions.aspect_ratio,
             aspect_ratio_label: currentDimensions.aspect_ratio_label,
             aspect_ratio_category: aspectRatio.category || "standard",
@@ -1123,11 +1127,15 @@ export default function ImageGenerator() {
           height: currentDimensions.height,
           prompt: positivePrompt.trim(),
           negative_prompt: negativePrompt.trim() || undefined,
-          style: (referenceImageFile && preserveOriginalStyle) ? undefined : (selectedStyle || undefined),
-          style_description: (referenceImageFile && preserveOriginalStyle) ? undefined : selectedStyle 
-            ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
-               || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
-            : undefined,
+          style: (referenceImageFile && preserveOriginalStyle) 
+            ? "Please use the style of the provided image" 
+            : (selectedStyle || undefined),
+          style_description: (referenceImageFile && preserveOriginalStyle) 
+            ? "Please use the style of the provided image" 
+            : selectedStyle 
+              ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
+                 || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
+              : undefined,
           steps: steps[0],
           cfg_scale: cfgScale[0]
         };
