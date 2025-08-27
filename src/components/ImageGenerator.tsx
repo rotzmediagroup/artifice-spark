@@ -1166,22 +1166,15 @@ export default function ImageGenerator() {
         let requestHeaders;
         
         if (referenceImageFile) {
-          console.log('DEBUG: Starting FormData preparation for reference image upload');
-          console.log('DEBUG: Reference image file:', {
-            name: referenceImageFile.name,
-            size: referenceImageFile.size,
-            type: referenceImageFile.type
-          });
-          
           // Use FormData for binary reference image upload with N8N wrapper
           const formData = new FormData();
           
-          // Wrap payload in N8N expected format with exact structure - REMOVED CONFLICTING CONTENT-TYPE
+          // Wrap payload in N8N expected format with exact structure
+          // Note: No Content-Type header here - browser sets it automatically for FormData
           const n8nPayload = [{
             headers: {
               'connection': 'close',
               'host': 'agents.rotz.ai',
-              // REMOVED: 'content-type': 'multipart/form-data', - This conflicts with FormData auto-setting
               'cache-control': 'no-cache',
               'key': apiKey,
               'user-agent': navigator.userAgent || 'Mozilla/5.0 (compatible; ROTZ-Image-Generator)',
@@ -1202,12 +1195,10 @@ export default function ImageGenerator() {
             executionMode: 'production'
           }];
           
-          console.log('DEBUG: N8N payload structure:', JSON.stringify(n8nPayload, null, 2));
           formData.append('payload', JSON.stringify(n8nPayload));
           
           // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
-          console.log('DEBUG: FormData prepared successfully. Payload size:', JSON.stringify(n8nPayload).length, 'bytes');
           
           requestBody = formData;
           requestHeaders = {
@@ -1251,11 +1242,6 @@ export default function ImageGenerator() {
           };
         }
         
-        console.log('DEBUG: About to make fetch request');
-        console.log('DEBUG: Request headers:', requestHeaders);
-        console.log('DEBUG: Request body type:', requestBody instanceof FormData ? 'FormData' : typeof requestBody);
-        console.log('DEBUG: Has reference image:', !!referenceImageFile);
-        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: requestHeaders,
@@ -1264,8 +1250,6 @@ export default function ImageGenerator() {
           // Additional fetch options for long requests
           keepalive: true
         });
-        
-        console.log('DEBUG: Fetch response received:', response.status, response.statusText);
         
         console.log(`Received response for ${generationMode} generation at:`, new Date().toISOString());
 
