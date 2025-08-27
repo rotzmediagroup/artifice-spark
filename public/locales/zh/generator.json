@@ -8,7 +8,8 @@
   },
   "modes": {
     "image": "图像",
-    "video": "视频"
+    "video": "视频",
+    "img2video": "图像转视频"
   },
   "generation": {
     "generate": "生成",

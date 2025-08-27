@@ -8,7 +8,8 @@
   },
   "modes": {
     "image": "Afbeelding",
-    "video": "Video"
+    "video": "Video",
+    "img2video": "Afbeelding naar Video"
   },
   "generation": {
     "generate": "Genereren",

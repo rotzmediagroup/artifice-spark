@@ -457,7 +457,7 @@ export default function ImageGenerator() {
   const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
+  const [generationMode, setGenerationMode] = useState<'image' | 'video' | 'img2video'>('image');
   const [preserveOriginalStyle, setPreserveOriginalStyle] = useState(true);
   
   // Get translated templates - COMPREHENSIVE collection (75+ templates)
@@ -751,7 +751,7 @@ export default function ImageGenerator() {
     // Tab state is handled by the Tabs component itself
   };
 
-  const handleModeChange = (mode: 'image' | 'video') => {
+  const handleModeChange = (mode: 'image' | 'video' | 'img2video') => {
     lightTap(); // Light haptic feedback for mode switch
     setGenerationMode(mode);
     toast.success(`Switched to ${mode} generation mode`);
@@ -987,7 +987,7 @@ export default function ImageGenerator() {
     }
 
     // Check if user has sufficient credits for the specific generation type
-    if (generationMode === 'video') {
+    if (generationMode === 'video' || generationMode === 'img2video') {
       if (!canGenerateVideos()) {
         error(); // Error haptic pattern
         toast.error("No video credits available! Contact administrator to get video credits.");
@@ -1011,6 +1011,12 @@ export default function ImageGenerator() {
       }
     }
 
+    // Require reference image for img2video mode
+    if (generationMode === 'img2video' && !referenceImageFile) {
+      error(); // Error haptic pattern
+      toast.error("Please upload a reference image for Image 2 Video generation");
+      return;
+    }
 
     setIsGenerating(true);
     setGenerationProgress(0);
@@ -1713,6 +1719,15 @@ export default function ImageGenerator() {
                   <Camera className="h-4 w-4" />
                   {t('generator:tabs.images')}
                 </Button>
+                <Button
+                  variant={generationMode === 'img2video' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleModeChange('img2video')}
+                  className={`flex items-center gap-2 ${generationMode === 'img2video' ? 'bg-gradient-to-r from-purple-600 to-blue-600' : ''}`}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  {t('generator:modes.img2video', 'Image 2 Video')}
+                </Button>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1810,15 +1825,17 @@ export default function ImageGenerator() {
               />
             </div>
 
-            {/* Reference Image Upload - Only show for image mode */}
-            {generationMode === 'image' && (
+            {/* Reference Image Upload - Show for image and img2video modes */}
+            {(generationMode === 'image' || generationMode === 'img2video') && (
               <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.2s'}}>
                 <Label className="flex items-center gap-3 text-lg font-medium">
                   <div className="p-1 rounded bg-gradient-to-r from-green-500/20 to-blue-500/20">
                     <ImageIcon className="h-5 w-5 text-accent animate-pulse" />
                   </div>
                   Reference Image
-                  <Badge variant="outline" className="text-xs">Optional</Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {generationMode === 'img2video' ? 'Required' : 'Optional'}
+                  </Badge>
                 </Label>
                 
                 {!referenceImageUrl ? (

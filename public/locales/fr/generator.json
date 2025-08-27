@@ -8,7 +8,8 @@
   },
   "modes": {
     "image": "Image",
-    "video": "Vidéo"
+    "video": "Vidéo",
+    "img2video": "Image vers Vidéo"
   },
   "generation": {
     "generate": "Générer",
