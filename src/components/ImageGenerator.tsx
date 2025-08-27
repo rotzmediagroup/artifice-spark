@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { Sparkles, Download, Settings, Wand2, Image, Palette, Zap, Star, Upload, X, ImageIcon, History, Share2, Copy, RotateCcw, Heart, Trash2, LogIn, Clock, AlertTriangle, Video, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -457,6 +458,7 @@ export default function ImageGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationMode, setGenerationMode] = useState<'image' | 'video'>('image');
+  const [preserveOriginalStyle, setPreserveOriginalStyle] = useState(true);
   
   // Get translated templates - COMPREHENSIVE collection (75+ templates)
   const translatedTemplates = useMemo(() => {
@@ -715,6 +717,7 @@ export default function ImageGenerator() {
   const handleRemoveImage = () => {
     setReferenceImageUrl(null);
     setReferenceImageFile(null); // Also clear the file
+    setPreserveOriginalStyle(true); // Reset to default when image is removed
     toast.success(t('generator:referenceImage.removedMessage'));
   };
 
@@ -1041,8 +1044,8 @@ export default function ImageGenerator() {
             generation_type: generationMode, // 'image' or 'video'
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
-            style: selectedStyle || undefined,
-            style_description: selectedStyle 
+            style: (referenceImageFile && preserveOriginalStyle) ? undefined : (selectedStyle || undefined),
+            style_description: (referenceImageFile && preserveOriginalStyle) ? undefined : selectedStyle 
               ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
                  || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
               : undefined,
@@ -1120,8 +1123,8 @@ export default function ImageGenerator() {
           height: currentDimensions.height,
           prompt: positivePrompt.trim(),
           negative_prompt: negativePrompt.trim() || undefined,
-          style: selectedStyle || undefined,
-          style_description: selectedStyle 
+          style: (referenceImageFile && preserveOriginalStyle) ? undefined : (selectedStyle || undefined),
+          style_description: (referenceImageFile && preserveOriginalStyle) ? undefined : selectedStyle 
             ? (styleDescriptions[selectedStyle as keyof typeof styleDescriptions] 
                || `${selectedStyle} artistic style with characteristic visual elements and techniques.`)
             : undefined,
@@ -1901,25 +1904,50 @@ export default function ImageGenerator() {
 
             {/* Art Style */}
             <div className="space-y-3 animate-slide-up" style={{animationDelay: '0.4s'}}>
-              <Label className="flex items-center gap-3 text-lg font-medium">
-                <div className="p-1 rounded bg-gradient-to-r from-pink-500/20 to-purple-500/20">
-                  <Palette className="h-5 w-5 text-accent animate-pulse" />
-                </div>
-{t('generator:generation.style')}
-                <Badge variant="secondary" className="text-xs animate-bounce">{t('common:buttons.required')}</Badge>
-              </Label>
-              <Select value={selectedStyle} onValueChange={handleStyleChange}>
-                <SelectTrigger className="glass border-accent/20">
-                  <SelectValue placeholder={t('generator:generation.stylePlaceholder')} />
-                </SelectTrigger>
-                <SelectContent className="glass border-accent/20 max-h-60">
-                  {artStyles.map((style) => (
-                    <SelectItem key={style} value={style}>
-                      {style}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-3 text-lg font-medium">
+                  <div className="p-1 rounded bg-gradient-to-r from-pink-500/20 to-purple-500/20">
+                    <Palette className="h-5 w-5 text-accent animate-pulse" />
+                  </div>
+                  {t('generator:generation.style')}
+                  {!(referenceImageFile && preserveOriginalStyle) && (
+                    <Badge variant="secondary" className="text-xs animate-bounce">{t('common:buttons.required')}</Badge>
+                  )}
+                </Label>
+                
+                {/* Preserve Original Style Switch - Only show when reference image is uploaded */}
+                {referenceImageFile && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="preserve-style" className="text-sm text-muted-foreground cursor-pointer">
+                      {t('generator:generation.preserveOriginalStyle', 'Preserve original art style')}
+                    </Label>
+                    <Switch
+                      id="preserve-style"
+                      checked={preserveOriginalStyle}
+                      onCheckedChange={(checked) => {
+                        lightTap(); // Haptic feedback
+                        setPreserveOriginalStyle(checked);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* Only show art style dropdown if not preserving original style with reference image */}
+              {!(referenceImageFile && preserveOriginalStyle) && (
+                <Select value={selectedStyle} onValueChange={handleStyleChange}>
+                  <SelectTrigger className="glass border-accent/20">
+                    <SelectValue placeholder={t('generator:generation.stylePlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-accent/20 max-h-60">
+                    {artStyles.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {style}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* Dimensions Selector */}
@@ -2224,7 +2252,7 @@ export default function ImageGenerator() {
             {/* Enhanced Generate Button */}
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || !positivePrompt.trim() || !selectedStyle}
+              disabled={isGenerating || !positivePrompt.trim() || (!(referenceImageFile && preserveOriginalStyle) && !selectedStyle)}
               className="w-full py-6 text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transition-all duration-500 transform hover:scale-[1.02] animate-pulse-glow text-white"
             >
               {isGenerating ? (

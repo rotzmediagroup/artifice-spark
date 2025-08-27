@@ -21,6 +21,7 @@
     "negativePromptPlaceholder": "要在图像中避免的内容...",
     "style": "艺术风格",
     "stylePlaceholder": "选择艺术风格...",
+    "preserveOriginalStyle": "保持原始艺术风格",
     "aspectRatio": "宽高比",
     "customDimensions": "自定义尺寸",
     "width": "宽度",

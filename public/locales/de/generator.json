@@ -21,6 +21,7 @@
     "negativePromptPlaceholder": "Was im Bild vermieden werden soll...",
     "style": "Kunststil",
     "stylePlaceholder": "Wählen Sie einen Kunststil...",
+    "preserveOriginalStyle": "Original-Kunststil beibehalten",
     "aspectRatio": "Seitenverhältnis",
     "customDimensions": "Benutzerdefinierte Abmessungen",
     "width": "Breite",

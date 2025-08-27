@@ -21,6 +21,7 @@
     "negativePromptPlaceholder": "Wat te vermijden in de afbeelding...",
     "style": "Kunststijl",
     "stylePlaceholder": "Kies een kunststijl...",
+    "preserveOriginalStyle": "Oorspronkelijke kunststijl behouden",
     "aspectRatio": "Beeldverhouding",
     "customDimensions": "Aangepaste Afmetingen",
     "width": "Breedte",

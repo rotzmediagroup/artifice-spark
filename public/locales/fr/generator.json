@@ -21,6 +21,7 @@
     "negativePromptPlaceholder": "Ce qu'il faut éviter dans l'image...",
     "style": "Style Artistique",
     "stylePlaceholder": "Choisissez un style artistique...",
+    "preserveOriginalStyle": "Préserver le style artistique original",
     "aspectRatio": "Rapport d'Aspect",
     "customDimensions": "Dimensions Personnalisées",
     "width": "Largeur",
