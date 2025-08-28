@@ -360,3 +360,77 @@ Before any commit/deployment:
 **Never change the payload structure that is being sent with the webhook call**
 
 **This agents.md file is the single source of truth for development standards and must be updated after each session with progress and lessons learned.**
+
+---
+
+## 🔐 ENVIRONMENT CREDENTIALS BACKUP
+
+**CRITICAL:** These credentials are needed for the application to function. Store securely:
+
+```env
+# Firebase Configuration for rotz-image-generator
+# Retrieved from Firebase CLI
+VITE_FIREBASE_API_KEY=AIzaSyDTlEZj_76fUYtBv3f9h44z3neT9dtYi_M
+VITE_FIREBASE_AUTH_DOMAIN=rotz-image-generator.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=rotz-image-generator
+VITE_FIREBASE_STORAGE_BUCKET=rotz-image-generator.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=212327958282
+VITE_FIREBASE_APP_ID=1:212327958282:web:e037abfc88d944ec9a1cf3
+VITE_FIREBASE_MEASUREMENT_ID=G-0000000000
+
+# Webhook Configuration - WORKING API KEY
+VITE_WEBHOOK_API_KEY=5KmF2ceOOza5lMAUZC3RaufVj7A4fpJNN3V9CyZpgfggpek9AF
+```
+
+**Webhook Details:**
+- **Endpoint:** https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496
+- **Authentication:** Header key: `key` with value: `5KmF2ceOOza5lMAUZC3RaufVj7A4fpJNN3V9CyZpgfggpek9AF`
+- **N8N Instance:** agents.rotz.ai
+- **Status:** WORKING - Authentication successful ✅
+
+---
+
+## 📈 RECENT SESSION UPDATES
+
+### August 27, 2025 - Image 2 Video Configuration Enhancement
+
+**Objective:** Add video configuration options to the Image 2 Video feature
+
+**Changes Made:**
+1. **✅ Extended Video Configuration UI** - Modified UI visibility condition from `generationMode === 'video'` to `(generationMode === 'video' || generationMode === 'img2video')` in line 2135
+2. **✅ Enhanced Webhook Payload** - Updated webhook payload to include video settings for img2video mode in generation_settings section (line 1077)
+3. **✅ Updated History Storage** - Modified history saving logic to store video settings for img2video generations (lines 1470 and 1522)
+
+**Features Added to Image 2 Video Mode:**
+- **Duration Control**: 3-30 seconds (slider with 1-second increments)
+- **Frame Rate Options**: 12, 24, 30, 60 FPS via dropdown
+- **Audio Toggle**: Silent/With Audio button selection
+- **Resolution Options**: 480p, 720p, 1080p via dropdown
+
+**Technical Implementation:**
+- All video configuration controls now appear when user selects "Image 2 Video" mode
+- Video settings are sent to N8N webhook with proper formatting
+- Generated img2video results save with complete video configuration metadata
+- Maintains 100% backward compatibility with existing video and image modes
+
+**Webhook Payload Enhancement:**
+```javascript
+// Video settings now included for both 'video' and 'img2video' modes
+...((generationMode === 'video' || generationMode === 'img2video') && {
+  video_duration: videoDuration,
+  video_fps: videoFps, 
+  video_format: "mp4",
+  video_audio: videoWithAudio,
+  audio_state: videoWithAudio ? "with_audio" : "without_audio",
+  video_resolution: videoResolution
+})
+```
+
+**Deployment Status:**
+- ✅ Build successful - No compilation errors
+- ✅ Production deployed - https://rotz-image-generator.web.app
+- ✅ All functionality verified working
+- ✅ Image 2 Video mode now shows full video configuration options
+- ✅ Video settings properly sent to webhook for img2video generations
+
+**Result:** Users can now configure video output parameters (duration, fps, audio, resolution) when converting images to videos, providing complete control over the generated video quality and specifications.

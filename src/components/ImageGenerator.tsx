@@ -1044,10 +1044,11 @@ export default function ImageGenerator() {
       // Prepare binary file upload (no base64 conversion)
       const hasReferenceImage = !!referenceImageFile;
       
+      
       const payload = {
           // Generation settings - primary parameters
           generation_settings: {
-            generation_type: generationMode, // 'image' or 'video'
+            generation_type: generationMode, // 'image', 'video', or 'img2video'
             prompt: positivePrompt.trim(),
             negative_prompt: negativePrompt.trim() || undefined,
             style: (referenceImageFile && preserveOriginalStyle) 
@@ -1104,8 +1105,8 @@ export default function ImageGenerator() {
             user_display_name: user?.displayName || null,
             request_id: requestId,
             timestamp: new Date().toISOString(),
-            app_version: "1.8.0", // Added Video Generation Support
-            generation_mode: referenceImageUrl ? "img2img" : "text2img",
+            app_version: "1.11.0", // Added Image 2 Video Support
+            generation_mode: referenceImageFile ? "img2img" : "text2img",
             batch_info: {
               total_batch_count: 1,
               batch_index: 1,
@@ -1159,13 +1160,31 @@ export default function ImageGenerator() {
         let timeoutId: NodeJS.Timeout | null = null;
         let heartbeatInterval: NodeJS.Timeout | null = null;
         
+        
         if (generationMode === 'image') {
-          // Only set timeout for images (2 minutes)
+          // Images: standard 2-minute timeout
           timeoutId = setTimeout(() => controller.abort(), 120000);
         } else {
-          // For videos: implement heartbeat to keep connection alive (no timeout)
-          heartbeatInterval = setInterval(() => {
-            console.log(`[HEARTBEAT] Video generation in progress... ${Math.floor((Date.now() - generationStartTime) / 1000)}s elapsed`);
+          // For videos/img2video: implement heartbeat to keep connection alive (no timeout)
+          heartbeatInterval = setInterval(async () => {
+            const elapsed = Math.floor((Date.now() - generationStartTime) / 1000);
+            console.log(`[HEARTBEAT] Video generation in progress... ${elapsed}s elapsed`);
+            
+            // Send a lightweight heartbeat request to prevent connection timeout
+            try {
+              const heartbeatResponse = await fetch('https://agents.rotz.ai', {
+                method: 'HEAD', // Lightweight HEAD request
+                headers: {
+                  'key': apiKey,
+                  'Cache-Control': 'no-cache'
+                },
+                signal: AbortSignal.timeout(5000) // 5 second timeout for heartbeat
+              });
+              console.log(`[HEARTBEAT] Response: ${heartbeatResponse.status} - Connection alive`);
+            } catch (heartbeatError) {
+              console.warn(`[HEARTBEAT] Failed:`, heartbeatError.message);
+              // Continue anyway - heartbeat failure shouldn't stop generation
+            }
           }, 30000); // Heartbeat every 30 seconds
         }
 
@@ -1188,7 +1207,7 @@ export default function ImageGenerator() {
           
           // Wrap payload in N8N expected format with exact structure
           // Note: No Content-Type header here - browser sets it automatically for FormData
-          const n8nPayload = [{
+          const n8nPayloadFormData = [{
             headers: {
               'connection': 'close',
               'host': 'agents.rotz.ai',
@@ -1212,7 +1231,7 @@ export default function ImageGenerator() {
             executionMode: 'production'
           }];
           
-          formData.append('payload', JSON.stringify(n8nPayload));
+          formData.append('payload', JSON.stringify(n8nPayloadFormData));
           
           // Add reference image as binary file
           formData.append('reference_image', referenceImageFile, referenceImageFile.name);
@@ -1226,7 +1245,7 @@ export default function ImageGenerator() {
           };
         } else {
           // Use N8N wrapper format for regular JSON requests
-          const n8nPayload = [{
+          const n8nPayloadJSON = [{
             headers: {
               'connection': 'close',
               'host': 'agents.rotz.ai',
@@ -1250,7 +1269,7 @@ export default function ImageGenerator() {
             webhookUrl: 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496',
             executionMode: 'production'
           }];
-          requestBody = JSON.stringify(n8nPayload);
+          requestBody = JSON.stringify(n8nPayloadJSON);
           requestHeaders = {
             'Content-Type': 'application/json',
             'key': apiKey,
@@ -1270,11 +1289,12 @@ export default function ImageGenerator() {
         
         console.log(`Received response for ${generationMode} generation at:`, new Date().toISOString());
 
-        // Clear timeout and heartbeat if request completes successfully
+        // Clear initial timeout (but keep heartbeat for polling)
         if (timeoutId) clearTimeout(timeoutId);
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
 
         if (!response.ok) {
+          // Clear heartbeat on error
+          if (heartbeatInterval) clearInterval(heartbeatInterval);
           // Handle authentication errors specifically
           if (response.status === 401 || response.status === 403) {
             throw new Error('Authentication failed. Please check your API credentials.');
@@ -1285,6 +1305,7 @@ export default function ImageGenerator() {
         // Check if response is binary (PNG) or JSON
         const contentType = response.headers.get('content-type');
         console.log("Response content-type:", contentType);
+        
         
         let result: { 
           is_binary: boolean; 
@@ -1466,8 +1487,8 @@ export default function ImageGenerator() {
               isCustomDimensions: currentDims.is_custom,
               totalPixels: currentDims.total_pixels,
               megapixels: currentDims.megapixels,
-              // Video-specific settings (only if video)
-              ...(generationMode === 'video' && {
+              // Video-specific settings (only if video or img2video)
+              ...((generationMode === 'video' || generationMode === 'img2video') && {
                 videoDuration: videoDuration,
                 videoFps: videoFps,
                 videoFormat: "mp4",
@@ -1518,8 +1539,8 @@ export default function ImageGenerator() {
                 isCustomDimensions: currentDims.is_custom,
                 totalPixels: currentDims.total_pixels,
                 megapixels: currentDims.megapixels,
-                // Video-specific settings (only if video)
-                ...(generationMode === 'video' && {
+                // Video-specific settings (only if video or img2video)
+                ...((generationMode === 'video' || generationMode === 'img2video') && {
                   videoDuration: videoDuration,
                   videoFps: videoFps,
                   videoFormat: "mp4",
@@ -1636,16 +1657,24 @@ export default function ImageGenerator() {
       
       // Handle different types of errors
       if (error.name === 'AbortError') {
-        // Only images should trigger AbortError now (videos have no timeout)
+        // Handle timeout errors based on generation mode
         if (generationMode === 'image') {
           toast.error('Image generation timed out after 2 minutes. Please try again.');
         } else {
-          toast.error('Video generation was cancelled.');
+          // For videos, this would be a network error since we have no timeout
+          toast.error('Video generation failed - network error or server issue. Please try again in a moment.');
         }
+      } else if (error.message.includes('Video generation failed on server')) {
+        // Handle server-side generation failures
+        toast.error(`Video generation failed on the server. Please try again with different settings or contact support if the issue persists.`);
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        // Handle network errors
-        const mediaType = generationMode === 'video' ? 'video' : 'image';
-        toast.error(`Network error during ${mediaType} generation. Please check your connection and try again.`);
+        // Handle network errors with more context for videos
+        const mediaType = (generationMode === 'video' || generationMode === 'img2video') ? 'video' : 'image';
+        if (mediaType === 'video') {
+          toast.error(`Network error during video generation setup. Please check your connection and try again.`);
+        } else {
+          toast.error(`Network error during ${mediaType} generation. Please check your connection and try again.`);
+        }
       } else {
         toast.error(`Failed to generate ${generationMode === 'video' ? 'video' : 'image'}: ${error.message}`);
       }
@@ -2132,7 +2161,7 @@ export default function ImageGenerator() {
               </div>
               
               {/* Video-specific controls */}
-              {generationMode === 'video' && (
+              {(generationMode === 'video' || generationMode === 'img2video') && (
                 <>
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center gap-2">
@@ -2297,7 +2326,7 @@ export default function ImageGenerator() {
             </Button>
             
             {/* Video Generation Warning */}
-            {generationMode === 'video' && (
+            {(generationMode === 'video' || generationMode === 'img2video') && (
               <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 animate-slide-up">
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
@@ -2339,14 +2368,14 @@ export default function ImageGenerator() {
                   <div className="p-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 animate-pulse-glow">
                     <Image className="h-6 w-6 text-accent" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gradient">{t('generator:results.generated' + (generationMode === 'video' ? 'Videos' : 'Images'))}</h2>
+                  <h2 className="text-2xl font-bold text-gradient">{t('generator:results.generated' + ((generationMode === 'video' || generationMode === 'img2video') ? 'Videos' : 'Images'))}</h2>
                 </div>
 
                 {generatedImages.length > 0 ? (
                   <div className="grid grid-cols-1 gap-6">
                     {generatedImages.map((imageUrl, index) => (
                       <div key={index} className="relative group">
-                        {generationMode === 'video' ? (
+                        {(generationMode === 'video' || generationMode === 'img2video') ? (
                           // For videos: Structure without overlay buttons to avoid blocking video controls
                           <div className="space-y-3">
                             <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
