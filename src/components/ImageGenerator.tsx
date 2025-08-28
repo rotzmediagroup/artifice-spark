@@ -1186,7 +1186,7 @@ export default function ImageGenerator() {
           // Note: No Content-Type header here - browser sets it automatically for FormData
           const n8nPayloadFormData = [{
             headers: {
-              'connection': 'close',
+              'connection': 'keep-alive',
               'host': 'agents.rotz.ai',
               'cache-control': 'no-cache',
               'key': apiKey,
@@ -1224,7 +1224,7 @@ export default function ImageGenerator() {
           // Use N8N wrapper format for regular JSON requests
           const n8nPayloadJSON = [{
             headers: {
-              'connection': 'close',
+              'connection': 'keep-alive',
               'host': 'agents.rotz.ai',
               'content-type': 'application/json',
               'cache-control': 'no-cache',
