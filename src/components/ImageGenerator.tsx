@@ -1158,35 +1158,12 @@ export default function ImageGenerator() {
         // Configure timeout based on generation mode - no timeout for videos to avoid browser limitations
         const controller = new AbortController();
         let timeoutId: NodeJS.Timeout | null = null;
-        let heartbeatInterval: NodeJS.Timeout | null = null;
-        
         
         if (generationMode === 'image') {
           // Images: standard 2-minute timeout
           timeoutId = setTimeout(() => controller.abort(), 120000);
-        } else {
-          // For videos/img2video: implement heartbeat to keep connection alive (no timeout)
-          heartbeatInterval = setInterval(async () => {
-            const elapsed = Math.floor((Date.now() - generationStartTime) / 1000);
-            console.log(`[HEARTBEAT] Video generation in progress... ${elapsed}s elapsed`);
-            
-            // Send a lightweight heartbeat request to prevent connection timeout
-            try {
-              const heartbeatResponse = await fetch('https://agents.rotz.ai', {
-                method: 'HEAD', // Lightweight HEAD request
-                headers: {
-                  'key': apiKey,
-                  'Cache-Control': 'no-cache'
-                },
-                signal: AbortSignal.timeout(5000) // 5 second timeout for heartbeat
-              });
-              console.log(`[HEARTBEAT] Response: ${heartbeatResponse.status} - Connection alive`);
-            } catch (heartbeatError) {
-              console.warn(`[HEARTBEAT] Failed:`, heartbeatError.message);
-              // Continue anyway - heartbeat failure shouldn't stop generation
-            }
-          }, 30000); // Heartbeat every 30 seconds
         }
+        // For videos/img2video: NO timeout - let request run as long as needed
 
         console.log(`Starting ${generationMode} generation request at:`, new Date().toISOString());
         
@@ -1278,23 +1255,23 @@ export default function ImageGenerator() {
           };
         }
         
+        const isVideoGeneration = generationMode === 'video' || generationMode === 'img2video';
+        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: requestHeaders,
           body: requestBody,
-          signal: controller.signal,
+          signal: isVideoGeneration ? undefined : controller.signal, // No signal for videos to prevent timeout
           // Additional fetch options for long requests
           keepalive: true
         });
         
         console.log(`Received response for ${generationMode} generation at:`, new Date().toISOString());
 
-        // Clear initial timeout (but keep heartbeat for polling)
+        // Clear timeout if request completes successfully
         if (timeoutId) clearTimeout(timeoutId);
 
         if (!response.ok) {
-          // Clear heartbeat on error
-          if (heartbeatInterval) clearInterval(heartbeatInterval);
           // Handle authentication errors specifically
           if (response.status === 401 || response.status === 403) {
             throw new Error('Authentication failed. Please check your API credentials.');
