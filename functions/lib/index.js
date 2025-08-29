@@ -251,7 +251,9 @@ exports.proxyToN8N = functions
             return;
         }
         const contentType = req.get('content-type') || '';
-        const n8nWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496';
+        // Separate webhook URLs for different generation types
+        const imageWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496'; // Respond to Webhook node
+        const videoWebhookUrl = 'https://agents.rotz.ai/webhook/12e3ed27-21ad-47e1-b1b2-cca64970c0fe'; // Streaming configuration
         // Determine if this is a video generation request by checking the request body
         let isVideoGeneration = false;
         try {
@@ -274,7 +276,10 @@ exports.proxyToN8N = functions
             // If we can't parse, default to non-video handling
             console.log('ProxyToN8N: Could not determine generation type, defaulting to image handling');
         }
+        // Select appropriate webhook based on generation type
+        const n8nWebhookUrl = isVideoGeneration ? videoWebhookUrl : imageWebhookUrl;
         console.log(`ProxyToN8N: Generation type detected as ${isVideoGeneration ? 'VIDEO' : 'IMAGE'}`);
+        console.log(`ProxyToN8N: Routing to webhook: ${n8nWebhookUrl.split('/').pop()}`);
         let response;
         if (contentType.includes('multipart/form-data')) {
             // Handle FormData requests (with reference images)
@@ -338,24 +343,98 @@ exports.proxyToN8N = functions
         res.status(response.status);
         // Handle response based on type
         if (isVideoGeneration && response.status === 200) {
-            // For video generation - stream the response directly
-            console.log('ProxyToN8N: Streaming video response to client');
-            // Set up stream error handling
-            response.data.on('error', (streamError) => {
-                console.error('ProxyToN8N: Stream error:', streamError);
-                if (!res.headersSent) {
-                    res.status(500).json({
-                        error: 'Stream Error',
-                        message: 'Failed to stream video response'
-                    });
-                }
-            });
-            // Pipe the stream directly to the response
-            response.data.pipe(res);
-            // Log when streaming is complete
-            response.data.on('end', () => {
-                console.log('ProxyToN8N: Video stream completed successfully');
-            });
+            // Check if this is actually a video stream or JSON response
+            if (responseContentType && responseContentType.includes('application/json')) {
+                // N8N returned JSON (likely error or status) instead of video stream
+                console.log('ProxyToN8N: Received JSON response instead of video stream');
+                const chunks = [];
+                response.data.on('data', (chunk) => chunks.push(chunk));
+                response.data.on('end', () => {
+                    const buffer = Buffer.concat(chunks);
+                    const jsonResponse = buffer.toString('utf8');
+                    console.log('ProxyToN8N: JSON response content:', jsonResponse);
+                    res.set('Content-Type', 'application/json');
+                    res.status(500).send(jsonResponse);
+                });
+                response.data.on('error', (streamError) => {
+                    console.error('ProxyToN8N: Error reading JSON response:', streamError);
+                    if (!res.headersSent) {
+                        res.status(500).json({
+                            error: 'Stream Processing Error',
+                            message: 'Failed to read N8N response'
+                        });
+                    }
+                });
+            }
+            else {
+                // Actual video stream - implement true streaming passthrough
+                console.log('ProxyToN8N: Starting streaming passthrough for N8N response');
+                let totalSize = 0;
+                let hasStartedSending = false;
+                // Set headers for streaming response
+                res.set('Content-Type', responseContentType || 'video/mp4');
+                res.set('Cache-Control', 'no-cache');
+                res.set('Transfer-Encoding', 'chunked');
+                // Stream data directly to client as it arrives from N8N
+                response.data.on('data', (chunk) => {
+                    totalSize += chunk.length;
+                    // Log progress periodically
+                    if (totalSize > 0 && totalSize % (1024 * 1024) === 0) {
+                        console.log(`ProxyToN8N: Streaming ${(totalSize / (1024 * 1024)).toFixed(1)}MB to client`);
+                    }
+                    // Forward chunk immediately to client (no buffering)
+                    if (!hasStartedSending) {
+                        hasStartedSending = true;
+                        console.log('ProxyToN8N: Starting stream transmission to client');
+                    }
+                    // Write chunk directly to response stream
+                    try {
+                        res.write(chunk);
+                    }
+                    catch (writeError) {
+                        console.error('ProxyToN8N: Error writing chunk to client:', writeError);
+                        // Don't abort - let the error handler deal with it
+                    }
+                });
+                // Handle stream completion
+                response.data.on('end', () => {
+                    console.log(`ProxyToN8N: Stream complete, total ${(totalSize / (1024 * 1024)).toFixed(2)}MB streamed`);
+                    // End the response stream
+                    try {
+                        res.end();
+                        console.log('ProxyToN8N: Successfully completed streaming response');
+                    }
+                    catch (endError) {
+                        console.error('ProxyToN8N: Error ending response stream:', endError);
+                    }
+                });
+                // Handle stream errors with better logging and cleanup
+                response.data.on('error', (streamError) => {
+                    console.error('ProxyToN8N: Stream error during video processing:', streamError);
+                    console.error('ProxyToN8N: Stream error code:', streamError.code);
+                    console.error('ProxyToN8N: Bytes streamed before error:', totalSize);
+                    // For streaming responses, we can't send JSON if headers already sent
+                    if (!res.headersSent) {
+                        // Headers not sent yet - can still send error response
+                        res.status(500).json({
+                            error: 'Stream Processing Error',
+                            message: `Stream failed after ${(totalSize / (1024 * 1024)).toFixed(2)}MB: ${streamError.message}`,
+                            errorCode: streamError.code,
+                            isStreaming: true
+                        });
+                    }
+                    else {
+                        // Headers already sent - can only log and close connection
+                        console.error('ProxyToN8N: Cannot send error response - already streaming. Closing connection.');
+                        try {
+                            res.destroy(); // Forcefully close the connection
+                        }
+                        catch (destroyError) {
+                            console.error('ProxyToN8N: Error destroying response stream:', destroyError);
+                        }
+                    }
+                });
+            }
         }
         else {
             // For image generation or error responses - buffer and send

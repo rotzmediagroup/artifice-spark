@@ -1297,33 +1297,49 @@ export default function ImageGenerator() {
         let imageBlob: Blob | null = null;
         
         if (contentType && (contentType.includes('image/png') || contentType.includes('video/mp4') || contentType.includes('application/octet-stream'))) {
-          // Handle binary PNG or MP4 response
-          imageBlob = await response.blob();
-          
-          // Enhanced content type detection with fallbacks
-          let detectedType: 'image' | 'video' = 'image';
-          
-          if (contentType.includes('video/mp4')) {
-            detectedType = 'video';
-          } else if (contentType.includes('image/')) {
-            detectedType = 'image';
-          } else if (contentType.includes('application/octet-stream')) {
-            // Fallback: use generation mode for octet-stream
-            detectedType = generationMode;
-          } else {
-            // Final fallback: use generation mode
-            detectedType = generationMode;
+          // Handle binary PNG or MP4 response (including streamed responses)
+          try {
+            imageBlob = await response.blob();
+            
+            // Validate blob size (streaming can result in incomplete transfers)
+            if (!imageBlob || imageBlob.size === 0) {
+              throw new Error('Received empty blob - streaming may have failed');
+            }
+            
+            // Enhanced content type detection with fallbacks
+            let detectedType: 'image' | 'video' = 'image';
+            
+            if (contentType.includes('video/mp4')) {
+              detectedType = 'video';
+            } else if (contentType.includes('image/')) {
+              detectedType = 'image';
+            } else if (contentType.includes('application/octet-stream')) {
+              // Fallback: use generation mode for octet-stream
+              detectedType = generationMode;
+            } else {
+              // Final fallback: use generation mode
+              detectedType = generationMode;
+            }
+            
+            // Additional validation for video blobs
+            if (detectedType === 'video' && imageBlob.size < 1024) {
+              console.warn('Video blob unusually small, may be corrupted or incomplete');
+            }
+            
+            console.log(`Content-Type: ${contentType}, Generation Mode: ${generationMode}, Detected Type: ${detectedType}, Blob Size: ${imageBlob.size}`);
+            
+            result = {
+              is_binary: true,
+              blob: imageBlob,
+              size: imageBlob.size,
+              contentType: detectedType,
+              fileExtension: detectedType === 'video' ? '.mp4' : '.png'
+            };
+            
+          } catch (blobError) {
+            console.error('Failed to process blob response:', blobError);
+            throw new Error(`Blob processing failed: ${blobError instanceof Error ? blobError.message : 'Unknown error'}. This may be due to streaming interruption.`);
           }
-          
-          console.log(`Content-Type: ${contentType}, Generation Mode: ${generationMode}, Detected Type: ${detectedType}, Blob Size: ${imageBlob.size}`);
-          
-          result = {
-            is_binary: true,
-            blob: imageBlob,
-            size: imageBlob.size,
-            contentType: detectedType,
-            fileExtension: detectedType === 'video' ? '.mp4' : '.png'
-          };
         } else {
           // Handle JSON response (fallback)
           try {
@@ -1332,19 +1348,31 @@ export default function ImageGenerator() {
           } catch (jsonError) {
             // If JSON parsing fails, try to handle as binary anyway
             console.warn("JSON parsing failed, attempting binary handling:", jsonError);
-            imageBlob = await response.blob();
             
-            // For fallback binary handling, use generation mode to determine type
-            const fallbackType = generationMode;
-            console.log(`Fallback binary handling: Generation Mode: ${generationMode}, Detected Type: ${fallbackType}, Blob Size: ${imageBlob.size}`);
-            
-            result = {
-              is_binary: true,
-              blob: imageBlob,
-              size: imageBlob.size,
-              contentType: fallbackType,
-              fileExtension: fallbackType === 'video' ? '.mp4' : '.png'
-            };
+            try {
+              imageBlob = await response.blob();
+              
+              // Validate fallback blob
+              if (!imageBlob || imageBlob.size === 0) {
+                throw new Error('Fallback blob is empty - response may be corrupted');
+              }
+              
+              // For fallback binary handling, use generation mode to determine type
+              const fallbackType = generationMode === 'img2video' ? 'video' : generationMode;
+              console.log(`Fallback binary handling: Generation Mode: ${generationMode}, Detected Type: ${fallbackType}, Blob Size: ${imageBlob.size}`);
+              
+              result = {
+                is_binary: true,
+                blob: imageBlob,
+                size: imageBlob.size,
+                contentType: fallbackType,
+                fileExtension: fallbackType === 'video' ? '.mp4' : '.png'
+              };
+              
+            } catch (fallbackBlobError) {
+              console.error('Fallback blob processing also failed:', fallbackBlobError);
+              throw new Error(`Both JSON and blob parsing failed. This indicates a streaming or response format error. Original JSON error: ${jsonError instanceof Error ? jsonError.message : 'Unknown'}. Blob error: ${fallbackBlobError instanceof Error ? fallbackBlobError.message : 'Unknown'}`);
+            }
           }
         }
         
@@ -1365,6 +1393,16 @@ export default function ImageGenerator() {
           setGeneratedImages(prev => [...prev, tempImageUrl]);
           toast.success(`🎨 ${generationMode === 'video' ? 'Video successfully generated!' : 'Image'} ${generationMode === 'video' ? 'Thank you for your patience.' : 'generated! Uploading to storage...'}`);
           
+          // Set up cleanup function for memory management
+          const cleanupBlobUrl = () => {
+            try {
+              URL.revokeObjectURL(tempImageUrl);
+              console.log("Cleaned up temporary blob URL:", tempImageUrl);
+            } catch (revokeError) {
+              console.warn("Error revoking blob URL:", revokeError);
+            }
+          };
+          
           try {
             // Upload binary media to Firebase Storage in background
             const mediaType = result.contentType || 'image';
@@ -1375,6 +1413,9 @@ export default function ImageGenerator() {
             setGeneratedImages(prev => 
               prev.map(url => url === tempImageUrl ? firebaseMediaUrl : url)
             );
+            
+            // Clean up temporary blob URL after successful upload
+            cleanupBlobUrl();
             
             // Create image data with Firebase Storage URL
             const expirationDate = new Date();
@@ -1429,15 +1470,17 @@ export default function ImageGenerator() {
             
             toast.success("💾 Image saved to your collection!");
             
-            // Clean up temporary blob URL
-            URL.revokeObjectURL(tempImageUrl);
-            
           } catch (uploadError) {
             console.error("Failed to upload image:", uploadError);
             toast.error(`Failed to save generated image: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
             
             // Keep the temporary URL if upload fails, so user can still see the image
-            console.log("Upload failed, keeping temporary blob URL for user to see image");
+            // But add a delayed cleanup to prevent memory leaks
+            console.log("Upload failed, keeping temporary blob URL for user but scheduling cleanup");
+            setTimeout(() => {
+              console.log("Delayed cleanup of failed upload blob URL");
+              cleanupBlobUrl();
+            }, 5 * 60 * 1000); // Cleanup after 5 minutes
           }
           
         } else if (result.image_url || result.imageUrl || result.url) {
