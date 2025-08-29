@@ -256,10 +256,7 @@ export const proxyToN8N = functions
       }
 
       const contentType = req.get('content-type') || '';
-      
-      // Separate webhook URLs for different generation types
-      const imageWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496'; // Respond to Webhook node
-      const videoWebhookUrl = 'https://agents.rotz.ai/webhook/12e3ed27-21ad-47e1-b1b2-cca64970c0fe'; // Streaming configuration
+      const n8nWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496';
       
       // Determine if this is a video generation request by checking the request body
       let isVideoGeneration = false;
@@ -283,11 +280,7 @@ export const proxyToN8N = functions
         console.log('ProxyToN8N: Could not determine generation type, defaulting to image handling');
       }
       
-      // Select appropriate webhook based on generation type
-      const n8nWebhookUrl = isVideoGeneration ? videoWebhookUrl : imageWebhookUrl;
-      
       console.log(`ProxyToN8N: Generation type detected as ${isVideoGeneration ? 'VIDEO' : 'IMAGE'}`);
-      console.log(`ProxyToN8N: Routing to webhook: ${n8nWebhookUrl.split('/').pop()}`);
       
       let response;
       
