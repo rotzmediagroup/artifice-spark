@@ -1536,6 +1536,62 @@ export default function ImageGenerator() {
           
           success(); // Success haptic pattern
           toast.success(`🎨 ${generationMode === 'video' ? 'Video ready! Thank you for waiting.' : 'Image generated successfully!'}`);
+        } else if (Array.isArray(result) && result[0]?.status === 'SUCCEEDED' && result[0]?.output) {
+          // Handle video webhook JSON response format
+          console.log("Video webhook response detected:", result);
+          const videoUrl = result[0].output[0]; // Video URL from N8N webhook
+          
+          const currentDims = getCurrentDimensions();
+          const expirationDate = new Date();
+          expirationDate.setDate(expirationDate.getDate() + 14);
+          
+          const newVideoData: GeneratedImageData = {
+            id: generateImageId(),
+            url: videoUrl,
+            prompt: positivePrompt.trim(),
+            style: selectedStyle,
+            timestamp: new Date(),
+            liked: false,
+            contentType: 'video',
+            fileExtension: '.mp4',
+            settings: {
+              steps: steps[0],
+              cfgScale: cfgScale[0],
+              aspectRatio: currentDims.aspect_ratio_label,
+              negativePrompt: negativePrompt.trim(),
+              width: currentDims.width,
+              height: currentDims.height,
+              isCustomDimensions: currentDims.is_custom,
+              totalPixels: currentDims.total_pixels,
+              megapixels: currentDims.megapixels,
+              // Video-specific settings
+              ...(generationMode === 'video' && {
+                videoDuration: videoDuration,
+                videoFps: videoFps,
+                videoFormat: "mp4",
+                videoWithAudio: videoWithAudio,
+                videoResolution: videoResolution
+              })
+            },
+            expiresAt: expirationDate,
+            extensionCount: 0,
+            isExpired: false
+          };
+          
+          setGeneratedImages(prev => [...prev, videoUrl]);
+          await addImageToHistory(newVideoData);
+          
+          // Deduct credits for successful generation
+          try {
+            await deductCreditsForType('video', 1);
+            console.log('1 video credit deducted for successful generation');
+          } catch (creditError) {
+            console.error("Failed to deduct credits:", creditError);
+          }
+          
+          success(); // Success haptic pattern
+          toast.success('🎬 Video generated successfully! Thank you for your patience.');
+          
         } else if (result.images && Array.isArray(result.images)) {
           const currentDims = getCurrentDimensions();
           for (const imageUrl of result.images) {

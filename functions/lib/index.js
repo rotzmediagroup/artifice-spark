@@ -345,23 +345,43 @@ exports.proxyToN8N = functions
         if (isVideoGeneration && response.status === 200) {
             // Check if this is actually a video stream or JSON response
             if (responseContentType && responseContentType.includes('application/json')) {
-                // N8N returned JSON (likely error or status) instead of video stream
-                console.log('ProxyToN8N: Received JSON response instead of video stream');
+                // N8N video webhook returns JSON with video URL (not a stream)
+                console.log('ProxyToN8N: Video webhook returned JSON response (expected for this webhook)');
                 const chunks = [];
                 response.data.on('data', (chunk) => chunks.push(chunk));
                 response.data.on('end', () => {
+                    var _a, _b;
                     const buffer = Buffer.concat(chunks);
                     const jsonResponse = buffer.toString('utf8');
-                    console.log('ProxyToN8N: JSON response content:', jsonResponse);
-                    res.set('Content-Type', 'application/json');
-                    res.status(500).send(jsonResponse);
+                    console.log('ProxyToN8N: Video webhook JSON response:', jsonResponse);
+                    // Parse and validate the response
+                    try {
+                        const parsed = JSON.parse(jsonResponse);
+                        // Check if this is a successful video generation response
+                        if (Array.isArray(parsed) && ((_a = parsed[0]) === null || _a === void 0 ? void 0 : _a.status) === 'SUCCEEDED' && ((_b = parsed[0]) === null || _b === void 0 ? void 0 : _b.output)) {
+                            console.log('ProxyToN8N: Video generation successful, forwarding response');
+                            res.set('Content-Type', 'application/json');
+                            res.status(200).send(jsonResponse);
+                        }
+                        else {
+                            // This is an actual error or unexpected format
+                            console.error('ProxyToN8N: Unexpected video webhook response format');
+                            res.set('Content-Type', 'application/json');
+                            res.status(500).send(jsonResponse);
+                        }
+                    }
+                    catch (parseError) {
+                        console.error('ProxyToN8N: Failed to parse video webhook response:', parseError);
+                        res.set('Content-Type', 'application/json');
+                        res.status(500).send(jsonResponse);
+                    }
                 });
                 response.data.on('error', (streamError) => {
-                    console.error('ProxyToN8N: Error reading JSON response:', streamError);
+                    console.error('ProxyToN8N: Error reading video webhook response:', streamError);
                     if (!res.headersSent) {
                         res.status(500).json({
                             error: 'Stream Processing Error',
-                            message: 'Failed to read N8N response'
+                            message: 'Failed to read N8N video webhook response'
                         });
                     }
                 });
