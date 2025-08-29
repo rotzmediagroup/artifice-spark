@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import axios from 'axios';
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -213,3 +214,151 @@ export const manualCleanup = functions.https.onRequest(async (req, res) => {
     res.status(500).send('Cleanup failed');
   }
 });
+
+// Proxy function for N8N webhook - handles long-running video generation
+export const proxyToN8N = functions
+  .runWith({
+    timeoutSeconds: 540, // 9 minutes max timeout
+    memory: '1GB'
+  })
+  .https.onRequest(async (req, res) => {
+    console.log('ProxyToN8N: Request received', {
+      method: req.method,
+      contentType: req.get('content-type'),
+      timestamp: new Date().toISOString()
+    });
+
+    // Enable CORS for browser requests
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, key, Connection, Cache-Control');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+
+    try {
+      const startTime = Date.now();
+      const apiKey = req.get('key');
+      
+      if (!apiKey) {
+        console.error('ProxyToN8N: No API key provided');
+        res.status(401).send('API key required');
+        return;
+      }
+
+      const contentType = req.get('content-type') || '';
+      const n8nWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496';
+      
+      let response;
+      
+      if (contentType.includes('multipart/form-data')) {
+        // Handle FormData requests (with reference images)
+        console.log('ProxyToN8N: Processing FormData request');
+        
+        // Forward the raw body as-is
+        // The req.rawBody contains the original multipart data
+        const boundary = contentType.split('boundary=')[1];
+        
+        if (!boundary) {
+          throw new Error('No boundary found in multipart request');
+        }
+        
+        // Forward request with original FormData
+        response = await axios({
+          method: 'POST',
+          url: n8nWebhookUrl,
+          data: req.rawBody || req.body,
+          headers: {
+            'Content-Type': contentType,
+            'key': apiKey,
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache'
+          },
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+          responseType: 'arraybuffer', // Handle binary responses
+          timeout: 540000, // 9 minutes
+          validateStatus: () => true // Don't throw on any status
+        });
+        
+      } else {
+        // Handle JSON requests
+        console.log('ProxyToN8N: Processing JSON request');
+        
+        response = await axios({
+          method: 'POST',
+          url: n8nWebhookUrl,
+          data: req.body,
+          headers: {
+            'Content-Type': 'application/json',
+            'key': apiKey,
+            'Connection': 'keep-alive', 
+            'Cache-Control': 'no-cache'
+          },
+          responseType: 'arraybuffer', // Handle binary responses
+          timeout: 540000, // 9 minutes
+          validateStatus: () => true // Don't throw on any status
+        });
+      }
+      
+      const processingTime = Date.now() - startTime;
+      console.log(`ProxyToN8N: N8N response received`, {
+        status: response.status,
+        contentType: response.headers['content-type'],
+        processingTimeMs: processingTime,
+        processingTimeMin: (processingTime / 60000).toFixed(2)
+      });
+      
+      // Forward the response headers
+      const responseContentType = response.headers['content-type'];
+      if (responseContentType) {
+        res.set('Content-Type', responseContentType);
+      }
+      
+      // Set status and send response
+      res.status(response.status);
+      
+      // Send the response data
+      if (response.data) {
+        // response.data is an ArrayBuffer, convert to Buffer for sending
+        const buffer = Buffer.from(response.data);
+        res.send(buffer);
+      } else {
+        res.send('');
+      }
+      
+    } catch (error: any) {
+      console.error('ProxyToN8N: Error occurred', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data ? 
+          Buffer.from(error.response.data).toString('utf-8').substring(0, 500) : 
+          undefined
+      });
+      
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        res.status(504).json({
+          error: 'Gateway Timeout',
+          message: 'The request to N8N took too long to complete'
+        });
+      } else if (error.response) {
+        // N8N responded with an error
+        res.status(error.response.status || 500).send(error.response.data || 'N8N Error');
+      } else {
+        // Network or other error
+        res.status(500).json({
+          error: 'Proxy Error',
+          message: error.message || 'Failed to proxy request to N8N'
+        });
+      }
+    }
+  });

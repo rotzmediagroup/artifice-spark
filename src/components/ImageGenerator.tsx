@@ -1255,7 +1255,11 @@ export default function ImageGenerator() {
           };
         }
         
-        const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
+        // Use Cloud Function proxy to bypass Firebase Hosting 60-second timeout
+        const proxyUrl = 'https://us-central1-rotz-image-generator.cloudfunctions.net/proxyToN8N';
+        console.log(`Using Cloud Function proxy for ${generationMode} generation to avoid timeout`);
+        
+        const response = await fetch(proxyUrl, {
           method: 'POST',
           headers: requestHeaders,
           body: requestBody,
