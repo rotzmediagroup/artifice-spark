@@ -2458,13 +2458,70 @@ export default function ImageGenerator() {
                           <div className="space-y-3">
                             <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
                               <video
+                                ref={(el) => {
+                                  if (el && index === generatedImages.length - 1) {
+                                    // Auto-play the most recently generated video
+                                    const playVideo = async () => {
+                                      try {
+                                        el.currentTime = 0;
+                                        await el.play();
+                                      } catch (error) {
+                                        console.log('Autoplay prevented by browser policy:', error);
+                                      }
+                                    };
+                                    // Small delay to ensure video is loaded
+                                    setTimeout(playVideo, 500);
+                                  }
+                                }}
                                 src={imageUrl}
                                 controls
                                 preload="metadata"
                                 playsInline
                                 muted
+                                loop
                                 className="w-full rounded-lg shadow-2xl transform group-hover:scale-[1.02] transition-all duration-500"
-                                onError={(e) => console.error('Video load error:', e)}
+                                onError={(e) => {
+                                  console.error('Video load error:', e);
+                                  // Show error state by adding error class
+                                  e.currentTarget.classList.add('video-error');
+                                  // Create error overlay
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.className = 'absolute inset-0 bg-red-500/20 flex items-center justify-center rounded-lg';
+                                  errorDiv.innerHTML = `
+                                    <div class="text-center text-red-600 bg-white/90 px-3 py-2 rounded-md">
+                                      <p class="text-sm font-medium">Video failed to load</p>
+                                      <p class="text-xs opacity-75">Try downloading or refreshing</p>
+                                    </div>
+                                  `;
+                                  e.currentTarget.parentElement?.appendChild(errorDiv);
+                                }}
+                                onLoadStart={() => {
+                                  // Add loading state
+                                  console.log('Video loading started');
+                                }}
+                                onCanPlay={() => {
+                                  // Video is ready to play
+                                  console.log('Video can play');
+                                }}
+                                onLoadedData={(e) => {
+                                  // Additional attempt at autoplay when video data is loaded
+                                  if (index === generatedImages.length - 1) {
+                                    setTimeout(() => {
+                                      e.currentTarget.play().catch(() => {
+                                        console.log('Autoplay prevented by browser policy');
+                                      });
+                                    }, 200);
+                                  }
+                                }}
+                                onWaiting={() => {
+                                  // Show loading indicator when buffering
+                                  console.log('Video buffering...');
+                                }}
+                                onPlaying={() => {
+                                  // Remove any error states when playing
+                                  const errorOverlay = document.querySelector('.video-error + div');
+                                  if (errorOverlay) errorOverlay.remove();
+                                }}
                               />
                             </div>
                             {/* Video buttons below the video player */}
@@ -2767,6 +2824,18 @@ export default function ImageGenerator() {
                             <div className="relative group cursor-pointer">
                               <div className="relative rounded-lg overflow-hidden bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-1">
                                 <video
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.addEventListener('mouseenter', () => {
+                                        el.currentTime = 0;
+                                        el.play().catch(() => {});
+                                      });
+                                      el.addEventListener('mouseleave', () => {
+                                        el.pause();
+                                        el.currentTime = 0;
+                                      });
+                                    }
+                                  }}
                                   src={video.url}
                                   className={`w-full aspect-square object-cover rounded-lg shadow-lg transform group-hover:scale-105 transition-all duration-300 ${
                                     video.isExpired ? 'opacity-50' : ''
@@ -2775,10 +2844,32 @@ export default function ImageGenerator() {
                                   muted
                                   preload="metadata"
                                   playsInline
-                                  onError={(e) => console.error('History video load error:', e)}
+                                  loop
+                                  onError={(e) => {
+                                    console.error('History video load error:', e);
+                                    // Add error styling
+                                    e.currentTarget.style.backgroundColor = '#fee2e2';
+                                    // Create error indicator
+                                    const errorIcon = document.createElement('div');
+                                    errorIcon.className = 'absolute inset-0 flex items-center justify-center bg-red-500/20';
+                                    errorIcon.innerHTML = '<svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                    e.currentTarget.parentElement?.appendChild(errorIcon);
+                                  }}
+                                  onLoadStart={() => {
+                                    // Add subtle loading indicator
+                                    console.log('History video loading...');
+                                  }}
                                 />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                                  <Button size="sm" variant="ghost" className="text-white">
+                                {/* Play button overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <div className="bg-black/70 rounded-full p-3 backdrop-blur-sm">
+                                    <svg className="w-6 h-6 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M8 5v14l11-7z"/>
+                                    </svg>
+                                  </div>
+                                </div>
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end justify-center pb-3">
+                                  <Button size="sm" variant="ghost" className="text-white bg-black/50 backdrop-blur-sm hover:bg-black/70">
                                     View Details
                                   </Button>
                                 </div>
@@ -2816,7 +2907,25 @@ export default function ImageGenerator() {
                                 preload="metadata"
                                 playsInline
                                 className="w-full rounded-lg shadow-lg"
-                                onError={(e) => console.error('Dialog video load error:', e)}
+                                onError={(e) => {
+                                  console.error('Dialog video load error:', e);
+                                  // Show error message in dialog
+                                  const errorMsg = document.createElement('div');
+                                  errorMsg.className = 'absolute inset-0 bg-red-50 flex items-center justify-center rounded-lg border border-red-200';
+                                  errorMsg.innerHTML = `
+                                    <div class="text-center p-4">
+                                      <svg class="w-12 h-12 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                      </svg>
+                                      <h3 class="text-lg font-medium text-gray-900 mb-1">Video Unavailable</h3>
+                                      <p class="text-sm text-gray-500">This video failed to load. It may have expired or been moved.</p>
+                                      <button onclick="window.location.reload()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+                                        Refresh Page
+                                      </button>
+                                    </div>
+                                  `;
+                                  e.currentTarget.parentElement?.appendChild(errorMsg);
+                                }}
                               />
                             </div>
                             <div className="space-y-4">
