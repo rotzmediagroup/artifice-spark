@@ -222,7 +222,7 @@ exports.proxyToN8N = functions
     memory: '1GB'
 })
     .https.onRequest(async (req, res) => {
-    var _a;
+    var _a, _b, _c, _d, _e;
     console.log('ProxyToN8N: Request received', {
         method: req.method,
         contentType: req.get('content-type'),
@@ -252,6 +252,29 @@ exports.proxyToN8N = functions
         }
         const contentType = req.get('content-type') || '';
         const n8nWebhookUrl = 'https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496';
+        // Determine if this is a video generation request by checking the request body
+        let isVideoGeneration = false;
+        try {
+            if (req.body && typeof req.body === 'object') {
+                // For JSON requests - check generation_settings.generation_type
+                if (((_a = req.body.generation_settings) === null || _a === void 0 ? void 0 : _a.generation_type) === 'video' ||
+                    ((_b = req.body.generation_settings) === null || _b === void 0 ? void 0 : _b.generation_type) === 'img2video') {
+                    isVideoGeneration = true;
+                }
+                // For FormData requests wrapped in N8N format - check nested payload
+                if (Array.isArray(req.body) && ((_d = (_c = req.body[0]) === null || _c === void 0 ? void 0 : _c.body) === null || _d === void 0 ? void 0 : _d.generation_settings)) {
+                    const genType = req.body[0].body.generation_settings.generation_type;
+                    if (genType === 'video' || genType === 'img2video') {
+                        isVideoGeneration = true;
+                    }
+                }
+            }
+        }
+        catch (e) {
+            // If we can't parse, default to non-video handling
+            console.log('ProxyToN8N: Could not determine generation type, defaulting to image handling');
+        }
+        console.log(`ProxyToN8N: Generation type detected as ${isVideoGeneration ? 'VIDEO' : 'IMAGE'}`);
         let response;
         if (contentType.includes('multipart/form-data')) {
             // Handle FormData requests (with reference images)
@@ -275,7 +298,7 @@ exports.proxyToN8N = functions
                 },
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
-                responseType: 'arraybuffer', // Handle binary responses
+                responseType: isVideoGeneration ? 'stream' : 'arraybuffer', // Stream for videos, buffer for images
                 timeout: 540000, // 9 minutes
                 validateStatus: () => true // Don't throw on any status
             });
@@ -293,7 +316,7 @@ exports.proxyToN8N = functions
                     'Connection': 'keep-alive',
                     'Cache-Control': 'no-cache'
                 },
-                responseType: 'arraybuffer', // Handle binary responses
+                responseType: isVideoGeneration ? 'stream' : 'arraybuffer', // Stream for videos, buffer for images
                 timeout: 540000, // 9 minutes
                 validateStatus: () => true // Don't throw on any status
             });
@@ -303,37 +326,89 @@ exports.proxyToN8N = functions
             status: response.status,
             contentType: response.headers['content-type'],
             processingTimeMs: processingTime,
-            processingTimeMin: (processingTime / 60000).toFixed(2)
+            processingTimeMin: (processingTime / 60000).toFixed(2),
+            isStreamResponse: isVideoGeneration
         });
         // Forward the response headers
         const responseContentType = response.headers['content-type'];
         if (responseContentType) {
             res.set('Content-Type', responseContentType);
         }
-        // Set status and send response
+        // Set status
         res.status(response.status);
-        // Send the response data
-        if (response.data) {
-            // response.data is an ArrayBuffer, convert to Buffer for sending
-            const buffer = Buffer.from(response.data);
-            res.send(buffer);
+        // Handle response based on type
+        if (isVideoGeneration && response.status === 200) {
+            // For video generation - stream the response directly
+            console.log('ProxyToN8N: Streaming video response to client');
+            // Set up stream error handling
+            response.data.on('error', (streamError) => {
+                console.error('ProxyToN8N: Stream error:', streamError);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        error: 'Stream Error',
+                        message: 'Failed to stream video response'
+                    });
+                }
+            });
+            // Pipe the stream directly to the response
+            response.data.pipe(res);
+            // Log when streaming is complete
+            response.data.on('end', () => {
+                console.log('ProxyToN8N: Video stream completed successfully');
+            });
         }
         else {
-            res.send('');
+            // For image generation or error responses - buffer and send
+            console.log('ProxyToN8N: Sending buffered response');
+            if (response.data) {
+                if (isVideoGeneration) {
+                    // Video request but got error status - need to read stream and convert to buffer
+                    const chunks = [];
+                    response.data.on('data', (chunk) => {
+                        chunks.push(chunk);
+                    });
+                    response.data.on('end', () => {
+                        const buffer = Buffer.concat(chunks);
+                        res.send(buffer);
+                    });
+                    response.data.on('error', (streamError) => {
+                        console.error('ProxyToN8N: Stream error during error response:', streamError);
+                        res.send('');
+                    });
+                }
+                else {
+                    // Image generation - response.data is an ArrayBuffer
+                    const buffer = Buffer.from(response.data);
+                    res.send(buffer);
+                }
+            }
+            else {
+                res.send('');
+            }
         }
     }
     catch (error) {
         console.error('ProxyToN8N: Error occurred', {
             message: error.message,
             code: error.code,
-            response: ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) ?
-                Buffer.from(error.response.data).toString('utf-8').substring(0, 500) :
-                undefined
+            responseAvailable: !!error.response,
+            responseStatus: (_e = error.response) === null || _e === void 0 ? void 0 : _e.status
         });
+        // Don't try to send response if headers already sent (streaming scenario)
+        if (res.headersSent) {
+            console.error('ProxyToN8N: Cannot send error response - headers already sent (likely during streaming)');
+            return;
+        }
         if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
             res.status(504).json({
                 error: 'Gateway Timeout',
                 message: 'The request to N8N took too long to complete'
+            });
+        }
+        else if (error.code === 'ECONNRESET') {
+            res.status(500).json({
+                error: 'Connection Reset',
+                message: 'The connection to N8N was reset during processing'
             });
         }
         else if (error.response) {
