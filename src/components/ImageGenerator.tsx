@@ -1255,13 +1255,11 @@ export default function ImageGenerator() {
           };
         }
         
-        const isVideoGeneration = generationMode === 'video' || generationMode === 'img2video';
-        
         const response = await fetch('https://agents.rotz.ai/webhook/a7ff7b82-67b5-4e98-adfd-132f1f100496', {
           method: 'POST',
           headers: requestHeaders,
           body: requestBody,
-          signal: isVideoGeneration ? undefined : controller.signal, // No signal for videos to prevent timeout
+          signal: controller.signal, // Keep signal for ALL requests (even videos without timeout)
           // Additional fetch options for long requests
           keepalive: true
         });
