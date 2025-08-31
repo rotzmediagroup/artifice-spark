@@ -1259,7 +1259,7 @@ export default function ImageGenerator() {
         const proxyUrl = 'https://us-central1-rotz-image-generator.cloudfunctions.net/proxyToN8N';
         console.log(`Using Cloud Function proxy for ${generationMode} generation to avoid timeout`);
         
-        const response = await fetch(proxyUrl, {
+        let response = await fetch(proxyUrl, {
           method: 'POST',
           headers: requestHeaders,
           body: requestBody,
@@ -1278,7 +1278,39 @@ export default function ImageGenerator() {
           if (response.status === 401 || response.status === 403) {
             throw new Error('Authentication failed. Please check your API credentials.');
           }
-          throw new Error(`HTTP error! status: ${response.status}`);
+          
+          // For video generation, check if response body contains valid video data even with error status
+          if (generationMode === 'video' || generationMode === 'img2video') {
+            try {
+              const responseText = await response.text();
+              console.log('Video response text (with error status):', responseText);
+              
+              // Try to parse as JSON
+              const possibleJson = JSON.parse(responseText);
+              
+              // Check if it's actually a successful video response despite error status
+              if (Array.isArray(possibleJson) && possibleJson[0]?.output) {
+                console.log('Found valid video data despite error status, processing as success');
+                
+                // Reconstruct response as if it was successful and continue processing
+                const successResponse = new Response(responseText, {
+                  status: 200,
+                  headers: response.headers
+                });
+                
+                // Continue with normal processing using the success response
+                response = successResponse;
+              } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+            } catch (parseError) {
+              // If we can't parse the response, throw the original error
+              console.log('Could not parse error response, throwing original error');
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
         }
 
         // Check if response is binary (PNG) or JSON

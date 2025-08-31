@@ -350,7 +350,7 @@ exports.proxyToN8N = functions
                 const chunks = [];
                 response.data.on('data', (chunk) => chunks.push(chunk));
                 response.data.on('end', () => {
-                    var _a, _b;
+                    var _a, _b, _c;
                     const buffer = Buffer.concat(chunks);
                     const jsonResponse = buffer.toString('utf8');
                     console.log('ProxyToN8N: Video webhook JSON response:', jsonResponse);
@@ -363,17 +363,46 @@ exports.proxyToN8N = functions
                             res.set('Content-Type', 'application/json');
                             res.status(200).send(jsonResponse);
                         }
-                        else {
-                            // This is an actual error or unexpected format
-                            console.error('ProxyToN8N: Unexpected video webhook response format');
+                        else if (Array.isArray(parsed) && parsed.length > 0 && ((_c = parsed[0]) === null || _c === void 0 ? void 0 : _c.output) && Array.isArray(parsed[0].output)) {
+                            // Alternative successful format - array with output URLs
+                            console.log('ProxyToN8N: Video generation successful (alternative format), forwarding response');
                             res.set('Content-Type', 'application/json');
-                            res.status(500).send(jsonResponse);
+                            res.status(200).send(jsonResponse);
+                        }
+                        else {
+                            // Check if response contains any video URLs (fallback success detection)
+                            const responseStr = jsonResponse.toLowerCase();
+                            const hasVideoUrl = responseStr.includes('.mp4') || responseStr.includes('video') || responseStr.includes('output');
+                            if (hasVideoUrl && !responseStr.includes('error') && !responseStr.includes('failed')) {
+                                // Likely a successful response in unexpected format
+                                console.log('ProxyToN8N: Video response contains video data, treating as success');
+                                res.set('Content-Type', 'application/json');
+                                res.status(200).send(jsonResponse);
+                            }
+                            else {
+                                // This is likely an actual error
+                                console.error('ProxyToN8N: Video webhook response appears to be an error:', jsonResponse);
+                                res.set('Content-Type', 'application/json');
+                                res.status(500).send(jsonResponse);
+                            }
                         }
                     }
                     catch (parseError) {
                         console.error('ProxyToN8N: Failed to parse video webhook response:', parseError);
-                        res.set('Content-Type', 'application/json');
-                        res.status(500).send(jsonResponse);
+                        // Even if parsing failed, check if the raw response looks successful
+                        const responseStr = jsonResponse.toLowerCase();
+                        const hasVideoContent = responseStr.includes('.mp4') || responseStr.includes('output');
+                        const hasErrorContent = responseStr.includes('error') || responseStr.includes('failed');
+                        if (hasVideoContent && !hasErrorContent) {
+                            console.log('ProxyToN8N: Parsing failed but response appears to contain video data, treating as success');
+                            res.set('Content-Type', 'application/json');
+                            res.status(200).send(jsonResponse);
+                        }
+                        else {
+                            console.log('ProxyToN8N: Parsing failed and no video content detected, treating as error');
+                            res.set('Content-Type', 'application/json');
+                            res.status(500).send(jsonResponse);
+                        }
                     }
                 });
                 response.data.on('error', (streamError) => {
