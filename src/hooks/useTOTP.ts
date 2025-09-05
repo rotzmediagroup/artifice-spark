@@ -1,17 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  serverTimestamp,
-  runTransaction 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
+
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 interface TOTPSettings {
   userId: string;
@@ -45,22 +38,28 @@ export const useTOTP = () => {
 
     const loadTOTPSettings = async () => {
       try {
-        const settingsRef = doc(db, 'totpSettings', user.uid);
-        const settingsDoc = await getDoc(settingsRef);
+        const response = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`);
         
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
+        if (response.ok) {
+          const data = await response.json();
           setTotpSettings({
-            ...data,
-            enrolledAt: data.enrolledAt?.toDate() || null,
-            lastUsed: data.lastUsed?.toDate() || null
-          } as TOTPSettings);
-        } else {
+            userId: data.user_id,
+            enabled: data.enabled,
+            secret: data.secret,
+            backupCodes: data.backup_codes || [],
+            enrolledAt: data.enrolled_at ? new Date(data.enrolled_at) : null,
+            lastUsed: data.last_used ? new Date(data.last_used) : null,
+            recoveryEmail: data.recovery_email
+          });
+        } else if (response.status === 404) {
           setTotpSettings(null);
+        } else {
+          throw new Error('Failed to load TOTP settings');
         }
       } catch (error) {
         console.error('Error loading TOTP settings:', error);
         toast.error('Failed to load MFA settings');
+        setTotpSettings(null);
       } finally {
         setSettingsLoading(false);
       }
@@ -154,42 +153,55 @@ export const useTOTP = () => {
     setLoading(true);
     try {
       const backupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
+      const now = new Date().toISOString();
       
-      await runTransaction(db, async (transaction) => {
-        const settings: Omit<TOTPSettings, 'enrolledAt' | 'lastUsed'> & { 
-          enrolledAt: ReturnType<typeof serverTimestamp>; 
-          lastUsed: ReturnType<typeof serverTimestamp> | null; 
-        } = {
-          userId: user.uid,
+      // Create TOTP settings
+      const totpResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           enabled: true,
           secret,
-          backupCodes,
-          enrolledAt: serverTimestamp(),
-          lastUsed: null,
-          recoveryEmail: user.email || ''
-        };
-        
-        transaction.set(settingsRef, settings);
-        
-        // Update user profile to indicate MFA is enabled
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: true,
-          mfaEnabledAt: serverTimestamp()
-        });
+          backup_codes: backupCodes,
+          enrolled_at: now,
+          last_used: null,
+          recovery_email: user.email || ''
+        }),
       });
 
-      // Reload settings
-      const settingsDoc = await getDoc(settingsRef);
-      if (settingsDoc.exists()) {
-        const data = settingsDoc.data();
-        setTotpSettings({
-          ...data,
-          enrolledAt: data.enrolledAt?.toDate() || null,
-          lastUsed: data.lastUsed?.toDate() || null
-        } as TOTPSettings);
+      if (!totpResponse.ok) {
+        throw new Error('Failed to enable TOTP');
       }
+
+      // Update user profile to indicate MFA is enabled
+      const profileResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/profile`);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        await fetch(`${API_BASE_URL}/users/${user.uid}/profile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...profileData,
+            mfa_enabled: true,
+            mfa_enabled_at: now
+          }),
+        });
+      }
+
+      // Update local settings
+      setTotpSettings({
+        userId: user.uid,
+        enabled: true,
+        secret,
+        backupCodes,
+        enrolledAt: new Date(now),
+        lastUsed: null,
+        recoveryEmail: user.email || ''
+      });
 
       toast.success('Two-factor authentication enabled successfully!');
       console.log(`[MFA] TOTP enabled for user: ${user.email}`);
@@ -218,22 +230,38 @@ export const useTOTP = () => {
 
     setLoading(true);
     try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await runTransaction(db, async (transaction) => {
-        // Update TOTP settings to disabled
-        transaction.update(settingsRef, {
+      // Update TOTP settings to disabled
+      const totpResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           enabled: false,
-          secret: '', // Clear the secret
-          backupCodes: [] // Clear backup codes
-        });
-        
-        // Update user profile
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: false
-        });
+          secret: '',
+          backup_codes: []
+        }),
       });
+
+      if (!totpResponse.ok) {
+        throw new Error('Failed to disable TOTP');
+      }
+        
+      // Update user profile
+      const profileResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/profile`);
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        await fetch(`${API_BASE_URL}/users/${user.uid}/profile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...profileData,
+            mfa_enabled: false
+          }),
+        });
+      }
 
       setTotpSettings(prev => prev ? { ...prev, enabled: false, secret: '', backupCodes: [] } : null);
       toast.success('Two-factor authentication disabled');
@@ -259,13 +287,23 @@ export const useTOTP = () => {
 
     try {
       // Remove the used backup code
-      const settingsRef = doc(db, 'totpSettings', user.uid);
       const updatedCodes = totpSettings.backupCodes.filter(c => c !== upperCode);
+      const now = new Date().toISOString();
       
-      await updateDoc(settingsRef, {
-        backupCodes: updatedCodes,
-        lastUsed: serverTimestamp()
+      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          backup_codes: updatedCodes,
+          last_used: now
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update backup codes');
+      }
 
       setTotpSettings(prev => prev ? { 
         ...prev, 
@@ -286,12 +324,20 @@ export const useTOTP = () => {
     if (!user || !totpSettings?.enabled) return;
 
     try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      await updateDoc(settingsRef, {
-        lastUsed: serverTimestamp()
+      const now = new Date().toISOString();
+      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          last_used: now
+        }),
       });
 
-      setTotpSettings(prev => prev ? { ...prev, lastUsed: new Date() } : null);
+      if (response.ok) {
+        setTotpSettings(prev => prev ? { ...prev, lastUsed: new Date() } : null);
+      }
     } catch (error) {
       console.error('Error updating TOTP last used:', error);
     }
@@ -309,11 +355,20 @@ export const useTOTP = () => {
     setLoading(true);
     try {
       const newBackupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
       
-      await updateDoc(settingsRef, {
-        backupCodes: newBackupCodes
+      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/totp`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          backup_codes: newBackupCodes
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate backup codes');
+      }
 
       setTotpSettings(prev => prev ? { ...prev, backupCodes: newBackupCodes } : null);
       toast.success('New backup codes generated');
