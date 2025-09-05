@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Firebase SDK chunk
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          // Supabase SDK chunk
+          supabase: ['@supabase/supabase-js'],
           // React ecosystem chunk  
           react: ['react', 'react-dom', 'react-router-dom'],
           // UI components chunk

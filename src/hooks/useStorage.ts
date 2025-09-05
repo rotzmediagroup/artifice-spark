@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -28,19 +27,27 @@ export const useStorage = () => {
     try {
       // Create a unique filename
       const timestamp = Date.now();
-      const filename = `${timestamp}_${file.name}`;
-      const imageRef = ref(storage, `users/${user.uid}/reference-images/${filename}`);
-
-      // Upload file
-      const snapshot = await uploadBytes(imageRef, file);
+      const filename = `${user.id}/${timestamp}_${file.name}`;
       
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('reference-images')
+        .upload(filename, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('reference-images')
+        .getPublicUrl(data.path);
       
       setUploadProgress(100);
       toast.success('Reference image uploaded successfully!');
       
-      return downloadURL;
+      return publicUrl;
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload image');
@@ -60,19 +67,25 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create reference to the file path in Firebase Storage
-      const fileRef = ref(storage, filePath);
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('generated-images')
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      // Upload the blob
-      const snapshot = await uploadBytes(fileRef, blob);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(data.path);
       
       setUploadProgress(100);
-      console.log('File uploaded to Firebase Storage:', downloadURL);
+      console.log('File uploaded to Supabase Storage:', publicUrl);
       
-      return downloadURL;
+      return publicUrl;
     } catch (error) {
       console.error('Upload error:', error);
       throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -88,9 +101,17 @@ export const useStorage = () => {
     }
 
     try {
-      // Extract the path from the download URL
-      const imageRef = ref(storage, imageUrl);
-      await deleteObject(imageRef);
+      // Extract the path from the URL
+      const urlParts = imageUrl.split('/');
+      const bucket = 'reference-images';
+      const path = urlParts.slice(urlParts.indexOf(bucket) + 1).join('/');
+
+      const { error } = await supabase.storage
+        .from(bucket)
+        .remove([path]);
+
+      if (error) throw error;
+
       toast.success('Reference image deleted successfully!');
     } catch (error) {
       console.error('Delete error:', error);
@@ -99,10 +120,35 @@ export const useStorage = () => {
     }
   };
 
+  const deleteFile = async (fileUrl: string): Promise<void> => {
+    if (!user) {
+      throw new Error('User must be authenticated to delete files');
+    }
+
+    try {
+      // Extract the path from the URL
+      const urlParts = fileUrl.split('/');
+      const bucket = 'generated-images';
+      const path = urlParts.slice(urlParts.indexOf(bucket) + 1).join('/');
+
+      const { error } = await supabase.storage
+        .from(bucket)
+        .remove([path]);
+
+      if (error) throw error;
+
+      console.log('File deleted from Supabase Storage');
+    } catch (error) {
+      console.error('Delete error:', error);
+      throw error;
+    }
+  };
+
   return {
     uploadReferenceImage,
     uploadFile,
     deleteReferenceImage,
+    deleteFile,
     uploading,
     uploadProgress
   };

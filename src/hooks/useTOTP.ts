@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  serverTimestamp,
-  runTransaction 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
@@ -45,22 +37,31 @@ export const useTOTP = () => {
 
     const loadTOTPSettings = async () => {
       try {
-        const settingsRef = doc(db, 'totpSettings', user.uid);
-        const settingsDoc = await getDoc(settingsRef);
+        const { data, error } = await supabase
+          .from('totp_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
         
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          throw error;
+        }
+
+        if (data) {
           setTotpSettings({
-            ...data,
-            enrolledAt: data.enrolledAt?.toDate() || null,
-            lastUsed: data.lastUsed?.toDate() || null
-          } as TOTPSettings);
+            userId: data.user_id,
+            enabled: data.enabled,
+            secret: data.secret,
+            backupCodes: data.backup_codes || [],
+            enrolledAt: data.enrolled_at ? new Date(data.enrolled_at) : null,
+            lastUsed: data.last_used ? new Date(data.last_used) : null,
+            recoveryEmail: data.recovery_email || user.email || ''
+          });
         } else {
           setTotpSettings(null);
         }
       } catch (error) {
         console.error('Error loading TOTP settings:', error);
-        toast.error('Failed to load MFA settings');
       } finally {
         setSettingsLoading(false);
       }
@@ -69,32 +70,35 @@ export const useTOTP = () => {
     loadTOTPSettings();
   }, [user]);
 
-  // Generate TOTP secret and QR code for setup
+  // Generate new TOTP setup
   const generateTOTPSetup = async (): Promise<TOTPSetup | null> => {
     if (!user) return null;
 
     try {
       // Generate a random secret
-      const secret = new OTPAuth.Secret({ size: 32 });
-      
-      // Create TOTP object
       const totp = new OTPAuth.TOTP({
         issuer: 'ROTZ Image Generator',
-        label: user.email,
+        label: user.email || 'User',
         algorithm: 'SHA1',
         digits: 6,
         period: 30,
-        secret: secret,
+        secret: OTPAuth.Secret.fromBase32(
+          OTPAuth.Secret.fromHex(
+            Array.from(crypto.getRandomValues(new Uint8Array(20)))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join('')
+          ).base32
+        )
       });
 
-      // Generate the otpauth URL and QR code
-      const otpauthURL = totp.toString();
-      const qrCodeUrl = await QRCode.toDataURL(otpauthURL);
+      const uri = totp.toString();
+      const qrCodeUrl = await QRCode.toDataURL(uri);
+      const secret = totp.secret.base32;
 
       return {
-        secret: secret.base32,
+        secret,
         qrCodeUrl,
-        manualEntryKey: secret.base32
+        manualEntryKey: secret
       };
     } catch (error) {
       console.error('Error generating TOTP setup:', error);
@@ -103,96 +107,52 @@ export const useTOTP = () => {
     }
   };
 
-  // Verify TOTP code
-  const verifyTOTP = (token: string, secret?: string): boolean => {
-    const secretToUse = secret || totpSettings?.secret;
-    if (!secretToUse) return false;
-
-    try {
-      // Create TOTP object from secret
-      const totp = new OTPAuth.TOTP({
-        issuer: 'ROTZ Image Generator', 
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-        secret: secretToUse,
-      });
-
-      // Validate token with 2-step drift tolerance (60 seconds total)
-      const delta = totp.validate({ token, window: 2 });
-      return delta !== null;
-    } catch (error) {
-      console.error('Error verifying TOTP:', error);
-      return false;
-    }
-  };
-
-  // Generate backup codes
-  const generateBackupCodes = (): string[] => {
-    const codes: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      // Generate 8-character alphanumeric codes
-      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-      codes.push(code);
-    }
-    return codes;
-  };
-
-  // Enable TOTP MFA
-  const enableTOTP = async (secret: string, token: string): Promise<boolean> => {
-    if (!user) {
-      toast.error('User not authenticated');
-      return false;
-    }
-
-    // Verify the token first
-    if (!verifyTOTP(token, secret)) {
-      toast.error('Invalid verification code. Please try again.');
-      return false;
-    }
+  // Enable TOTP
+  const enableTOTP = async (secret: string, verificationCode: string, backupCodes: string[]): Promise<boolean> => {
+    if (!user) return false;
 
     setLoading(true);
     try {
-      const backupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await runTransaction(db, async (transaction) => {
-        const settings: Omit<TOTPSettings, 'enrolledAt' | 'lastUsed'> & { 
-          enrolledAt: ReturnType<typeof serverTimestamp>; 
-          lastUsed: ReturnType<typeof serverTimestamp> | null; 
-        } = {
-          userId: user.uid,
-          enabled: true,
-          secret,
-          backupCodes,
-          enrolledAt: serverTimestamp(),
-          lastUsed: null,
-          recoveryEmail: user.email || ''
-        };
-        
-        transaction.set(settingsRef, settings);
-        
-        // Update user profile to indicate MFA is enabled
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: true,
-          mfaEnabledAt: serverTimestamp()
-        });
+      // Verify the code first
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(secret),
+        digits: 6,
+        period: 30
       });
 
-      // Reload settings
-      const settingsDoc = await getDoc(settingsRef);
-      if (settingsDoc.exists()) {
-        const data = settingsDoc.data();
-        setTotpSettings({
-          ...data,
-          enrolledAt: data.enrolledAt?.toDate() || null,
-          lastUsed: data.lastUsed?.toDate() || null
-        } as TOTPSettings);
+      const isValid = totp.validate({ token: verificationCode, window: 1 }) !== null;
+
+      if (!isValid) {
+        toast.error('Invalid verification code. Please try again.');
+        return false;
       }
 
-      toast.success('Two-factor authentication enabled successfully!');
-      console.log(`[MFA] TOTP enabled for user: ${user.email}`);
+      // Save TOTP settings
+      const { error } = await supabase
+        .from('totp_settings')
+        .upsert({
+          user_id: user.id,
+          enabled: true,
+          secret,
+          backup_codes: backupCodes,
+          enrolled_at: new Date().toISOString(),
+          recovery_email: user.email,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setTotpSettings({
+        userId: user.id,
+        enabled: true,
+        secret,
+        backupCodes,
+        enrolledAt: new Date(),
+        lastUsed: null,
+        recoveryEmail: user.email || ''
+      });
+
+      toast.success('Two-factor authentication enabled successfully');
       return true;
     } catch (error) {
       console.error('Error enabling TOTP:', error);
@@ -203,41 +163,43 @@ export const useTOTP = () => {
     }
   };
 
-  // Disable TOTP MFA
-  const disableTOTP = async (token: string): Promise<boolean> => {
-    if (!user || !totpSettings) {
-      toast.error('No MFA settings found');
-      return false;
-    }
-
-    // Verify current TOTP code
-    if (!verifyTOTP(token)) {
-      toast.error('Invalid verification code. Please try again.');
-      return false;
-    }
+  // Disable TOTP
+  const disableTOTP = async (verificationCode: string): Promise<boolean> => {
+    if (!user || !totpSettings) return false;
 
     setLoading(true);
     try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await runTransaction(db, async (transaction) => {
-        // Update TOTP settings to disabled
-        transaction.update(settingsRef, {
-          enabled: false,
-          secret: '', // Clear the secret
-          backupCodes: [] // Clear backup codes
-        });
-        
-        // Update user profile
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: false
-        });
+      // Verify the code first
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(totpSettings.secret),
+        digits: 6,
+        period: 30
       });
 
-      setTotpSettings(prev => prev ? { ...prev, enabled: false, secret: '', backupCodes: [] } : null);
-      toast.success('Two-factor authentication disabled');
-      console.log(`[MFA] TOTP disabled for user: ${user.email}`);
+      const isValid = totp.validate({ token: verificationCode, window: 1 }) !== null;
+
+      if (!isValid) {
+        toast.error('Invalid verification code. Please try again.');
+        return false;
+      }
+
+      // Disable TOTP
+      const { error } = await supabase
+        .from('totp_settings')
+        .update({
+          enabled: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setTotpSettings({
+        ...totpSettings,
+        enabled: false
+      });
+
+      toast.success('Two-factor authentication disabled successfully');
       return true;
     } catch (error) {
       console.error('Error disabling TOTP:', error);
@@ -248,80 +210,123 @@ export const useTOTP = () => {
     }
   };
 
+  // Verify TOTP code
+  const verifyTOTPCode = async (code: string): Promise<boolean> => {
+    if (!user || !totpSettings) return false;
+
+    try {
+      const totp = new OTPAuth.TOTP({
+        secret: OTPAuth.Secret.fromBase32(totpSettings.secret),
+        digits: 6,
+        period: 30
+      });
+
+      const isValid = totp.validate({ token: code, window: 1 }) !== null;
+
+      if (isValid) {
+        // Update last used timestamp
+        await supabase
+          .from('totp_settings')
+          .update({
+            last_used: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      }
+
+      return isValid;
+    } catch (error) {
+      console.error('Error verifying TOTP code:', error);
+      return false;
+    }
+  };
+
+  // Generate backup codes
+  const generateBackupCodes = (): string[] => {
+    const codes: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const code = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase();
+      codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);
+    }
+    return codes;
+  };
+
   // Verify backup code
   const verifyBackupCode = async (code: string): Promise<boolean> => {
     if (!user || !totpSettings) return false;
 
-    const upperCode = code.toUpperCase().replace(/\s/g, '');
-    if (!totpSettings.backupCodes.includes(upperCode)) {
-      return false;
-    }
+    const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const normalizedBackupCodes = totpSettings.backupCodes.map(c => 
+      c.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    );
+
+    const index = normalizedBackupCodes.indexOf(normalizedCode);
+    if (index === -1) return false;
 
     try {
-      // Remove the used backup code
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      const updatedCodes = totpSettings.backupCodes.filter(c => c !== upperCode);
-      
-      await updateDoc(settingsRef, {
-        backupCodes: updatedCodes,
-        lastUsed: serverTimestamp()
+      // Remove used backup code
+      const newBackupCodes = [...totpSettings.backupCodes];
+      newBackupCodes.splice(index, 1);
+
+      const { error } = await supabase
+        .from('totp_settings')
+        .update({
+          backup_codes: newBackupCodes,
+          last_used: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setTotpSettings({
+        ...totpSettings,
+        backupCodes: newBackupCodes,
+        lastUsed: new Date()
       });
 
-      setTotpSettings(prev => prev ? { 
-        ...prev, 
-        backupCodes: updatedCodes,
-        lastUsed: new Date()
-      } : null);
+      if (newBackupCodes.length === 0) {
+        toast.warning('All backup codes have been used. Please generate new ones.');
+      } else if (newBackupCodes.length <= 3) {
+        toast.warning(`Only ${newBackupCodes.length} backup codes remaining.`);
+      }
 
-      console.log(`[MFA] Backup code used for user: ${user.email}`);
       return true;
     } catch (error) {
-      console.error('Error using backup code:', error);
+      console.error('Error verifying backup code:', error);
       return false;
-    }
-  };
-
-  // Update last used timestamp
-  const updateLastUsed = async (): Promise<void> => {
-    if (!user || !totpSettings?.enabled) return;
-
-    try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      await updateDoc(settingsRef, {
-        lastUsed: serverTimestamp()
-      });
-
-      setTotpSettings(prev => prev ? { ...prev, lastUsed: new Date() } : null);
-    } catch (error) {
-      console.error('Error updating TOTP last used:', error);
     }
   };
 
   // Regenerate backup codes
-  const regenerateBackupCodes = async (token: string): Promise<string[] | null> => {
-    if (!user || !totpSettings?.enabled) return null;
-
-    if (!verifyTOTP(token)) {
-      toast.error('Invalid verification code');
-      return null;
-    }
+  const regenerateBackupCodes = async (): Promise<string[] | null> => {
+    if (!user || !totpSettings || !totpSettings.enabled) return null;
 
     setLoading(true);
     try {
-      const newBackupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await updateDoc(settingsRef, {
-        backupCodes: newBackupCodes
+      const newCodes = generateBackupCodes();
+
+      const { error } = await supabase
+        .from('totp_settings')
+        .update({
+          backup_codes: newCodes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setTotpSettings({
+        ...totpSettings,
+        backupCodes: newCodes
       });
 
-      setTotpSettings(prev => prev ? { ...prev, backupCodes: newBackupCodes } : null);
-      toast.success('New backup codes generated');
-      console.log(`[MFA] Backup codes regenerated for user: ${user.email}`);
-      return newBackupCodes;
+      toast.success('Backup codes regenerated successfully');
+      return newCodes;
     } catch (error) {
       console.error('Error regenerating backup codes:', error);
-      toast.error('Failed to generate new backup codes');
+      toast.error('Failed to regenerate backup codes');
       return null;
     } finally {
       setLoading(false);
@@ -329,21 +334,15 @@ export const useTOTP = () => {
   };
 
   return {
-    // State
     totpSettings,
     loading,
     settingsLoading,
-    isEnabled: totpSettings?.enabled || false,
-    hasBackupCodes: (totpSettings?.backupCodes?.length || 0) > 0,
-    backupCodesCount: totpSettings?.backupCodes?.length || 0,
-
-    // Actions
     generateTOTPSetup,
-    verifyTOTP,
     enableTOTP,
     disableTOTP,
+    verifyTOTPCode,
     verifyBackupCode,
-    updateLastUsed,
+    generateBackupCodes,
     regenerateBackupCodes
   };
 };
