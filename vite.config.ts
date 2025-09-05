@@ -14,8 +14,6 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Supabase SDK chunk
-          supabase: ['@supabase/supabase-js'],
           // React ecosystem chunk  
           react: ['react', 'react-dom', 'react-router-dom'],
           // UI components chunk

@@ -1,0 +1,35 @@
+# API Server Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Create uploads and generated_images directories
+RUN mkdir -p uploads generated_images
+
+# Copy API package files
+COPY api/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy API source code
+COPY api/src ./src
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Set ownership
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"
+
+# Start the API server
+CMD ["node", "src/index.js"]

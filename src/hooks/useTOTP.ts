@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
@@ -37,25 +37,18 @@ export const useTOTP = () => {
 
     const loadTOTPSettings = async () => {
       try {
-        const { data, error } = await supabase
-          .from('totp_settings')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-          throw error;
-        }
+        const response = await api.totp.getSettings();
+        const data = response.data;
 
         if (data) {
           setTotpSettings({
-            userId: data.user_id,
+            userId: data.userId,
             enabled: data.enabled,
             secret: data.secret,
-            backupCodes: data.backup_codes || [],
-            enrolledAt: data.enrolled_at ? new Date(data.enrolled_at) : null,
-            lastUsed: data.last_used ? new Date(data.last_used) : null,
-            recoveryEmail: data.recovery_email || user.email || ''
+            backupCodes: data.backupCodes || [],
+            enrolledAt: data.enrolledAt ? new Date(data.enrolledAt) : null,
+            lastUsed: data.lastUsed ? new Date(data.lastUsed) : null,
+            recoveryEmail: data.recoveryEmail || user.email || ''
           });
         } else {
           setTotpSettings(null);
@@ -128,19 +121,11 @@ export const useTOTP = () => {
       }
 
       // Save TOTP settings
-      const { error } = await supabase
-        .from('totp_settings')
-        .upsert({
-          user_id: user.id,
-          enabled: true,
-          secret,
-          backup_codes: backupCodes,
-          enrolled_at: new Date().toISOString(),
-          recovery_email: user.email,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
+      await api.totp.enable({
+        secret,
+        verificationCode,
+        backupCodes
+      });
 
       setTotpSettings({
         userId: user.id,
@@ -184,15 +169,7 @@ export const useTOTP = () => {
       }
 
       // Disable TOTP
-      const { error } = await supabase
-        .from('totp_settings')
-        .update({
-          enabled: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      await api.totp.disable({ verificationCode });
 
       setTotpSettings({
         ...totpSettings,
@@ -224,13 +201,8 @@ export const useTOTP = () => {
       const isValid = totp.validate({ token: code, window: 1 }) !== null;
 
       if (isValid) {
-        // Update last used timestamp
-        await supabase
-          .from('totp_settings')
-          .update({
-            last_used: new Date().toISOString()
-          })
-          .eq('user_id', user.id);
+        // Update last used timestamp via API
+        await api.totp.verify({ code });
       }
 
       return isValid;
@@ -266,30 +238,20 @@ export const useTOTP = () => {
     if (index === -1) return false;
 
     try {
-      // Remove used backup code
-      const newBackupCodes = [...totpSettings.backupCodes];
-      newBackupCodes.splice(index, 1);
-
-      const { error } = await supabase
-        .from('totp_settings')
-        .update({
-          backup_codes: newBackupCodes,
-          last_used: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      // Verify and remove backup code via API
+      const response = await api.totp.verifyBackup({ code });
+      const updatedSettings = response.data;
 
       setTotpSettings({
         ...totpSettings,
-        backupCodes: newBackupCodes,
+        backupCodes: updatedSettings.backupCodes,
         lastUsed: new Date()
       });
 
-      if (newBackupCodes.length === 0) {
+      if (updatedSettings.backupCodes.length === 0) {
         toast.warning('All backup codes have been used. Please generate new ones.');
-      } else if (newBackupCodes.length <= 3) {
-        toast.warning(`Only ${newBackupCodes.length} backup codes remaining.`);
+      } else if (updatedSettings.backupCodes.length <= 3) {
+        toast.warning(`Only ${updatedSettings.backupCodes.length} backup codes remaining.`);
       }
 
       return true;
@@ -305,17 +267,8 @@ export const useTOTP = () => {
 
     setLoading(true);
     try {
-      const newCodes = generateBackupCodes();
-
-      const { error } = await supabase
-        .from('totp_settings')
-        .update({
-          backup_codes: newCodes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      const response = await api.totp.regenerateBackupCodes();
+      const newCodes = response.data.backupCodes;
 
       setTotpSettings({
         ...totpSettings,

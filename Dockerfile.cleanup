@@ -1,0 +1,27 @@
+# Cleanup Service Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install cron
+RUN apk add --no-cache dcron
+
+# Copy cleanup script
+COPY cleanup/package*.json ./
+RUN npm ci --only=production
+
+COPY cleanup/src ./src
+
+# Create cron job
+RUN echo "0 2 * * * cd /app && node src/cleanup.js" | crontab -
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Start cron daemon
+CMD ["crond", "-f"]

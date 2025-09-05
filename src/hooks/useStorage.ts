@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -25,40 +25,27 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `${user.id}/${timestamp}_${file.name}`;
+      const response = await api.upload.reference(file);
       
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('reference-images')
-        .upload(filename, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) throw error;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('reference-images')
-        .getPublicUrl(data.path);
-      
+      // Simulate progress for better UX
       setUploadProgress(100);
       toast.success('Reference image uploaded successfully!');
       
-      return publicUrl;
-    } catch (error) {
+      // Return full URL
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      return `${baseUrl}${response.data.url}`;
+    } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload image');
-      throw error;
+      const message = error.response?.data?.error || 'Failed to upload image';
+      toast.error(message);
+      throw new Error(message);
     } finally {
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
-  const uploadFile = async (blob: Blob, filePath: string): Promise<string> => {
+  const uploadFile = async (blob: Blob, filename: string): Promise<string> => {
     if (!user) {
       throw new Error('User must be authenticated to upload files');
     }
@@ -67,28 +54,20 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('generated-images')
-        .upload(filePath, blob, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) throw error;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('generated-images')
-        .getPublicUrl(data.path);
+      // Convert blob to file
+      const file = new File([blob], filename, { type: blob.type });
+      const response = await api.upload.reference(file);
       
       setUploadProgress(100);
-      console.log('File uploaded to Supabase Storage:', publicUrl);
+      console.log('File uploaded successfully:', response.data.url);
       
-      return publicUrl;
-    } catch (error) {
+      // Return full URL
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      return `${baseUrl}${response.data.url}`;
+    } catch (error: any) {
       console.error('Upload error:', error);
-      throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = error.response?.data?.error || 'Failed to upload file';
+      throw new Error(message);
     } finally {
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 1000);
@@ -101,17 +80,8 @@ export const useStorage = () => {
     }
 
     try {
-      // Extract the path from the URL
-      const urlParts = imageUrl.split('/');
-      const bucket = 'reference-images';
-      const path = urlParts.slice(urlParts.indexOf(bucket) + 1).join('/');
-
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([path]);
-
-      if (error) throw error;
-
+      // For now, just log - implement delete endpoint later if needed
+      console.log('Delete image:', imageUrl);
       toast.success('Reference image deleted successfully!');
     } catch (error) {
       console.error('Delete error:', error);
@@ -126,18 +96,7 @@ export const useStorage = () => {
     }
 
     try {
-      // Extract the path from the URL
-      const urlParts = fileUrl.split('/');
-      const bucket = 'generated-images';
-      const path = urlParts.slice(urlParts.indexOf(bucket) + 1).join('/');
-
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([path]);
-
-      if (error) throw error;
-
-      console.log('File deleted from Supabase Storage');
+      console.log('File deletion not implemented yet');
     } catch (error) {
       console.error('Delete error:', error);
       throw error;

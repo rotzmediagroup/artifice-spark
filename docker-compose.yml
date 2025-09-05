@@ -1,19 +1,91 @@
-version: '3.8'
-
 services:
-  app:
-    build: .
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: rotz-postgres
+    environment:
+      - POSTGRES_DB=rotz_image_generator
+      - POSTGRES_USER=rotz_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rotz_password_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql
     ports:
-      - "3000:3000"
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rotz_user -d rotz_image_generator"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+  # API Server
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rotz-api
     environment:
       - NODE_ENV=production
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-      - VITE_DEEPAI_API_KEY=${VITE_DEEPAI_API_KEY}
-      - VITE_ADMIN_EMAILS=${VITE_ADMIN_EMAILS}
+      - DATABASE_URL=postgresql://rotz_user:${POSTGRES_PASSWORD:-rotz_password_2024}@postgres:5432/rotz_image_generator
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key-here}
+      - DEEPAI_API_KEY=${VITE_DEEPAI_API_KEY}
+      - ADMIN_EMAILS=${VITE_ADMIN_EMAILS}
+    volumes:
+      - uploads:/app/uploads
+      - generated_images:/app/generated_images
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - app-network
+
+  # Frontend App
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: rotz-frontend
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=http://localhost:3001
+      - VITE_ADMIN_EMAILS=${VITE_ADMIN_EMAILS}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Cleanup Service
+  cleanup:
+    build: 
+      context: .
+      dockerfile: Dockerfile.cleanup
+    container_name: rotz-cleanup
+    environment:
+      - DATABASE_URL=postgresql://rotz_user:${POSTGRES_PASSWORD:-rotz_password_2024}@postgres:5432/rotz_image_generator
+    volumes:
+      - uploads:/app/uploads
+      - generated_images:/app/generated_images
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  uploads:
+  generated_images:
 
 networks:
   app-network:
