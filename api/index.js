@@ -44,6 +44,9 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static('uploads'));
 
+// Serve static frontend files
+app.use(express.static('/app/dist'));
+
 // File upload configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -654,6 +657,11 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 });
 
 // More routes will be added for presets, credits, TOTP, etc...
+
+// Catch-all handler: send back index.html for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile('/app/dist/index.html');
+});
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
