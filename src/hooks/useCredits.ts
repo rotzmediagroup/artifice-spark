@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
+import { doc, onSnapshot, addDoc, collection, runTransaction } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from './useAdmin';
 import { toast } from 'sonner';
 
 interface UserProfile {
   email: string;
-  display_name: string;
-  image_credits: number;
-  video_credits: number;
-  is_admin: boolean;
-  created_at: Date;
-  last_login: Date;
-  total_credits_granted: number;
-  total_credits_used: number;
-  credits?: number; // Legacy field
+  displayName: string;
+  imageCredits: number;
+  videoCredits: number;
+  isAdmin: boolean;
+  createdAt: Date;
+  lastLogin: Date;
+  totalCreditsGranted: number;
+  totalCreditsUsed: number;
 }
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 export const useCredits = () => {
   const { user } = useAuth();
@@ -43,46 +42,34 @@ export const useCredits = () => {
       return;
     }
 
-    // Load user profile for credits
-    const loadUserProfile = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/users/${user.uid}/profile`);
-        if (response.ok) {
-          const data = await response.json();
-          const profile: UserProfile = {
-            email: data.email,
-            display_name: data.display_name,
-            image_credits: data.image_credits,
-            video_credits: data.video_credits,
-            is_admin: data.is_admin,
-            created_at: new Date(data.created_at),
-            last_login: new Date(data.last_login),
-            total_credits_granted: data.total_credits_granted,
-            total_credits_used: data.total_credits_used,
-            credits: data.credits // Legacy field
-          };
-          setUserProfile(profile);
+    // Subscribe to user profile for real-time credit updates
+    const userProfileRef = doc(db, 'userProfiles', user.uid);
+    const unsubscribe = onSnapshot(
+      userProfileRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data() as UserProfile;
+          setUserProfile(data);
           // Support both new dual credit system and legacy single credit system
-          setImageCredits(profile.image_credits ?? profile.credits ?? 0);
-          setVideoCredits(profile.video_credits ?? 0);
+          setImageCredits(data.imageCredits ?? data.credits ?? 0);
+          setVideoCredits(data.videoCredits ?? 0);
         } else {
           // User profile doesn't exist, they have 0 credits
           setImageCredits(0);
           setVideoCredits(0);
           setUserProfile(null);
         }
-      } catch (error) {
+        setLoading(false);
+      },
+      (error) => {
         console.error('Error fetching user credits:', error);
         setImageCredits(0);
         setVideoCredits(0);
-        setUserProfile(null);
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    loadUserProfile();
+    return unsubscribe;
   }, [user, isAdmin]);
 
   // Check if user has sufficient credits for generation
@@ -114,71 +101,68 @@ export const useCredits = () => {
     }
 
     try {
-      // First get current profile data
-      const profileResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/profile`);
-      if (!profileResponse.ok) {
-        throw new Error('User profile not found');
-      }
+      const userProfileRef = doc(db, 'userProfiles', user.uid);
+      
+      // Use a transaction to ensure atomic credit deduction
+      const success = await runTransaction(db, async (transaction) => {
+        const profileDoc = await transaction.get(userProfileRef);
+        
+        if (!profileDoc.exists()) {
+          throw new Error('User profile not found');
+        }
 
-      const profileData = await profileResponse.json();
-      const currentImageCredits = profileData.image_credits ?? profileData.credits ?? 0;
-      const currentVideoCredits = profileData.video_credits ?? 0;
-      const currentCreditsCheck = creditType === 'image' ? currentImageCredits : currentVideoCredits;
-      
-      if (currentCreditsCheck < amount) {
-        throw new Error(`Insufficient ${creditType} credits. Required: ${amount}, Available: ${currentCreditsCheck}`);
-      }
+        const data = profileDoc.data();
+        const currentImageCredits = data.imageCredits ?? data.credits ?? 0;
+        const currentVideoCredits = data.videoCredits ?? 0;
+        const currentCredits = creditType === 'image' ? currentImageCredits : currentVideoCredits;
+        
+        if (currentCredits < amount) {
+          throw new Error(`Insufficient ${creditType} credits. Required: ${amount}, Available: ${currentCredits}`);
+        }
 
-      const newCredits = currentCreditsCheck - amount;
-      const newTotalUsed = (profileData.total_credits_used || 0) + amount;
-      
-      // Update user profile
-      const updateData: Record<string, unknown> = {
-        total_credits_used: newTotalUsed
-      };
-      
-      if (creditType === 'image') {
-        updateData.image_credits = newCredits;
-      } else {
-        updateData.video_credits = newCredits;
-      }
-      
-      const updateResponse = await fetch(`${API_BASE_URL}/users/${user.uid}/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...profileData, ...updateData }),
+        const newCredits = currentCredits - amount;
+        const newTotalUsed = (data.totalCreditsUsed || 0) + amount;
+        
+        // Update user profile with new credit structure
+        const updateData: Record<string, unknown> = {
+          totalCreditsUsed: newTotalUsed,
+          lastLogin: new Date()
+        };
+        
+        if (creditType === 'image') {
+          updateData.imageCredits = newCredits;
+          // Preserve existing videoCredits
+          updateData.videoCredits = currentVideoCredits;
+        } else {
+          updateData.videoCredits = newCredits;
+          // Preserve existing imageCredits
+          updateData.imageCredits = currentImageCredits;
+        }
+        
+        transaction.update(userProfileRef, updateData);
+
+        // Log the credit transaction
+        const transactionRef = doc(collection(db, 'creditTransactions'));
+        transaction.set(transactionRef, {
+          userId: user.uid,
+          adminUserId: null, // This is user-initiated
+          type: 'used',
+          creditType: creditType,
+          amount: -amount,
+          previousBalance: currentCredits,
+          newBalance: newCredits,
+          reason: `${creditType.charAt(0).toUpperCase() + creditType.slice(1)} generation`,
+          timestamp: new Date()
+        });
+
+        return true;
       });
 
-      if (!updateResponse.ok) {
-        throw new Error('Failed to update profile');
+      if (success) {
+        console.log(`Credits deducted successfully: ${amount} credits used`);
       }
 
-      // Log the credit transaction
-      await fetch(`${API_BASE_URL}/users/${user.uid}/credits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'spent',
-          amount: amount,
-          credit_type: creditType,
-          description: `${creditType.charAt(0).toUpperCase() + creditType.slice(1)} generation`,
-          source: 'generation'
-        }),
-      });
-
-      // Update local state
-      if (creditType === 'image') {
-        setImageCredits(newCredits);
-      } else {
-        setVideoCredits(newCredits);
-      }
-
-      console.log(`Credits deducted successfully: ${amount} credits used`);
-      return true;
+      return success;
     } catch (error) {
       console.error('Error deducting credits:', error);
       toast.error('Failed to deduct credits. Please try again.');

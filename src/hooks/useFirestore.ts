@@ -1,4 +1,21 @@
 import { useEffect, useState } from 'react';
+import {
+  collection,
+  doc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  DocumentData,
+  QuerySnapshot,
+  Timestamp,
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface GeneratedImageData {
@@ -57,72 +74,69 @@ export interface PresetData {
   useCustomDimensions?: boolean;
 }
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
-
 export const useFirestore = () => {
   const { user } = useAuth();
   const [imageHistory, setImageHistory] = useState<GeneratedImageData[]>([]);
   const [presets, setPresets] = useState<PresetData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Convert API data to our format
-  const convertImageData = (data: any): GeneratedImageData => {
-    const timestamp = new Date(data.timestamp);
-    const expiresAt = new Date(data.expires_at);
-    const lastExtendedAt = data.last_extended_at ? new Date(data.last_extended_at) : undefined;
+  // Convert Firestore data to our format
+  const convertImageData = (doc: { id: string; data: () => Record<string, unknown> }): GeneratedImageData => {
+    const data = doc.data();
+    const timestamp = data.timestamp?.toDate() || new Date();
+    
+    // Calculate expiration for existing images (14 days from creation if not set)
+    let expiresAt = data.expiresAt?.toDate();
+    if (!expiresAt) {
+      expiresAt = new Date(timestamp);
+      expiresAt.setDate(expiresAt.getDate() + 14);
+    }
+    
+    // Check if image is expired
     const isExpired = expiresAt < new Date();
     
     return {
-      id: data.id,
+      id: doc.id,
       url: data.url,
       prompt: data.prompt,
       style: data.style,
       timestamp,
       liked: data.liked || false,
-      contentType: data.content_type || 'image',
-      fileExtension: data.file_extension || '.png',
-      settings: {
-        steps: data.steps || 30,
-        cfgScale: data.cfg_scale || 7,
-        aspectRatio: data.aspect_ratio || 'Square (1:1)',
-        negativePrompt: data.negative_prompt || '',
-        width: data.width,
-        height: data.height,
-        isCustomDimensions: data.is_custom_dimensions || false,
-        totalPixels: data.total_pixels,
-        megapixels: data.megapixels,
-        videoDuration: data.video_duration,
-        videoFps: data.video_fps,
-        videoFormat: data.video_format,
-        videoWithAudio: data.video_with_audio,
-        videoResolution: data.video_resolution
+      contentType: data.contentType || 'image', // Default to image for backward compatibility
+      fileExtension: data.fileExtension || '.png',
+      settings: data.settings || {
+        steps: 30,
+        cfgScale: 7,
+        aspectRatio: 'Square (1:1)', // Use the label format consistently
+        negativePrompt: '',
+        width: 1024,
+        height: 1024,
+        isCustomDimensions: false,
+        totalPixels: 1048576,
+        megapixels: 1.05
       },
+      // Auto-deletion fields
       expiresAt,
-      extensionCount: data.extension_count || 0,
-      lastExtendedAt,
+      extensionCount: data.extensionCount || 0,
+      lastExtendedAt: data.lastExtendedAt?.toDate(),
       isExpired
     };
   };
 
-  const convertPresetData = (data: any): PresetData => ({
-    id: data.id,
-    name: data.name,
-    positivePrompt: data.positive_prompt,
-    negativePrompt: data.negative_prompt,
-    selectedStyle: data.selected_style,
-    aspectRatio: {
-      label: data.aspect_ratio_label,
-      value: data.aspect_ratio_value,
-      width: data.aspect_ratio_width,
-      height: data.aspect_ratio_height,
-      category: data.aspect_ratio_category
-    },
-    steps: data.steps,
-    cfgScale: data.cfg_scale,
-    timestamp: new Date(data.timestamp),
-    customWidth: data.custom_width || 1024,
-    customHeight: data.custom_height || 1024,
-    useCustomDimensions: data.use_custom_dimensions || false,
+  const convertPresetData = (doc: { id: string; data: () => Record<string, unknown> }): PresetData => ({
+    id: doc.id,
+    name: doc.data().name,
+    positivePrompt: doc.data().positivePrompt,
+    negativePrompt: doc.data().negativePrompt,
+    selectedStyle: doc.data().selectedStyle,
+    aspectRatio: doc.data().aspectRatio,
+    steps: doc.data().steps,
+    cfgScale: doc.data().cfgScale,
+    timestamp: doc.data().timestamp?.toDate() || new Date(),
+    // Enhanced dimension data with defaults
+    customWidth: doc.data().customWidth || 1024,
+    customHeight: doc.data().customHeight || 1024,
+    useCustomDimensions: doc.data().useCustomDimensions || false,
   });
 
   // Load data when user changes
@@ -134,88 +148,82 @@ export const useFirestore = () => {
       return;
     }
 
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // Load image history and presets in parallel
-        const [imagesResponse, presetsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/users/${user.uid}/images`),
-          fetch(`${API_BASE_URL}/users/${user.uid}/presets`)
-        ]);
+    setLoading(true);
+    let imagesLoaded = false;
+    let presetsLoaded = false;
 
-        if (imagesResponse.ok) {
-          const imagesData = await imagesResponse.json();
-          setImageHistory(imagesData.map(convertImageData));
-        } else {
-          console.error('Failed to load image history');
-          setImageHistory([]);
-        }
-
-        if (presetsResponse.ok) {
-          const presetsData = await presetsResponse.json();
-          setPresets(presetsData.map(convertPresetData));
-        } else {
-          console.error('Failed to load presets');
-          setPresets([]);
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setImageHistory([]);
-        setPresets([]);
-      } finally {
+    const checkAllLoaded = () => {
+      if (imagesLoaded && presetsLoaded) {
         setLoading(false);
       }
     };
 
-    loadData();
-  }, [user]);
+    // Subscribe to image history with error handling
+    const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
+    const imageHistoryQuery = query(imageHistoryRef, orderBy('timestamp', 'desc'));
+    
+    const unsubscribeImages = onSnapshot(
+      imageHistoryQuery, 
+      (snapshot) => {
+        const images = snapshot.docs.map(convertImageData);
+        setImageHistory(images);
+        imagesLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error('Error loading image history:', error);
+        setImageHistory([]);
+        imagesLoaded = true;
+        checkAllLoaded();
+      }
+    );
+
+    // Subscribe to presets with error handling
+    const presetsRef = collection(db, `users/${user.uid}/presets`);
+    const presetsQuery = query(presetsRef, orderBy('timestamp', 'desc'));
+    
+    const unsubscribePresets = onSnapshot(
+      presetsQuery, 
+      (snapshot) => {
+        const presetsData = snapshot.docs.map(convertPresetData);
+        setPresets(presetsData);
+        presetsLoaded = true;
+        checkAllLoaded();
+      },
+      (error) => {
+        console.error('Error loading presets:', error);
+        setPresets([]);
+        presetsLoaded = true;
+        checkAllLoaded();
+      }
+    );
+
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('Loading timeout reached, forcing completion');
+      setLoading(false);
+    }, 10000); // 10 second timeout
+
+    return () => {
+      unsubscribeImages();
+      unsubscribePresets();
+      clearTimeout(loadingTimeout);
+    };
+  }, [user, loading]);
 
   // Image history operations
   const addImageToHistory = async (imageData: Omit<GeneratedImageData, 'id'>) => {
     if (!user) return;
     
     try {
-      const payload = {
-        url: imageData.url,
-        prompt: imageData.prompt,
-        style: imageData.style,
-        liked: imageData.liked,
-        content_type: imageData.contentType,
-        file_extension: imageData.fileExtension,
-        steps: imageData.settings.steps,
-        cfg_scale: imageData.settings.cfgScale,
-        aspect_ratio: imageData.settings.aspectRatio,
-        negative_prompt: imageData.settings.negativePrompt,
-        width: imageData.settings.width,
-        height: imageData.settings.height,
-        is_custom_dimensions: imageData.settings.isCustomDimensions,
-        total_pixels: imageData.settings.totalPixels,
-        megapixels: imageData.settings.megapixels,
-        video_duration: imageData.settings.videoDuration,
-        video_fps: imageData.settings.videoFps,
-        video_format: imageData.settings.videoFormat,
-        video_with_audio: imageData.settings.videoWithAudio,
-        video_resolution: imageData.settings.videoResolution,
-        expires_at: imageData.expiresAt.toISOString(),
-        extension_count: imageData.extensionCount,
-        last_extended_at: imageData.lastExtendedAt?.toISOString(),
-        is_expired: imageData.isExpired
-      };
-
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/images`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
+      await addDoc(imageHistoryRef, {
+        ...imageData,
+        timestamp: Timestamp.fromDate(imageData.timestamp),
+        expiresAt: Timestamp.fromDate(imageData.expiresAt),
+        lastExtendedAt: imageData.lastExtendedAt ? Timestamp.fromDate(imageData.lastExtendedAt) : null,
+        userId: user.uid
       });
-
-      if (response.ok) {
-        const newImage = await response.json();
-        setImageHistory(prev => [convertImageData(newImage), ...prev]);
-      } else {
-        throw new Error('Failed to add image to history');
-      }
     } catch (error) {
       console.error('Error adding image to history:', error);
       throw error;
@@ -226,30 +234,12 @@ export const useFirestore = () => {
     if (!user) return;
     
     try {
-      const payload: any = {};
-      
-      if (updates.liked !== undefined) payload.liked = updates.liked;
-      if (updates.extensionCount !== undefined) payload.extension_count = updates.extensionCount;
-      if (updates.lastExtendedAt !== undefined) payload.last_extended_at = updates.lastExtendedAt.toISOString();
-      if (updates.expiresAt !== undefined) payload.expires_at = updates.expiresAt.toISOString();
-      if (updates.isExpired !== undefined) payload.is_expired = updates.isExpired;
-
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/images/${imageId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        const updatedImage = await response.json();
-        setImageHistory(prev => prev.map(img => 
-          img.id === imageId ? convertImageData(updatedImage) : img
-        ));
-      } else {
-        throw new Error('Failed to update image');
+      const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
+      const updateData: Partial<GeneratedImageData> & { timestamp?: Timestamp } = { ...updates };
+      if (updates.timestamp) {
+        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }
+      await updateDoc(imageRef, updateData);
     } catch (error) {
       console.error('Error updating image in history:', error);
       throw error;
@@ -260,15 +250,8 @@ export const useFirestore = () => {
     if (!user) return;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/images/${imageId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setImageHistory(prev => prev.filter(img => img.id !== imageId));
-      } else {
-        throw new Error('Failed to delete image');
-      }
+      const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
+      await deleteDoc(imageRef);
     } catch (error) {
       console.error('Error deleting image from history:', error);
       throw error;
@@ -280,37 +263,12 @@ export const useFirestore = () => {
     if (!user) return;
     
     try {
-      const payload = {
-        name: presetData.name,
-        positive_prompt: presetData.positivePrompt,
-        negative_prompt: presetData.negativePrompt,
-        selected_style: presetData.selectedStyle,
-        aspect_ratio_label: presetData.aspectRatio.label,
-        aspect_ratio_value: presetData.aspectRatio.value,
-        aspect_ratio_width: presetData.aspectRatio.width,
-        aspect_ratio_height: presetData.aspectRatio.height,
-        aspect_ratio_category: presetData.aspectRatio.category,
-        steps: presetData.steps,
-        cfg_scale: presetData.cfgScale,
-        custom_width: presetData.customWidth,
-        custom_height: presetData.customHeight,
-        use_custom_dimensions: presetData.useCustomDimensions
-      };
-
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/presets`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const presetsRef = collection(db, `users/${user.uid}/presets`);
+      await addDoc(presetsRef, {
+        ...presetData,
+        timestamp: Timestamp.fromDate(presetData.timestamp),
+        userId: user.uid
       });
-
-      if (response.ok) {
-        const newPreset = await response.json();
-        setPresets(prev => [convertPresetData(newPreset), ...prev]);
-      } else {
-        throw new Error('Failed to add preset');
-      }
     } catch (error) {
       console.error('Error adding preset:', error);
       throw error;
@@ -321,41 +279,12 @@ export const useFirestore = () => {
     if (!user) return;
     
     try {
-      const payload: any = {};
-      
-      if (updates.name !== undefined) payload.name = updates.name;
-      if (updates.positivePrompt !== undefined) payload.positive_prompt = updates.positivePrompt;
-      if (updates.negativePrompt !== undefined) payload.negative_prompt = updates.negativePrompt;
-      if (updates.selectedStyle !== undefined) payload.selected_style = updates.selectedStyle;
-      if (updates.aspectRatio !== undefined) {
-        payload.aspect_ratio_label = updates.aspectRatio.label;
-        payload.aspect_ratio_value = updates.aspectRatio.value;
-        payload.aspect_ratio_width = updates.aspectRatio.width;
-        payload.aspect_ratio_height = updates.aspectRatio.height;
-        payload.aspect_ratio_category = updates.aspectRatio.category;
+      const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
+      const updateData: Partial<PresetData> & { timestamp?: Timestamp } = { ...updates };
+      if (updates.timestamp) {
+        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }
-      if (updates.steps !== undefined) payload.steps = updates.steps;
-      if (updates.cfgScale !== undefined) payload.cfg_scale = updates.cfgScale;
-      if (updates.customWidth !== undefined) payload.custom_width = updates.customWidth;
-      if (updates.customHeight !== undefined) payload.custom_height = updates.customHeight;
-      if (updates.useCustomDimensions !== undefined) payload.use_custom_dimensions = updates.useCustomDimensions;
-
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/presets/${presetId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        const updatedPreset = await response.json();
-        setPresets(prev => prev.map(preset => 
-          preset.id === presetId ? convertPresetData(updatedPreset) : preset
-        ));
-      } else {
-        throw new Error('Failed to update preset');
-      }
+      await updateDoc(presetRef, updateData);
     } catch (error) {
       console.error('Error updating preset:', error);
       throw error;
@@ -366,58 +295,54 @@ export const useFirestore = () => {
     if (!user) return;
     
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${user.uid}/presets/${presetId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setPresets(prev => prev.filter(preset => preset.id !== presetId));
-      } else {
-        throw new Error('Failed to delete preset');
-      }
+      const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
+      await deleteDoc(presetRef);
     } catch (error) {
       console.error('Error deleting preset:', error);
       throw error;
     }
   };
 
-  // Migration function from localStorage (optional for existing users)
+  // Migration function from localStorage
   const migrateFromLocalStorage = async () => {
     if (!user) return;
     
     try {
-      // Check if migration is needed
-      const savedHistory = localStorage.getItem('imageHistory');
-      const savedPresets = localStorage.getItem('savedPresets');
-      
-      if (!savedHistory && !savedPresets) {
-        return; // No data to migrate
-      }
+      const batch = writeBatch(db);
       
       // Migrate image history
+      const savedHistory = localStorage.getItem('imageHistory');
       if (savedHistory) {
         const historyData = JSON.parse(savedHistory);
-        for (const item of historyData) {
-          await addImageToHistory({
+        const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
+        
+        historyData.forEach((item: GeneratedImageData) => {
+          const docRef = doc(imageHistoryRef);
+          batch.set(docRef, {
             ...item,
-            timestamp: new Date(item.timestamp),
-            expiresAt: new Date(item.expiresAt || Date.now() + 14 * 24 * 60 * 60 * 1000),
-            extensionCount: item.extensionCount || 0,
-            lastExtendedAt: item.lastExtendedAt ? new Date(item.lastExtendedAt) : undefined
+            timestamp: Timestamp.fromDate(new Date(item.timestamp)),
+            userId: user.uid
           });
-        }
+        });
       }
       
       // Migrate presets
+      const savedPresets = localStorage.getItem('savedPresets');
       if (savedPresets) {
         const presetsData = JSON.parse(savedPresets);
-        for (const item of presetsData) {
-          await addPreset({
+        const presetsRef = collection(db, `users/${user.uid}/presets`);
+        
+        presetsData.forEach((item: PresetData) => {
+          const docRef = doc(presetsRef);
+          batch.set(docRef, {
             ...item,
-            timestamp: new Date(item.timestamp)
+            timestamp: Timestamp.fromDate(new Date(item.timestamp)),
+            userId: user.uid
           });
-        }
+        });
       }
+      
+      await batch.commit();
       
       // Clear localStorage after successful migration
       localStorage.removeItem('imageHistory');
