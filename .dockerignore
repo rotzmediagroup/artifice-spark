@@ -30,15 +30,11 @@ README.md
 .DS_Store
 Thumbs.db
 
-# Firebase specific files (not needed for PostgreSQL deployment)
+# Firebase specific files (not needed for SQLite deployment)
 .firebase
 firebase.json
 .firebaserc
 functions/
-
-# Database files
-database/
-*.sql
 
 # Logs
 logs
@@ -64,6 +60,3 @@ temp
 
 # Optional eslint cache
 .eslintcache
-
-# API directory (separate container)
-api/
