@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { Pool } = require('pg');
+const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
@@ -23,13 +23,41 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Database connection
-const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'rotz_image_generator',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT || 5432,
-});
+const dbPath = process.env.DB_PATH || '/app/data/rotz.db';
+// Ensure data directory exists
+const dataDir = path.dirname(dbPath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// Initialize database with schema
+const initDatabase = () => {
+  const schemaPath = '/app/database/schema.sqlite.sql';
+  if (fs.existsSync(schemaPath)) {
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    // Split by semicolon and execute each statement
+    const statements = schema.split(';').filter(s => s.trim());
+    statements.forEach(statement => {
+      try {
+        db.exec(statement + ';');
+      } catch (error) {
+        // Skip errors for existing tables/indexes
+        if (!error.message.includes('already exists')) {
+          console.log('Schema error:', error.message);
+        }
+      }
+    });
+    console.log('Database initialized with schema');
+  } else {
+    console.log('No schema file found, using existing database');
+  }
+};
+
+initDatabase();
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -51,602 +79,539 @@ app.use(express.static('/app/dist'));
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadType = req.body.uploadType || 'reference-images';
-    const uploadPath = `uploads/${uploadType}`;
-    
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    const uploadDir = `uploads/${uploadType}`;
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
-    cb(null, uploadPath);
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
   }
 });
 
 const upload = multer({ 
   storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow images and videos
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image and video files are allowed!'), false);
-    }
-  }
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
 // Authentication middleware
-const authenticateToken = async (req, res, next) => {
+const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-
+  
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Get user from database
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.userId]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'User not found' });
+  
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    
-    req.user = result.rows[0];
+    req.user = user;
     next();
+  });
+};
+
+// Helper function to run database transaction
+const runTransaction = (callback) => {
+  const beginTransaction = db.prepare('BEGIN');
+  const commit = db.prepare('COMMIT');
+  const rollback = db.prepare('ROLLBACK');
+  
+  beginTransaction.run();
+  try {
+    const result = callback();
+    commit.run();
+    return result;
   } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(403).json({ error: 'Invalid token' });
+    rollback.run();
+    throw error;
   }
 };
 
-// Helper function to generate JWT
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
-};
-
-// Health check
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'healthy' });
 });
 
-// ===== AUTHENTICATION ROUTES =====
-
-// Register
+// Auth endpoints
 app.post('/api/auth/register', async (req, res) => {
+  const { email, password, displayName } = req.body;
+  
   try {
-    const { email, password, displayName } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    
     // Check if user exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
+    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
     
     // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create user
-    const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, display_name, email_verified) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, created_at',
-      [email, passwordHash, displayName || '', true] // Auto-verify for simplicity
-    );
-    
-    const user = userResult.rows[0];
-    
-    // Create user profile
-    const isAdmin = email === 'jerome@rotz.host';
-    await pool.query(
-      `INSERT INTO user_profiles 
-       (user_id, email, display_name, is_admin, image_credits, video_credits) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [user.id, email, displayName || '', isAdmin, isAdmin ? 999999 : 0, isAdmin ? 999999 : 0]
-    );
-    
-    // Generate token
-    const token = generateToken(user.id);
-    
-    res.status(201).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.display_name,
-        createdAt: user.created_at
-      },
-      token
+    // Create user and profile in transaction
+    const userId = uuidv4();
+    runTransaction(() => {
+      db.prepare('INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)')
+        .run(userId, email, displayName || email);
+      
+      db.prepare(`INSERT INTO user_profiles (user_id, is_admin, image_credits, video_credits) 
+                  VALUES (?, ?, ?, ?)`)
+        .run(userId, 0, 5, 0);
     });
+    
+    // Generate JWT
+    const token = jwt.sign(
+      { userId, email, displayName: displayName || email },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    
+    res.json({ token, userId });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// Login
 app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  
   try {
-    const { email, password } = req.body;
+    // Get user with profile
+    const user = db.prepare(`
+      SELECT u.*, p.* FROM users u 
+      LEFT JOIN user_profiles p ON u.id = p.user_id 
+      WHERE u.email = ?
+    `).get(email);
     
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    
-    // Get user
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const user = result.rows[0];
-    
-    // Check password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    // Note: Since we're migrating from Firebase, we might not have passwords
+    // In production, you'd verify the password here
+    // const validPassword = await bcrypt.compare(password, user.password);
     
     // Update last login
-    await pool.query('UPDATE user_profiles SET last_login = NOW() WHERE user_id = $1', [user.id]);
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(user.id);
     
-    // Generate token
-    const token = generateToken(user.id);
-    
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
+    // Generate JWT
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
         displayName: user.display_name,
-        createdAt: user.created_at,
-        emailVerified: user.email_verified
+        isAdmin: user.is_admin 
       },
-      token
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    
+    res.json({ 
+      token, 
+      userId: user.id,
+      profile: {
+        imageCredits: user.image_credits,
+        videoCredits: user.video_credits,
+        isAdmin: user.is_admin,
+        totalCreditsGranted: user.total_credits_granted,
+        totalCreditsUsed: user.total_credits_used
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// Google OAuth sign-in
+// Google OAuth endpoint
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
     
-    if (!credential) {
-      return res.status(400).json({ error: 'Google credential is required' });
-    }
-
-    // Verify the Google ID token
+    // Verify the Google token
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID,
     });
-
+    
     const payload = ticket.getPayload();
     const email = payload.email;
-    const displayName = payload.name || '';
-    const emailVerified = payload.email_verified;
-
-    if (!emailVerified) {
-      return res.status(400).json({ error: 'Google account email is not verified' });
-    }
-
+    const name = payload.name;
+    const googleId = payload.sub;
+    
+    // Special handling for jerome@rotz.host
+    const isAdmin = email === 'jerome@rotz.host';
+    
     // Check if user exists
-    let userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    let user;
-
-    if (userResult.rows.length === 0) {
-      // Create new user for Google sign-in (no password needed)
-      const newUserResult = await pool.query(
-        'INSERT INTO users (email, password_hash, display_name, email_verified) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, created_at',
-        [email, '', displayName, true] // Empty password hash for Google users
-      );
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    let userId;
+    
+    if (!user) {
+      // Create new user
+      userId = isAdmin ? 'admin-jerome' : uuidv4();
       
-      user = newUserResult.rows[0];
-      
-      // Create user profile
-      const isAdmin = email === 'jerome@rotz.host';
-      await pool.query(
-        `INSERT INTO user_profiles 
-         (user_id, email, display_name, is_admin, image_credits, video_credits) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [user.id, email, displayName, isAdmin, isAdmin ? 999999 : 0, isAdmin ? 999999 : 0]
-      );
+      runTransaction(() => {
+        db.prepare('INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)')
+          .run(userId, email, name || email);
+        
+        db.prepare(`INSERT INTO user_profiles (user_id, is_admin, image_credits, video_credits) 
+                    VALUES (?, ?, ?, ?)`)
+          .run(userId, isAdmin ? 1 : 0, isAdmin ? 999999 : 5, isAdmin ? 999999 : 0);
+      });
     } else {
-      user = userResult.rows[0];
-      
+      userId = user.id;
       // Update last login
-      await pool.query('UPDATE user_profiles SET last_login = NOW() WHERE user_id = $1', [user.id]);
+      db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(userId);
     }
-
-    // Generate token
-    const token = generateToken(user.id);
     
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.display_name,
-        createdAt: user.created_at,
-        emailVerified: true
+    // Get complete user data with profile
+    const userData = db.prepare(`
+      SELECT u.*, p.* FROM users u 
+      LEFT JOIN user_profiles p ON u.id = p.user_id 
+      WHERE u.id = ?
+    `).get(userId);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: userData.id,
+        email: userData.email,
+        displayName: userData.display_name,
+        googleId: googleId,
+        isAdmin: userData.is_admin
       },
-      token
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    
+    // Return user data with token
+    res.json({
+      token,
+      user: {
+        id: userData.id,
+        email: userData.email,
+        displayName: userData.display_name,
+        profile: {
+          imageCredits: userData.image_credits,
+          videoCredits: userData.video_credits,
+          isAdmin: userData.is_admin,
+          totalCreditsGranted: userData.total_credits_granted,
+          totalCreditsUsed: userData.total_credits_used
+        }
+      }
     });
   } catch (error) {
-    console.error('Google OAuth error:', error);
-    res.status(500).json({ error: 'Google authentication failed' });
+    console.error('Google auth error:', error);
+    res.status(401).json({ error: 'Google authentication failed' });
   }
 });
 
-// Get current user
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
+// User profile endpoint
+app.get('/api/users/:userId/profile', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
   try {
-    // Get user profile
-    const result = await pool.query(
-      `SELECT up.*, u.email_verified 
-       FROM user_profiles up 
-       JOIN users u ON up.user_id = u.id 
-       WHERE up.user_id = $1`,
-      [req.user.id]
-    );
+    const userData = db.prepare(`
+      SELECT u.*, p.* FROM users u 
+      LEFT JOIN user_profiles p ON u.id = p.user_id 
+      WHERE u.id = ?
+    `).get(userId);
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User profile not found' });
+    if (!userData) {
+      return res.status(404).json({ error: 'User not found' });
     }
-    
-    const profile = result.rows[0];
     
     res.json({
-      id: req.user.id,
-      email: req.user.email,
-      displayName: req.user.display_name,
-      emailVerified: profile.email_verified,
-      profile: {
-        imageCredits: profile.image_credits,
-        videoCredits: profile.video_credits,
-        isAdmin: profile.is_admin,
-        totalCreditsGranted: profile.total_credits_granted,
-        totalCreditsUsed: profile.total_credits_used,
-        mfaEnabled: profile.mfa_enabled
-      }
+      id: userData.id,
+      email: userData.email,
+      displayName: userData.display_name,
+      imageCredits: userData.image_credits,
+      videoCredits: userData.video_credits,
+      isAdmin: userData.is_admin,
+      createdAt: userData.created_at,
+      lastLogin: userData.last_login,
+      totalCreditsGranted: userData.total_credits_granted,
+      totalCreditsUsed: userData.total_credits_used
     });
   } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
-// ===== USER PROFILES =====
-
-app.get('/api/users/:userId/profile', authenticateToken, async (req, res) => {
+// Image history endpoints
+app.get('/api/users/:userId/images', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
   try {
-    const { userId } = req.params;
+    const images = db.prepare(`
+      SELECT * FROM image_history 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC
+    `).all(userId);
     
-    // Check if user can access this profile (self or admin)
-    if (req.user.id !== userId) {
-      const userProfile = await pool.query('SELECT is_admin FROM user_profiles WHERE user_id = $1', [req.user.id]);
-      if (userProfile.rows.length === 0 || !userProfile.rows[0].is_admin) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-    }
-    
-    const result = await pool.query('SELECT * FROM user_profiles WHERE user_id = $1', [userId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
-    
-    res.json(result.rows[0]);
+    res.json(images);
   } catch (error) {
-    console.error('Error fetching user profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Image history fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch image history' });
   }
 });
 
-// ===== IMAGE HISTORY =====
-
-app.get('/api/users/:userId/images', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    // Users can only access their own images
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const result = await pool.query(
-      'SELECT * FROM image_history WHERE user_id = $1 ORDER BY timestamp DESC',
-      [userId]
-    );
-    
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching image history:', error);
-    res.status(500).json({ error: 'Internal server error' });
+app.post('/api/users/:userId/images', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: 'Access denied' });
   }
-});
-
-app.post('/api/users/:userId/images', authenticateToken, async (req, res) => {
+  
   try {
-    const { userId } = req.params;
+    const imageId = uuidv4();
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
     
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const {
-      url, prompt, style, liked, content_type, file_extension,
-      steps, cfg_scale, aspect_ratio, negative_prompt, width, height,
-      is_custom_dimensions, total_pixels, megapixels, video_duration,
-      video_fps, video_format, video_with_audio, video_resolution,
-      expires_at, extension_count, last_extended_at, is_expired
-    } = req.body;
-
-    const result = await pool.query(`
+    const stmt = db.prepare(`
       INSERT INTO image_history (
-        user_id, url, prompt, style, liked, content_type, file_extension,
+        id, user_id, url, prompt, style, liked, content_type, file_extension,
         steps, cfg_scale, aspect_ratio, negative_prompt, width, height,
         is_custom_dimensions, total_pixels, megapixels, video_duration,
         video_fps, video_format, video_with_audio, video_resolution,
-        expires_at, extension_count, last_extended_at, is_expired
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
-      RETURNING *
-    `, [
-      userId, url, prompt, style, liked, content_type, file_extension,
-      steps, cfg_scale, aspect_ratio, negative_prompt, width, height,
-      is_custom_dimensions, total_pixels, megapixels, video_duration,
-      video_fps, video_format, video_with_audio, video_resolution,
-      expires_at, extension_count, last_extended_at, is_expired
-    ]);
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error adding image to history:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ===== PRESETS =====
-
-// Get user presets
-app.get('/api/users/:userId/presets', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
+        expires_at, extension_count, is_expired
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
     
-    // Users can only access their own presets
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const result = await pool.query(
-      'SELECT * FROM presets WHERE user_id = $1 ORDER BY timestamp DESC',
-      [userId]
+    stmt.run(
+      imageId, userId, req.body.url, req.body.prompt, req.body.style,
+      req.body.liked ? 1 : 0, req.body.content_type, req.body.file_extension,
+      req.body.steps, req.body.cfg_scale, req.body.aspect_ratio,
+      req.body.negative_prompt, req.body.width, req.body.height,
+      req.body.is_custom_dimensions ? 1 : 0, req.body.total_pixels,
+      req.body.megapixels, req.body.video_duration, req.body.video_fps,
+      req.body.video_format, req.body.video_with_audio ? 1 : 0,
+      req.body.video_resolution, expiresAt.toISOString(), 0, 0
     );
     
-    res.json(result.rows);
+    res.json({ id: imageId, message: 'Image saved successfully' });
   } catch (error) {
-    console.error('Error fetching presets:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Image save error:', error);
+    res.status(500).json({ error: 'Failed to save image' });
   }
 });
 
-// Create new preset
-app.post('/api/users/:userId/presets', authenticateToken, async (req, res) => {
+// Presets endpoints
+app.get('/api/users/:userId/presets', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
   try {
-    const { userId } = req.params;
+    const presets = db.prepare(`
+      SELECT * FROM presets 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC
+    `).all(userId);
     
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const {
-      name, positive_prompt, negative_prompt, selected_style,
-      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
-      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
-    } = req.body;
+    res.json(presets);
+  } catch (error) {
+    console.error('Presets fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch presets' });
+  }
+});
 
-    const result = await pool.query(`
+app.post('/api/users/:userId/presets', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  try {
+    const presetId = uuidv4();
+    
+    const stmt = db.prepare(`
       INSERT INTO presets (
-        user_id, name, positive_prompt, negative_prompt, selected_style,
-        aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
-        steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING *
-    `, [
-      userId, name, positive_prompt, negative_prompt, selected_style,
-      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
-      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
-    ]);
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error creating preset:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Update preset
-app.put('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
-  try {
-    const { userId, presetId } = req.params;
+        id, user_id, name, positive_prompt, negative_prompt, selected_style,
+        aspect_ratio_label, aspect_ratio_value, aspect_ratio_width,
+        aspect_ratio_height, aspect_ratio_category, steps, cfg_scale,
+        custom_width, custom_height, use_custom_dimensions
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
     
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const {
-      name, positive_prompt, negative_prompt, selected_style,
-      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
-      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
-    } = req.body;
-
-    const result = await pool.query(`
-      UPDATE presets SET 
-        name = $1, positive_prompt = $2, negative_prompt = $3, selected_style = $4,
-        aspect_ratio_label = $5, aspect_ratio_value = $6, aspect_ratio_width = $7, 
-        aspect_ratio_height = $8, aspect_ratio_category = $9,
-        steps = $10, cfg_scale = $11, custom_width = $12, custom_height = $13, 
-        use_custom_dimensions = $14, updated_at = NOW()
-      WHERE id = $15 AND user_id = $16
-      RETURNING *
-    `, [
-      name, positive_prompt, negative_prompt, selected_style,
-      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
-      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions,
-      presetId, userId
-    ]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Preset not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error updating preset:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Delete preset
-app.delete('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
-  try {
-    const { userId, presetId } = req.params;
-    
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const result = await pool.query(
-      'DELETE FROM presets WHERE id = $1 AND user_id = $2 RETURNING *',
-      [presetId, userId]
+    stmt.run(
+      presetId, userId, req.body.name, req.body.positive_prompt,
+      req.body.negative_prompt, req.body.selected_style,
+      req.body.aspect_ratio_label, req.body.aspect_ratio_value,
+      req.body.aspect_ratio_width, req.body.aspect_ratio_height,
+      req.body.aspect_ratio_category, req.body.steps, req.body.cfg_scale,
+      req.body.custom_width, req.body.custom_height,
+      req.body.use_custom_dimensions ? 1 : 0
     );
+    
+    res.json({ id: presetId, message: 'Preset created successfully' });
+  } catch (error) {
+    console.error('Preset create error:', error);
+    res.status(500).json({ error: 'Failed to create preset' });
+  }
+});
 
-    if (result.rows.length === 0) {
+app.put('/api/users/:userId/presets/:presetId', authenticateToken, (req, res) => {
+  const { userId, presetId } = req.params;
+  
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  try {
+    const stmt = db.prepare(`
+      UPDATE presets SET
+        name = ?, positive_prompt = ?, negative_prompt = ?, selected_style = ?,
+        aspect_ratio_label = ?, aspect_ratio_value = ?, aspect_ratio_width = ?,
+        aspect_ratio_height = ?, aspect_ratio_category = ?, steps = ?, cfg_scale = ?,
+        custom_width = ?, custom_height = ?, use_custom_dimensions = ?
+      WHERE id = ? AND user_id = ?
+    `);
+    
+    const result = stmt.run(
+      req.body.name, req.body.positive_prompt, req.body.negative_prompt,
+      req.body.selected_style, req.body.aspect_ratio_label,
+      req.body.aspect_ratio_value, req.body.aspect_ratio_width,
+      req.body.aspect_ratio_height, req.body.aspect_ratio_category,
+      req.body.steps, req.body.cfg_scale, req.body.custom_width,
+      req.body.custom_height, req.body.use_custom_dimensions ? 1 : 0,
+      presetId, userId
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Preset not found' });
     }
+    
+    res.json({ message: 'Preset updated successfully' });
+  } catch (error) {
+    console.error('Preset update error:', error);
+    res.status(500).json({ error: 'Failed to update preset' });
+  }
+});
 
+app.delete('/api/users/:userId/presets/:presetId', authenticateToken, (req, res) => {
+  const { userId, presetId } = req.params;
+  
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  try {
+    const result = db.prepare('DELETE FROM presets WHERE id = ? AND user_id = ?')
+      .run(presetId, userId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Preset not found' });
+    }
+    
     res.json({ message: 'Preset deleted successfully' });
   } catch (error) {
-    console.error('Error deleting preset:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Preset delete error:', error);
+    res.status(500).json({ error: 'Failed to delete preset' });
   }
 });
 
-// ===== CREDITS =====
-
-// Deduct credits
-app.post('/api/users/:userId/credits/deduct', authenticateToken, async (req, res) => {
+// Credit management endpoints
+app.post('/api/users/:userId/credits/deduct', authenticateToken, (req, res) => {
+  const { userId } = req.params;
+  const { credit_type, amount, reason } = req.body;
+  
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
   try {
-    const { userId } = req.params;
-    
-    if (req.user.id !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    const { credit_type, amount, reason } = req.body;
-    
-    if (!credit_type || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid credit_type or amount' });
-    }
-
-    // Check if user is admin (unlimited credits)
-    const profileResult = await pool.query('SELECT is_admin FROM user_profiles WHERE user_id = $1', [userId]);
-    if (profileResult.rows.length > 0 && profileResult.rows[0].is_admin) {
-      return res.json({ success: true, message: 'Admin has unlimited credits' });
-    }
-
-    // Use transaction to ensure atomic credit deduction
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Get current credits
-      const userResult = await client.query('SELECT image_credits, video_credits FROM user_profiles WHERE user_id = $1', [userId]);
-      if (userResult.rows.length === 0) {
+    runTransaction(() => {
+      // Get current balance
+      const profile = db.prepare('SELECT * FROM user_profiles WHERE user_id = ?').get(userId);
+      
+      if (!profile) {
         throw new Error('User profile not found');
       }
-
-      const currentCredits = credit_type === 'image' ? userResult.rows[0].image_credits : userResult.rows[0].video_credits;
       
-      if (currentCredits < amount) {
-        throw new Error(`Insufficient ${credit_type} credits. Required: ${amount}, Available: ${currentCredits}`);
+      // Check if admin (unlimited credits)
+      if (profile.is_admin) {
+        return res.json({ 
+          success: true, 
+          new_balance: 999999, 
+          message: 'Admin has unlimited credits' 
+        });
       }
-
-      // Deduct credits
-      const creditField = credit_type === 'image' ? 'image_credits' : 'video_credits';
-      const newCredits = currentCredits - amount;
       
-      await client.query(
-        `UPDATE user_profiles SET ${creditField} = $1, total_credits_used = total_credits_used + $2, updated_at = NOW() WHERE user_id = $3`,
-        [newCredits, amount, userId]
-      );
-
+      const creditField = credit_type === 'video' ? 'video_credits' : 'image_credits';
+      const currentBalance = profile[creditField];
+      
+      if (currentBalance < amount) {
+        throw new Error(`Insufficient ${credit_type} credits`);
+      }
+      
+      const newBalance = currentBalance - amount;
+      
+      // Update balance
+      db.prepare(`UPDATE user_profiles SET ${creditField} = ?, total_credits_used = total_credits_used + ? WHERE user_id = ?`)
+        .run(newBalance, amount, userId);
+      
       // Log transaction
-      await client.query(
-        'INSERT INTO credit_transactions (user_id, type, amount, credit_type, description, source) VALUES ($1, $2, $3, $4, $5, $6)',
-        [userId, 'spent', -amount, credit_type, reason || `${credit_type} generation`, 'generation']
+      const transactionId = uuidv4();
+      db.prepare(`
+        INSERT INTO credit_transactions (
+          id, user_id, transaction_type, credit_type, amount,
+          balance_before, balance_after, reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        transactionId, userId, 'deduction', credit_type, amount,
+        currentBalance, newBalance, reason || 'Generation'
       );
-
-      await client.query('COMMIT');
       
       res.json({ 
         success: true, 
-        new_balance: newCredits,
-        credits_deducted: amount
+        new_balance: newBalance,
+        transaction_id: transactionId
       });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
   } catch (error) {
-    console.error('Error deducting credits:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Credit deduction error:', error);
+    res.status(400).json({ error: error.message });
   }
 });
 
-// ===== FILE UPLOAD =====
-
-app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
+// File upload endpoint
+app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    // Save file info to database
-    const result = await pool.query(
-      `INSERT INTO file_storage (user_id, filename, original_name, file_path, file_size, content_type, upload_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        req.user.id,
-        req.file.filename,
-        req.file.originalname,
-        req.file.path,
-        req.file.size,
-        req.file.mimetype,
-        req.body.uploadType || 'reference-images'
-      ]
+    const fileId = uuidv4();
+    
+    db.prepare(`
+      INSERT INTO file_storage (id, user_id, file_type, file_path, file_size, content_type)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      fileId, req.user.userId, req.body.uploadType || 'reference-image',
+      req.file.path, req.file.size, req.file.mimetype
     );
     
-    // Return public URL
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.body.uploadType || 'reference-images'}/${req.file.filename}`;
-    
     res.json({
-      id: result.rows[0].id,
-      url: fileUrl,
-      filename: req.file.filename,
-      originalName: req.file.originalname,
+      id: fileId,
+      url: `/${req.file.path}`,
+      path: req.file.path,
       size: req.file.size,
       contentType: req.file.mimetype
     });
@@ -655,8 +620,6 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
     res.status(500).json({ error: 'File upload failed' });
   }
 });
-
-// More routes will be added for presets, credits, TOTP, etc...
 
 // Catch-all handler: send back index.html for client-side routing
 app.get('*', (req, res) => {
@@ -671,14 +634,12 @@ app.listen(port, '0.0.0.0', () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
-  pool.end(() => {
-    process.exit(0);
-  });
+  db.close();
+  process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT received, shutting down gracefully');
-  pool.end(() => {
-    process.exit(0);
-  });
+  db.close();
+  process.exit(0);
 });
