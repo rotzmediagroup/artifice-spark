@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { TOTPVerification } from "./TOTPVerification";
-import { Mail, Lock, User, Chrome } from "lucide-react";
+import { GoogleSignInButton } from "./GoogleSignInButton";
+import { Mail, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 
 interface AuthModalProps {
@@ -16,7 +17,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
-  const { signIn, signUp, signInWithGoogle, requiresMFA, completeMFASignIn, cancelMFASignIn } = useAuth();
+  const { signIn, signUp, requiresMFA, completeMFASignIn, cancelMFASignIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [signInForm, setSignInForm] = useState({ email: "", password: "" });
   const [signUpForm, setSignUpForm] = useState({ 
@@ -77,20 +78,6 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-      // Don't close the modal yet - MFA might be required
-      if (!requiresMFA) {
-        onOpenChange(false);
-      }
-    } catch (error) {
-      // Error is handled in the context
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleMFASuccess = () => {
     completeMFASignIn();
@@ -119,17 +106,12 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
           <TabsContent value="signin" className="space-y-4">
             <div className="text-center mb-4">
-              <Button
-                variant="outline"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full mb-4 flex items-center gap-2"
-              >
-                <Chrome className="h-4 w-4" />
-                Continue with Google
-              </Button>
+              <GoogleSignInButton 
+                onSuccess={() => onOpenChange(false)}
+                onError={(error) => toast.error(error.message)}
+              />
               
-              <div className="relative">
+              <div className="relative mt-4">
                 <div className="absolute inset-0 flex items-center">
                   <Separator className="w-full" />
                 </div>
@@ -184,17 +166,12 @@ export default function AuthModal({ open, onOpenChange }: AuthModalProps) {
 
           <TabsContent value="signup" className="space-y-4">
             <div className="text-center mb-4">
-              <Button
-                variant="outline"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full mb-4 flex items-center gap-2"
-              >
-                <Chrome className="h-4 w-4" />
-                Continue with Google
-              </Button>
+              <GoogleSignInButton 
+                onSuccess={() => onOpenChange(false)}
+                onError={(error) => toast.error(error.message)}
+              />
               
-              <div className="relative">
+              <div className="relative mt-4">
                 <div className="absolute inset-0 flex items-center">
                   <Separator className="w-full" />
                 </div>

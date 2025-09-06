@@ -177,62 +177,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Global callback for Google Sign-In (must be accessible from window)
+  const handleGoogleCredential = async (response: any) => {
+    try {
+      // Send the credential to our backend
+      const authResponse = await apiCall('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential: response.credential })
+      });
+
+      if (authResponse.ok) {
+        const { user: userData, token } = await authResponse.json();
+        setToken(token);
+        
+        // Get full user profile
+        const profileResponse = await apiCall('/auth/me');
+        if (profileResponse.ok) {
+          const fullUserData = await profileResponse.json();
+          setUser(fullUserData);
+          toast.success('Welcome back!');
+        } else {
+          throw new Error('Failed to load user profile');
+        }
+      } else {
+        const errorData = await authResponse.json();
+        throw new Error(errorData.error || 'Google sign-in failed');
+      }
+    } catch (error: unknown) {
+      console.error('Google sign-in error:', error);
+      toast.error(error instanceof Error ? error.message : 'Google sign-in failed');
+      throw error;
+    }
+  };
+
   const signInWithGoogle = async () => {
     try {
       // Check if Google Identity Services is loaded
       if (typeof window.google === 'undefined') {
+        toast.error('Google Sign-In is loading, please try again in a moment');
         throw new Error('Google Identity Services not loaded');
       }
 
-      // Initialize Google Sign-In
-      return new Promise<void>((resolve, reject) => {
-        window.google.accounts.id.initialize({
-          client_id: '1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com',
-          callback: async (response: any) => {
-            try {
-              // Send the credential to our backend
-              const authResponse = await apiCall('/auth/google', {
-                method: 'POST',
-                body: JSON.stringify({ credential: response.credential })
-              });
+      // Set the callback on window so Google can call it
+      (window as any).handleGoogleCredential = handleGoogleCredential;
 
-              if (authResponse.ok) {
-                const { user: userData, token } = await authResponse.json();
-                setToken(token);
-                
-                // Get full user profile
-                const profileResponse = await apiCall('/auth/me');
-                if (profileResponse.ok) {
-                  const fullUserData = await profileResponse.json();
-                  setUser(fullUserData);
-                  toast.success('Welcome back!');
-                  resolve();
-                } else {
-                  throw new Error('Failed to load user profile');
-                }
-              } else {
-                const errorData = await authResponse.json();
-                throw new Error(errorData.error || 'Google sign-in failed');
-              }
-            } catch (error: unknown) {
-              console.error('Google sign-in error:', error);
-              toast.error(error instanceof Error ? error.message : 'Google sign-in failed');
-              reject(error);
-            }
-          },
-        });
-
-        // Prompt the user to sign in
-        window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Fallback to popup if prompt fails
-            window.google.accounts.id.renderButton(
-              document.createElement('div'),
-              { theme: 'outline', size: 'large' }
-            );
-          }
-        });
+      // Initialize Google Sign-In with our callback
+      window.google.accounts.id.initialize({
+        client_id: '1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com',
+        callback: handleGoogleCredential
       });
+
+      // Show the Google Sign-In popup
+      window.google.accounts.id.prompt();
     } catch (error: unknown) {
       console.error('Google sign-in error:', error);
       toast.error(error instanceof Error ? error.message : 'Google sign-in failed');
