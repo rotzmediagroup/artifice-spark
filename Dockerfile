@@ -17,6 +17,9 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+# Remove default nginx configs to prevent conflicts
+RUN rm -rf /etc/nginx/conf.d/*
+
 # Copy built application
 COPY --from=builder /app/dist /usr/share/nginx/html
 
@@ -24,11 +27,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx-standalone.conf /etc/nginx/nginx.conf
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8888
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8888/health || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
