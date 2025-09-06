@@ -14,24 +14,23 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage - Use a simple Node server instead of nginx
+FROM node:18-alpine
 
-# Remove default nginx configs to prevent conflicts
-RUN rm -rf /etc/nginx/conf.d/*
+WORKDIR /app
+
+# Install serve to host the static files
+RUN npm install -g serve
 
 # Copy built application
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy standalone nginx configuration (without API proxy)
-COPY nginx-standalone.conf /etc/nginx/nginx.conf
+COPY --from=builder /app/dist ./dist
 
 # Expose port
 EXPOSE 8888
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8888/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8888 || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start the server
+CMD ["serve", "-s", "dist", "-l", "8888"]
