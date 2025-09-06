@@ -23,16 +23,9 @@ COPY . .
 ENV NODE_ENV=production
 RUN npm run build
 
-# Copy and install API dependencies
-COPY ./api/package*.json /app/api/
+# Install API dependencies (files already copied by COPY . .)
 WORKDIR /app/api
 RUN npm ci --only=production || npm install --production
-
-# Copy API source code
-COPY ./api/ /app/api/
-
-# Copy database schema
-COPY ./database/schema.sql /app/database/
 
 # Create uploads directory for file storage
 RUN mkdir -p uploads/reference-images uploads/generated-content
