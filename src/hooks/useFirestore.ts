@@ -163,9 +163,16 @@ export const useFirestore = () => {
           setImageHistory([]);
         }
 
-        // Load presets - we'll need to add this endpoint to our API
-        // For now, we'll leave presets empty until we implement the endpoint
-        setPresets([]);
+        // Load presets
+        const presetsResponse = await apiCall(`/users/${user.id}/presets`);
+        if (presetsResponse.ok) {
+          const presetsData = await presetsResponse.json();
+          const presets = presetsData.map(convertPresetData);
+          setPresets(presets);
+        } else {
+          console.error('Error loading presets:', await presetsResponse.text());
+          setPresets([]);
+        }
 
       } catch (error) {
         console.error('Error loading data:', error);
@@ -245,20 +252,107 @@ export const useFirestore = () => {
     console.warn('deleteImageFromHistory not implemented for PostgreSQL yet');
   };
 
-  // Preset operations (placeholders until we implement presets API endpoints)
+  // Preset operations
   const addPreset = async (presetData: Omit<PresetData, 'id'>) => {
     if (!user) return;
-    console.warn('addPreset not implemented for PostgreSQL yet');
+    
+    try {
+      const response = await apiCall(`/users/${user.id}/presets`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: presetData.name,
+          positive_prompt: presetData.positivePrompt,
+          negative_prompt: presetData.negativePrompt,
+          selected_style: presetData.selectedStyle,
+          aspect_ratio_label: presetData.aspectRatio.label,
+          aspect_ratio_value: presetData.aspectRatio.value,
+          aspect_ratio_width: presetData.aspectRatio.width,
+          aspect_ratio_height: presetData.aspectRatio.height,
+          aspect_ratio_category: presetData.aspectRatio.category,
+          steps: presetData.steps,
+          cfg_scale: presetData.cfgScale,
+          custom_width: presetData.customWidth,
+          custom_height: presetData.customHeight,
+          use_custom_dimensions: presetData.useCustomDimensions
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Reload presets to get the new one
+      const presetsResponse = await apiCall(`/users/${user.id}/presets`);
+      if (presetsResponse.ok) {
+        const presetsData = await presetsResponse.json();
+        const presets = presetsData.map(convertPresetData);
+        setPresets(presets);
+      }
+    } catch (error) {
+      console.error('Error adding preset:', error);
+      throw error;
+    }
   };
 
   const updatePreset = async (presetId: string, updates: Partial<PresetData>) => {
     if (!user) return;
-    console.warn('updatePreset not implemented for PostgreSQL yet');
+    
+    try {
+      const response = await apiCall(`/users/${user.id}/presets/${presetId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: updates.name,
+          positive_prompt: updates.positivePrompt,
+          negative_prompt: updates.negativePrompt,
+          selected_style: updates.selectedStyle,
+          aspect_ratio_label: updates.aspectRatio?.label,
+          aspect_ratio_value: updates.aspectRatio?.value,
+          aspect_ratio_width: updates.aspectRatio?.width,
+          aspect_ratio_height: updates.aspectRatio?.height,
+          aspect_ratio_category: updates.aspectRatio?.category,
+          steps: updates.steps,
+          cfg_scale: updates.cfgScale,
+          custom_width: updates.customWidth,
+          custom_height: updates.customHeight,
+          use_custom_dimensions: updates.useCustomDimensions
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Reload presets
+      const presetsResponse = await apiCall(`/users/${user.id}/presets`);
+      if (presetsResponse.ok) {
+        const presetsData = await presetsResponse.json();
+        const presets = presetsData.map(convertPresetData);
+        setPresets(presets);
+      }
+    } catch (error) {
+      console.error('Error updating preset:', error);
+      throw error;
+    }
   };
 
   const deletePreset = async (presetId: string) => {
     if (!user) return;
-    console.warn('deletePreset not implemented for PostgreSQL yet');
+    
+    try {
+      const response = await apiCall(`/users/${user.id}/presets/${presetId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Remove from local state
+      setPresets(prev => prev.filter(p => p.id !== presetId));
+    } catch (error) {
+      console.error('Error deleting preset:', error);
+      throw error;
+    }
   };
 
   // Migration function from localStorage (keeping for backward compatibility)

@@ -98,21 +98,33 @@ export const useCredits = () => {
     }
 
     try {
-      // This would require implementing credit deduction endpoint in our API
-      console.warn('Credit deduction not fully implemented for PostgreSQL yet');
-      
-      // For now, just update local state optimistically
-      if (creditType === 'image') {
-        setImageCredits(prev => Math.max(0, prev - amount));
+      // Call the credit deduction API
+      const response = await apiCall(`/users/${user.id}/credits/deduct`, {
+        method: 'POST',
+        body: JSON.stringify({
+          credit_type: creditType,
+          amount: amount,
+          reason: `${creditType} generation`
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Update local state with new balance
+        if (creditType === 'image') {
+          setImageCredits(result.new_balance);
+        } else {
+          setVideoCredits(result.new_balance);
+        }
+        console.log(`Credits deducted successfully: ${amount} ${creditType} credits used`);
+        return true;
       } else {
-        setVideoCredits(prev => Math.max(0, prev - amount));
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Credit deduction failed');
       }
-      
-      console.log(`Credits deducted locally: ${amount} ${creditType} credits used`);
-      return true;
     } catch (error) {
       console.error('Error deducting credits:', error);
-      toast.error('Failed to deduct credits. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to deduct credits');
       throw error;
     }
   };

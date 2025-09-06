@@ -413,6 +413,206 @@ app.post('/api/users/:userId/images', authenticateToken, async (req, res) => {
   }
 });
 
+// ===== PRESETS =====
+
+// Get user presets
+app.get('/api/users/:userId/presets', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Users can only access their own presets
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM presets WHERE user_id = $1 ORDER BY timestamp DESC',
+      [userId]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching presets:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create new preset
+app.post('/api/users/:userId/presets', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const {
+      name, positive_prompt, negative_prompt, selected_style,
+      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
+      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
+    } = req.body;
+
+    const result = await pool.query(`
+      INSERT INTO presets (
+        user_id, name, positive_prompt, negative_prompt, selected_style,
+        aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
+        steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *
+    `, [
+      userId, name, positive_prompt, negative_prompt, selected_style,
+      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
+      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
+    ]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating preset:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update preset
+app.put('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
+  try {
+    const { userId, presetId } = req.params;
+    
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const {
+      name, positive_prompt, negative_prompt, selected_style,
+      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
+      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions
+    } = req.body;
+
+    const result = await pool.query(`
+      UPDATE presets SET 
+        name = $1, positive_prompt = $2, negative_prompt = $3, selected_style = $4,
+        aspect_ratio_label = $5, aspect_ratio_value = $6, aspect_ratio_width = $7, 
+        aspect_ratio_height = $8, aspect_ratio_category = $9,
+        steps = $10, cfg_scale = $11, custom_width = $12, custom_height = $13, 
+        use_custom_dimensions = $14, updated_at = NOW()
+      WHERE id = $15 AND user_id = $16
+      RETURNING *
+    `, [
+      name, positive_prompt, negative_prompt, selected_style,
+      aspect_ratio_label, aspect_ratio_value, aspect_ratio_width, aspect_ratio_height, aspect_ratio_category,
+      steps, cfg_scale, custom_width, custom_height, use_custom_dimensions,
+      presetId, userId
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Preset not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating preset:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete preset
+app.delete('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
+  try {
+    const { userId, presetId } = req.params;
+    
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const result = await pool.query(
+      'DELETE FROM presets WHERE id = $1 AND user_id = $2 RETURNING *',
+      [presetId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Preset not found' });
+    }
+
+    res.json({ message: 'Preset deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting preset:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== CREDITS =====
+
+// Deduct credits
+app.post('/api/users/:userId/credits/deduct', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { credit_type, amount, reason } = req.body;
+    
+    if (!credit_type || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid credit_type or amount' });
+    }
+
+    // Check if user is admin (unlimited credits)
+    const profileResult = await pool.query('SELECT is_admin FROM user_profiles WHERE user_id = $1', [userId]);
+    if (profileResult.rows.length > 0 && profileResult.rows[0].is_admin) {
+      return res.json({ success: true, message: 'Admin has unlimited credits' });
+    }
+
+    // Use transaction to ensure atomic credit deduction
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Get current credits
+      const userResult = await client.query('SELECT image_credits, video_credits FROM user_profiles WHERE user_id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        throw new Error('User profile not found');
+      }
+
+      const currentCredits = credit_type === 'image' ? userResult.rows[0].image_credits : userResult.rows[0].video_credits;
+      
+      if (currentCredits < amount) {
+        throw new Error(`Insufficient ${credit_type} credits. Required: ${amount}, Available: ${currentCredits}`);
+      }
+
+      // Deduct credits
+      const creditField = credit_type === 'image' ? 'image_credits' : 'video_credits';
+      const newCredits = currentCredits - amount;
+      
+      await client.query(
+        `UPDATE user_profiles SET ${creditField} = $1, total_credits_used = total_credits_used + $2, updated_at = NOW() WHERE user_id = $3`,
+        [newCredits, amount, userId]
+      );
+
+      // Log transaction
+      await client.query(
+        'INSERT INTO credit_transactions (user_id, type, amount, credit_type, description, source) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, 'spent', -amount, credit_type, reason || `${credit_type} generation`, 'generation']
+      );
+
+      await client.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        new_balance: newCredits,
+        credits_deducted: amount
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error deducting credits:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // ===== FILE UPLOAD =====
 
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
