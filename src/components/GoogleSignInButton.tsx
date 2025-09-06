@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface GoogleSignInButtonProps {
   onSuccess?: () => void;
@@ -8,7 +9,7 @@ interface GoogleSignInButtonProps {
 
 export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onSuccess, onError }) => {
   const buttonRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, handleGoogleCredential } = useAuth();
 
   useEffect(() => {
     // Don't render if user is already logged in
@@ -18,39 +19,16 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onSucces
     const initializeGoogleButton = () => {
       if (!window.google || !buttonRef.current) return;
 
-      // Set up the callback
+      // Set up the callback using the AuthContext method
       (window as any).handleGoogleSignIn = async (response: any) => {
         try {
-          // Get the credential token
-          const credential = response.credential;
-          
-          // Send to our backend API
-          const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
-          const token = localStorage.getItem('authToken');
-          
-          const authResponse = await fetch(`${API_BASE_URL}/auth/google`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token && { 'Authorization': `Bearer ${token}` }),
-            },
-            body: JSON.stringify({ credential })
-          });
-
-          if (authResponse.ok) {
-            const { user: userData, token: newToken } = await authResponse.json();
-            localStorage.setItem('authToken', newToken);
-            
-            // Reload the page to refresh the auth context
-            window.location.reload();
-            
-            if (onSuccess) onSuccess();
-          } else {
-            const errorData = await authResponse.json();
-            throw new Error(errorData.error || 'Google sign-in failed');
-          }
+          // Use the AuthContext Google credential handler
+          await handleGoogleCredential(response);
+          toast.success('Signed in successfully!');
+          if (onSuccess) onSuccess();
         } catch (error) {
           console.error('Google sign-in error:', error);
+          toast.error(error instanceof Error ? error.message : 'Google sign-in failed');
           if (onError) onError(error as Error);
         }
       };
@@ -91,10 +69,12 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onSucces
   if (user) return null;
 
   return (
-    <div 
-      ref={buttonRef} 
-      className="w-full flex justify-center"
-      style={{ minHeight: '40px' }}
-    />
+    <div className="w-full px-2 py-2">
+      <div 
+        ref={buttonRef} 
+        className="w-full flex justify-center"
+        style={{ minHeight: '40px' }}
+      />
+    </div>
   );
 };
