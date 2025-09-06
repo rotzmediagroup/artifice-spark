@@ -1,21 +1,4 @@
 import { useEffect, useState } from 'react';
-import {
-  collection,
-  doc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  DocumentData,
-  QuerySnapshot,
-  Timestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface GeneratedImageData {
@@ -74,69 +57,86 @@ export interface PresetData {
   useCustomDimensions?: boolean;
 }
 
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
+
 export const useFirestore = () => {
   const { user } = useAuth();
   const [imageHistory, setImageHistory] = useState<GeneratedImageData[]>([]);
   const [presets, setPresets] = useState<PresetData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Convert Firestore data to our format
-  const convertImageData = (doc: { id: string; data: () => Record<string, unknown> }): GeneratedImageData => {
-    const data = doc.data();
-    const timestamp = data.timestamp?.toDate() || new Date();
-    
-    // Calculate expiration for existing images (14 days from creation if not set)
-    let expiresAt = data.expiresAt?.toDate();
-    if (!expiresAt) {
-      expiresAt = new Date(timestamp);
-      expiresAt.setDate(expiresAt.getDate() + 14);
-    }
-    
-    // Check if image is expired
+  // API call helper with auth token
+  const apiCall = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    return fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  };
+
+  // Convert PostgreSQL data to our format
+  const convertImageData = (data: any): GeneratedImageData => {
+    const timestamp = new Date(data.timestamp || data.created_at);
+    const expiresAt = new Date(data.expires_at);
     const isExpired = expiresAt < new Date();
     
     return {
-      id: doc.id,
+      id: data.id,
       url: data.url,
       prompt: data.prompt,
       style: data.style,
       timestamp,
       liked: data.liked || false,
-      contentType: data.contentType || 'image', // Default to image for backward compatibility
-      fileExtension: data.fileExtension || '.png',
-      settings: data.settings || {
-        steps: 30,
-        cfgScale: 7,
-        aspectRatio: 'Square (1:1)', // Use the label format consistently
-        negativePrompt: '',
-        width: 1024,
-        height: 1024,
-        isCustomDimensions: false,
-        totalPixels: 1048576,
-        megapixels: 1.05
+      contentType: data.content_type || 'image',
+      fileExtension: data.file_extension || '.png',
+      settings: {
+        steps: data.steps || 30,
+        cfgScale: data.cfg_scale || 7,
+        aspectRatio: data.aspect_ratio || 'Square (1:1)',
+        negativePrompt: data.negative_prompt || '',
+        width: data.width || 1024,
+        height: data.height || 1024,
+        isCustomDimensions: data.is_custom_dimensions || false,
+        totalPixels: data.total_pixels || 1048576,
+        megapixels: data.megapixels || 1.05,
+        videoDuration: data.video_duration,
+        videoFps: data.video_fps,
+        videoFormat: data.video_format,
+        videoWithAudio: data.video_with_audio,
+        videoResolution: data.video_resolution
       },
-      // Auto-deletion fields
       expiresAt,
-      extensionCount: data.extensionCount || 0,
-      lastExtendedAt: data.lastExtendedAt?.toDate(),
+      extensionCount: data.extension_count || 0,
+      lastExtendedAt: data.last_extended_at ? new Date(data.last_extended_at) : undefined,
       isExpired
     };
   };
 
-  const convertPresetData = (doc: { id: string; data: () => Record<string, unknown> }): PresetData => ({
-    id: doc.id,
-    name: doc.data().name,
-    positivePrompt: doc.data().positivePrompt,
-    negativePrompt: doc.data().negativePrompt,
-    selectedStyle: doc.data().selectedStyle,
-    aspectRatio: doc.data().aspectRatio,
-    steps: doc.data().steps,
-    cfgScale: doc.data().cfgScale,
-    timestamp: doc.data().timestamp?.toDate() || new Date(),
-    // Enhanced dimension data with defaults
-    customWidth: doc.data().customWidth || 1024,
-    customHeight: doc.data().customHeight || 1024,
-    useCustomDimensions: doc.data().useCustomDimensions || false,
+  const convertPresetData = (data: any): PresetData => ({
+    id: data.id,
+    name: data.name,
+    positivePrompt: data.positive_prompt,
+    negativePrompt: data.negative_prompt,
+    selectedStyle: data.selected_style,
+    aspectRatio: {
+      label: data.aspect_ratio_label,
+      value: data.aspect_ratio_value,
+      width: data.aspect_ratio_width,
+      height: data.aspect_ratio_height,
+      category: data.aspect_ratio_category
+    },
+    steps: data.steps,
+    cfgScale: data.cfg_scale,
+    timestamp: new Date(data.timestamp || data.created_at),
+    customWidth: data.custom_width || 1024,
+    customHeight: data.custom_height || 1024,
+    useCustomDimensions: data.use_custom_dimensions || false,
   });
 
   // Load data when user changes
@@ -148,82 +148,83 @@ export const useFirestore = () => {
       return;
     }
 
-    setLoading(true);
-    let imagesLoaded = false;
-    let presetsLoaded = false;
+    const loadData = async () => {
+      setLoading(true);
+      
+      try {
+        // Load image history
+        const imagesResponse = await apiCall(`/users/${user.id}/images`);
+        if (imagesResponse.ok) {
+          const imagesData = await imagesResponse.json();
+          const images = imagesData.map(convertImageData);
+          setImageHistory(images);
+        } else {
+          console.error('Error loading image history:', await imagesResponse.text());
+          setImageHistory([]);
+        }
 
-    const checkAllLoaded = () => {
-      if (imagesLoaded && presetsLoaded) {
+        // Load presets - we'll need to add this endpoint to our API
+        // For now, we'll leave presets empty until we implement the endpoint
+        setPresets([]);
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setImageHistory([]);
+        setPresets([]);
+      } finally {
         setLoading(false);
       }
     };
 
-    // Subscribe to image history with error handling
-    const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
-    const imageHistoryQuery = query(imageHistoryRef, orderBy('timestamp', 'desc'));
-    
-    const unsubscribeImages = onSnapshot(
-      imageHistoryQuery, 
-      (snapshot) => {
-        const images = snapshot.docs.map(convertImageData);
-        setImageHistory(images);
-        imagesLoaded = true;
-        checkAllLoaded();
-      },
-      (error) => {
-        console.error('Error loading image history:', error);
-        setImageHistory([]);
-        imagesLoaded = true;
-        checkAllLoaded();
-      }
-    );
-
-    // Subscribe to presets with error handling
-    const presetsRef = collection(db, `users/${user.uid}/presets`);
-    const presetsQuery = query(presetsRef, orderBy('timestamp', 'desc'));
-    
-    const unsubscribePresets = onSnapshot(
-      presetsQuery, 
-      (snapshot) => {
-        const presetsData = snapshot.docs.map(convertPresetData);
-        setPresets(presetsData);
-        presetsLoaded = true;
-        checkAllLoaded();
-      },
-      (error) => {
-        console.error('Error loading presets:', error);
-        setPresets([]);
-        presetsLoaded = true;
-        checkAllLoaded();
-      }
-    );
-
-    // Set a timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      console.warn('Loading timeout reached, forcing completion');
-      setLoading(false);
-    }, 10000); // 10 second timeout
-
-    return () => {
-      unsubscribeImages();
-      unsubscribePresets();
-      clearTimeout(loadingTimeout);
-    };
-  }, [user, loading]);
+    loadData();
+  }, [user]);
 
   // Image history operations
   const addImageToHistory = async (imageData: Omit<GeneratedImageData, 'id'>) => {
     if (!user) return;
     
     try {
-      const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
-      await addDoc(imageHistoryRef, {
-        ...imageData,
-        timestamp: Timestamp.fromDate(imageData.timestamp),
-        expiresAt: Timestamp.fromDate(imageData.expiresAt),
-        lastExtendedAt: imageData.lastExtendedAt ? Timestamp.fromDate(imageData.lastExtendedAt) : null,
-        userId: user.uid
+      const response = await apiCall(`/users/${user.id}/images`, {
+        method: 'POST',
+        body: JSON.stringify({
+          url: imageData.url,
+          prompt: imageData.prompt,
+          style: imageData.style,
+          liked: imageData.liked,
+          content_type: imageData.contentType,
+          file_extension: imageData.fileExtension,
+          steps: imageData.settings.steps,
+          cfg_scale: imageData.settings.cfgScale,
+          aspect_ratio: imageData.settings.aspectRatio,
+          negative_prompt: imageData.settings.negativePrompt,
+          width: imageData.settings.width,
+          height: imageData.settings.height,
+          is_custom_dimensions: imageData.settings.isCustomDimensions,
+          total_pixels: imageData.settings.totalPixels,
+          megapixels: imageData.settings.megapixels,
+          video_duration: imageData.settings.videoDuration,
+          video_fps: imageData.settings.videoFps,
+          video_format: imageData.settings.videoFormat,
+          video_with_audio: imageData.settings.videoWithAudio,
+          video_resolution: imageData.settings.videoResolution,
+          expires_at: imageData.expiresAt.toISOString(),
+          extension_count: imageData.extensionCount,
+          last_extended_at: imageData.lastExtendedAt?.toISOString(),
+          is_expired: imageData.isExpired
+        })
       });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      // Reload data to get the new image
+      const imagesResponse = await apiCall(`/users/${user.id}/images`);
+      if (imagesResponse.ok) {
+        const imagesData = await imagesResponse.json();
+        const images = imagesData.map(convertImageData);
+        setImageHistory(images);
+      }
     } catch (error) {
       console.error('Error adding image to history:', error);
       throw error;
@@ -233,126 +234,37 @@ export const useFirestore = () => {
   const updateImageInHistory = async (imageId: string, updates: Partial<GeneratedImageData>) => {
     if (!user) return;
     
-    try {
-      const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
-      const updateData: Partial<GeneratedImageData> & { timestamp?: Timestamp } = { ...updates };
-      if (updates.timestamp) {
-        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
-      }
-      await updateDoc(imageRef, updateData);
-    } catch (error) {
-      console.error('Error updating image in history:', error);
-      throw error;
-    }
+    // This would require a PATCH endpoint in our API
+    console.warn('updateImageInHistory not implemented for PostgreSQL yet');
   };
 
   const deleteImageFromHistory = async (imageId: string) => {
     if (!user) return;
     
-    try {
-      const imageRef = doc(db, `users/${user.uid}/imageHistory`, imageId);
-      await deleteDoc(imageRef);
-    } catch (error) {
-      console.error('Error deleting image from history:', error);
-      throw error;
-    }
+    // This would require a DELETE endpoint in our API
+    console.warn('deleteImageFromHistory not implemented for PostgreSQL yet');
   };
 
-  // Preset operations
+  // Preset operations (placeholders until we implement presets API endpoints)
   const addPreset = async (presetData: Omit<PresetData, 'id'>) => {
     if (!user) return;
-    
-    try {
-      const presetsRef = collection(db, `users/${user.uid}/presets`);
-      await addDoc(presetsRef, {
-        ...presetData,
-        timestamp: Timestamp.fromDate(presetData.timestamp),
-        userId: user.uid
-      });
-    } catch (error) {
-      console.error('Error adding preset:', error);
-      throw error;
-    }
+    console.warn('addPreset not implemented for PostgreSQL yet');
   };
 
   const updatePreset = async (presetId: string, updates: Partial<PresetData>) => {
     if (!user) return;
-    
-    try {
-      const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
-      const updateData: Partial<PresetData> & { timestamp?: Timestamp } = { ...updates };
-      if (updates.timestamp) {
-        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
-      }
-      await updateDoc(presetRef, updateData);
-    } catch (error) {
-      console.error('Error updating preset:', error);
-      throw error;
-    }
+    console.warn('updatePreset not implemented for PostgreSQL yet');
   };
 
   const deletePreset = async (presetId: string) => {
     if (!user) return;
-    
-    try {
-      const presetRef = doc(db, `users/${user.uid}/presets`, presetId);
-      await deleteDoc(presetRef);
-    } catch (error) {
-      console.error('Error deleting preset:', error);
-      throw error;
-    }
+    console.warn('deletePreset not implemented for PostgreSQL yet');
   };
 
-  // Migration function from localStorage
+  // Migration function from localStorage (keeping for backward compatibility)
   const migrateFromLocalStorage = async () => {
     if (!user) return;
-    
-    try {
-      const batch = writeBatch(db);
-      
-      // Migrate image history
-      const savedHistory = localStorage.getItem('imageHistory');
-      if (savedHistory) {
-        const historyData = JSON.parse(savedHistory);
-        const imageHistoryRef = collection(db, `users/${user.uid}/imageHistory`);
-        
-        historyData.forEach((item: GeneratedImageData) => {
-          const docRef = doc(imageHistoryRef);
-          batch.set(docRef, {
-            ...item,
-            timestamp: Timestamp.fromDate(new Date(item.timestamp)),
-            userId: user.uid
-          });
-        });
-      }
-      
-      // Migrate presets
-      const savedPresets = localStorage.getItem('savedPresets');
-      if (savedPresets) {
-        const presetsData = JSON.parse(savedPresets);
-        const presetsRef = collection(db, `users/${user.uid}/presets`);
-        
-        presetsData.forEach((item: PresetData) => {
-          const docRef = doc(presetsRef);
-          batch.set(docRef, {
-            ...item,
-            timestamp: Timestamp.fromDate(new Date(item.timestamp)),
-            userId: user.uid
-          });
-        });
-      }
-      
-      await batch.commit();
-      
-      // Clear localStorage after successful migration
-      localStorage.removeItem('imageHistory');
-      localStorage.removeItem('savedPresets');
-      
-      console.log('Migration completed successfully');
-    } catch (error) {
-      console.error('Error during migration:', error);
-      throw error;
-    }
+    console.warn('migrateFromLocalStorage not needed for PostgreSQL implementation');
   };
 
   return {

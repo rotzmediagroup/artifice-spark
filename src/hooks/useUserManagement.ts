@@ -1,17 +1,4 @@
 import { useEffect, useState } from 'react';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  runTransaction, 
-  doc, 
-  addDoc,
-  where,
-  getDocs,
-  limit
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from './useAdmin';
 import { toast } from 'sonner';

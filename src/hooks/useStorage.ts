@@ -1,13 +1,27 @@
 import { useState } from 'react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 export const useStorage = () => {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // API call helper with auth token
+  const apiCall = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    return fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  };
 
   const uploadReferenceImage = async (file: File): Promise<string> => {
     if (!user) {
@@ -26,21 +40,25 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `${timestamp}_${file.name}`;
-      const imageRef = ref(storage, `users/${user.uid}/reference-images/${filename}`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadType', 'reference-images');
 
-      // Upload file
-      const snapshot = await uploadBytes(imageRef, file);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const response = await apiCall('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const result = await response.json();
       
       setUploadProgress(100);
       toast.success('Reference image uploaded successfully!');
       
-      return downloadURL;
+      return result.url;
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload image');
@@ -60,19 +78,26 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create reference to the file path in Firebase Storage
-      const fileRef = ref(storage, filePath);
+      const formData = new FormData();
+      const file = new File([blob], 'upload.blob', { type: blob.type });
+      formData.append('file', file);
+      formData.append('uploadType', 'generated-content');
 
-      // Upload the blob
-      const snapshot = await uploadBytes(fileRef, blob);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const response = await apiCall('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const result = await response.json();
       
       setUploadProgress(100);
-      console.log('File uploaded to Firebase Storage:', downloadURL);
+      console.log('File uploaded to local storage:', result.url);
       
-      return downloadURL;
+      return result.url;
     } catch (error) {
       console.error('Upload error:', error);
       throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -88,10 +113,8 @@ export const useStorage = () => {
     }
 
     try {
-      // Extract the path from the download URL
-      const imageRef = ref(storage, imageUrl);
-      await deleteObject(imageRef);
-      toast.success('Reference image deleted successfully!');
+      console.warn('File deletion not implemented for local storage yet');
+      toast.info('File deletion not implemented yet');
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete image');

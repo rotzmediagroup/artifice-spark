@@ -1,17 +1,69 @@
+# Dependencies
 node_modules
-npm-debug.log
-.git
-.gitignore
-README.md
-.env
-.nyc_output
-coverage
-.nyc_output
-.coverage
-.eslintcache
-.DS_Store
-*.log
+npm-debug.log*
+
+# Build outputs
 dist
 build
 .vite
 .cache
+
+# Environment files
+.env*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Firebase specific files (not needed for PostgreSQL deployment)
+.firebase
+firebase.json
+.firebaserc
+functions/
+
+# Database files
+database/
+*.sql
+
+# Logs
+logs
+*.log
+
+# Coverage directory used by tools like istanbul
+coverage
+.nyc_output
+.coverage
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp
+temp
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# API directory (separate container)
+api/

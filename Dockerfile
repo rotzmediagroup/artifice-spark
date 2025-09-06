@@ -11,7 +11,8 @@ RUN npm ci || npm install
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (ensuring production API URL is used)
+ENV NODE_ENV=production
 RUN npm run build
 
 # Production stage - Use a simple Node server instead of nginx
