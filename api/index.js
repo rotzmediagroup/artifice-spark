@@ -8,6 +8,7 @@ const fs = require('fs');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const { OAuth2Client } = require('google-auth-library');
 require('dotenv').config();
 
 const app = express();
@@ -32,6 +33,11 @@ const pool = new Pool({
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
+// Google OAuth configuration
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
 // Middleware
 app.use(cors());
@@ -205,6 +211,77 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Google OAuth sign-in
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential is required' });
+    }
+
+    // Verify the Google ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    const displayName = payload.name || '';
+    const emailVerified = payload.email_verified;
+
+    if (!emailVerified) {
+      return res.status(400).json({ error: 'Google account email is not verified' });
+    }
+
+    // Check if user exists
+    let userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    let user;
+
+    if (userResult.rows.length === 0) {
+      // Create new user for Google sign-in (no password needed)
+      const newUserResult = await pool.query(
+        'INSERT INTO users (email, password_hash, display_name, email_verified) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, created_at',
+        [email, '', displayName, true] // Empty password hash for Google users
+      );
+      
+      user = newUserResult.rows[0];
+      
+      // Create user profile
+      const isAdmin = email === 'jerome@rotz.host';
+      await pool.query(
+        `INSERT INTO user_profiles 
+         (user_id, email, display_name, is_admin, image_credits, video_credits) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [user.id, email, displayName, isAdmin, isAdmin ? 999999 : 0, isAdmin ? 999999 : 0]
+      );
+    } else {
+      user = userResult.rows[0];
+      
+      // Update last login
+      await pool.query('UPDATE user_profiles SET last_login = NOW() WHERE user_id = $1', [user.id]);
+    }
+
+    // Generate token
+    const token = generateToken(user.id);
+    
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        createdAt: user.created_at,
+        emailVerified: true
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Google OAuth error:', error);
+    res.status(500).json({ error: 'Google authentication failed' });
   }
 });
 

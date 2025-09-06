@@ -30,6 +30,8 @@ services:
       DB_PASSWORD: postgres
       PORT: 3001
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      GOOGLE_CLIENT_ID: 1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
     depends_on:
       postgres:
         condition: service_healthy
