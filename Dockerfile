@@ -19,18 +19,18 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install serve to host the static files
-RUN npm install -g serve
+# Install serve and curl for health checks
+RUN npm install -g serve && apk add --no-cache curl
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Expose port
-EXPOSE 8888
+# Expose port (using standard port 3000 for Coolify)
+EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8888 || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/ || exit 1
 
-# Start the server
-CMD ["serve", "-s", "dist", "-l", "8888"]
+# Start the server - bind to all interfaces
+CMD ["serve", "-s", "dist", "-l", "3000", "--host", "0.0.0.0"]
