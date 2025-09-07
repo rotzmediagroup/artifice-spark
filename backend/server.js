@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
@@ -22,9 +22,44 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Database connection
-const dbPath = path.join(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
+// Database connection with graceful error handling
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'rotz_image_generator',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres123',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+};
+
+const pool = new Pool(dbConfig);
+
+// Test database connection on startup but don't fail if unavailable
+let dbConnected = false;
+const testConnection = async () => {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+    dbConnected = true;
+    console.log('Database connected successfully');
+  } catch (error) {
+    console.warn('Database connection failed, will retry:', error.message);
+    dbConnected = false;
+    // Retry connection after 5 seconds
+    setTimeout(testConnection, 5000);
+  }
+};
+
+// Middleware to check database connection
+const requireDB = (req, res, next) => {
+  if (!dbConnected) {
+    return res.status(503).send('Database temporarily unavailable');
+  }
+  next();
+};
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -89,13 +124,16 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Health check endpoint
+// Health check endpoint (works without database)
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy' });
+  res.json({ 
+    status: 'healthy',
+    database: dbConnected ? 'connected' : 'unavailable'
+  });
 });
 
 // Google OAuth endpoint
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/google', requireDB, async (req, res) => {
   const client = await pool.connect();
   try {
     const { credential } = req.body;
@@ -199,7 +237,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // User profile endpoint
-app.get('/api/users/:userId/profile', authenticateToken, async (req, res) => {
+app.get('/api/users/:userId/profile', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   
   if (req.user.userId !== userId && !req.user.isAdmin) {
@@ -242,7 +280,7 @@ app.get('/api/users/:userId/profile', authenticateToken, async (req, res) => {
 });
 
 // Image history endpoints
-app.get('/api/users/:userId/images', authenticateToken, async (req, res) => {
+app.get('/api/users/:userId/images', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   
   if (req.user.userId !== userId && !req.user.isAdmin) {
@@ -297,7 +335,7 @@ app.get('/api/users/:userId/images', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/users/:userId/images', authenticateToken, async (req, res) => {
+app.post('/api/users/:userId/images', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   
   if (req.user.userId !== userId) {
@@ -344,7 +382,7 @@ app.post('/api/users/:userId/images', authenticateToken, async (req, res) => {
 });
 
 // Presets endpoints
-app.get('/api/users/:userId/presets', authenticateToken, async (req, res) => {
+app.get('/api/users/:userId/presets', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   
   if (req.user.userId !== userId && !req.user.isAdmin) {
@@ -383,7 +421,7 @@ app.get('/api/users/:userId/presets', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/users/:userId/presets', authenticateToken, async (req, res) => {
+app.post('/api/users/:userId/presets', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   
   if (req.user.userId !== userId) {
@@ -416,7 +454,7 @@ app.post('/api/users/:userId/presets', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
+app.put('/api/users/:userId/presets/:presetId', authenticateToken, requireDB, async (req, res) => {
   const { userId, presetId } = req.params;
   
   if (req.user.userId !== userId) {
@@ -453,7 +491,7 @@ app.put('/api/users/:userId/presets/:presetId', authenticateToken, async (req, r
   }
 });
 
-app.delete('/api/users/:userId/presets/:presetId', authenticateToken, async (req, res) => {
+app.delete('/api/users/:userId/presets/:presetId', authenticateToken, requireDB, async (req, res) => {
   const { userId, presetId } = req.params;
   
   if (req.user.userId !== userId) {
@@ -481,7 +519,7 @@ app.delete('/api/users/:userId/presets/:presetId', authenticateToken, async (req
 });
 
 // Credit management endpoints
-app.post('/api/users/:userId/credits/deduct', authenticateToken, async (req, res) => {
+app.post('/api/users/:userId/credits/deduct', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
   const { credit_type, amount, reason } = req.body;
   
@@ -530,14 +568,18 @@ app.post('/api/users/:userId/credits/deduct', authenticateToken, async (req, res
       [userId, newBalance, amount]
     );
     
-    // Log transaction
-    await client.query(
-      `INSERT INTO credit_transactions (
-        user_id, transaction_type, credit_type, amount,
-        balance_before, balance_after, reason
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, 'deduction', credit_type, amount, currentBalance, newBalance, reason || 'Generation']
-    );
+    // Log transaction (if credit_transactions table exists)
+    try {
+      await client.query(
+        `INSERT INTO credit_transactions (
+          user_id, transaction_type, credit_type, amount,
+          balance_before, balance_after, reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, 'deduction', credit_type, amount, currentBalance, newBalance, reason || 'Generation']
+      );
+    } catch (err) {
+      console.warn('Credit transaction logging failed (table may not exist):', err.message);
+    }
     
     await client.query('COMMIT');
     
@@ -561,35 +603,37 @@ app.post('/api/storage/upload', authenticateToken, upload.single('file'), async 
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    const client = await pool.connect();
-    try {
-      // Save file info to database
-      const result = await client.query(
-        `INSERT INTO file_storage (user_id, file_type, file_path, file_size, content_type)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id`,
-        [
-          req.user.userId,
-          req.body.uploadType || 'reference-image',
-          req.file.path,
-          req.file.size,
-          req.file.mimetype
-        ]
-      );
-      
-      // Return URL that frontend can use
-      const fileUrl = `/uploads/${req.body.uploadType || 'reference-images'}/${req.file.filename}`;
-      
-      res.json({
-        id: result.rows[0].id,
-        url: fileUrl,
-        path: req.file.path,
-        size: req.file.size,
-        contentType: req.file.mimetype
-      });
-    } finally {
-      client.release();
+    if (dbConnected) {
+      const client = await pool.connect();
+      try {
+        // Save file info to database
+        await client.query(
+          `INSERT INTO file_storage (user_id, file_type, file_path, file_size, content_type)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            req.user.userId,
+            req.body.uploadType || 'reference-image',
+            req.file.path,
+            req.file.size,
+            req.file.mimetype
+          ]
+        );
+      } catch (dbError) {
+        console.warn('File storage database logging failed:', dbError.message);
+      } finally {
+        client.release();
+      }
     }
+    
+    // Return URL that frontend can use
+    const fileUrl = `/uploads/${req.body.uploadType || 'reference-images'}/${req.file.filename}`;
+    
+    res.json({
+      url: fileUrl,
+      path: req.file.path,
+      size: req.file.size,
+      contentType: req.file.mimetype
+    });
   } catch (error) {
     console.error('File upload error:', error);
     res.status(500).json({ error: 'File upload failed' });
@@ -617,22 +661,26 @@ app.post('/api/storage/upload-generated', authenticateToken, async (req, res) =>
     // Save file
     fs.writeFileSync(filepath, buffer);
     
-    // Save to database
-    const client = await pool.connect();
-    try {
-      await client.query(
-        `INSERT INTO file_storage (user_id, file_type, file_path, file_size, content_type)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          req.user.userId,
-          'generated-content',
-          filepath,
-          buffer.length,
-          contentType === 'video' ? 'video/mp4' : 'image/png'
-        ]
-      );
-    } finally {
-      client.release();
+    // Save to database if available
+    if (dbConnected) {
+      const client = await pool.connect();
+      try {
+        await client.query(
+          `INSERT INTO file_storage (user_id, file_type, file_path, file_size, content_type)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            req.user.userId,
+            'generated-content',
+            filepath,
+            buffer.length,
+            contentType === 'video' ? 'video/mp4' : 'image/png'
+          ]
+        );
+      } catch (dbError) {
+        console.warn('Generated image database logging failed:', dbError.message);
+      } finally {
+        client.release();
+      }
     }
     
     // Return URL
@@ -648,9 +696,13 @@ app.post('/api/storage/upload-generated', authenticateToken, async (req, res) =>
   }
 });
 
+// Start the connection test
+testConnection();
+
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`API server running on port ${port}`);
+  console.log(`Database connection: ${dbConnected ? 'connected' : 'attempting to connect...'}`);
 });
 
 // Graceful shutdown
