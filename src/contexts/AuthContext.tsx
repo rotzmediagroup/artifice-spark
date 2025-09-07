@@ -67,10 +67,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ...options.headers,
     };
 
-    return fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+      
+      // Log the response for debugging
+      if (!response.ok) {
+        console.error(`API call failed: ${endpoint}`, {
+          status: response.status,
+          statusText: response.statusText,
+          url: `${API_BASE_URL}${endpoint}`
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`Network error calling ${endpoint}:`, error);
+      throw error;
+    }
   };
 
   // Load user from token on mount
@@ -138,8 +154,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         toast.success('Signed in successfully!');
       } else {
-        const errorData = await authResponse.json();
-        throw new Error(errorData.error || 'Google sign-in failed');
+        // Try to parse JSON error, but handle non-JSON responses
+        let errorMessage = 'Google sign-in failed';
+        const contentType = authResponse.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await authResponse.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            console.error('Failed to parse error response as JSON');
+          }
+        } else {
+          // Handle plain text errors (like "no available server")
+          const textError = await authResponse.text();
+          console.error('Non-JSON error response:', textError);
+          if (textError.includes('no available server')) {
+            errorMessage = 'Authentication service is temporarily unavailable. Please try again later.';
+          } else {
+            errorMessage = textError || errorMessage;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error: unknown) {
       console.error('Google sign-in error:', error);
