@@ -41,12 +41,12 @@ RUN mkdir -p /app/uploads/reference-images /app/uploads/generated-content
 # Set proper permissions
 RUN chmod 755 /app/uploads /app/uploads/reference-images /app/uploads/generated-content
 
-# Expose port 80
-EXPOSE 80
+# Expose port 8888
+EXPOSE 8888
 
 # Health check - check the unified server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8888/health || exit 1
 
 # Start the unified server
 CMD ["node", "server.cjs"]
