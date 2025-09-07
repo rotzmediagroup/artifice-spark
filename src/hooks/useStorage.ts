@@ -1,13 +1,27 @@
 import { useState } from 'react';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 export const useStorage = () => {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // API call helper with auth token
+  const apiCall = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    return fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  };
 
   const uploadReferenceImage = async (file: File): Promise<string> => {
     if (!user) {
@@ -26,21 +40,26 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `${timestamp}_${file.name}`;
-      const imageRef = ref(storage, `users/${user.uid}/reference-images/${filename}`);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uploadType', 'reference-images');
 
-      // Upload file
-      const snapshot = await uploadBytes(imageRef, file);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
+      const response = await apiCall('/storage/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload reference image');
+      }
+
+      const data = await response.json();
       setUploadProgress(100);
       toast.success('Reference image uploaded successfully!');
       
-      return downloadURL;
+      // Return the full URL
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+      return baseUrl + data.url;
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload image');
@@ -60,19 +79,48 @@ export const useStorage = () => {
     setUploadProgress(0);
 
     try {
-      // Create reference to the file path in Firebase Storage
-      const fileRef = ref(storage, filePath);
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          if (reader.result) {
+            resolve(reader.result as string);
+          } else {
+            reject(new Error('Failed to read blob'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
 
-      // Upload the blob
-      const snapshot = await uploadBytes(fileRef, blob);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
+      // Extract filename from path
+      const filename = filePath.split('/').pop() || 'generated';
+      const contentType = filePath.includes('.mp4') ? 'video' : 'image';
+
+      // Upload to API
+      const response = await apiCall('/storage/upload-generated', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageData: base64Data,
+          contentType: contentType,
+          imageId: filename
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload generated media');
+      }
+
+      const data = await response.json();
       setUploadProgress(100);
-      console.log('File uploaded to Firebase Storage:', downloadURL);
+      console.log('File uploaded to local storage:', data.url);
       
-      return downloadURL;
+      // Return the full URL
+      const baseUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+      return baseUrl + data.url;
     } catch (error) {
       console.error('Upload error:', error);
       throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -82,27 +130,26 @@ export const useStorage = () => {
     }
   };
 
+  const uploadMediaToStorage = uploadFile; // Alias for compatibility
+
   const deleteReferenceImage = async (imageUrl: string): Promise<void> => {
     if (!user) {
       throw new Error('User must be authenticated to delete images');
     }
 
-    try {
-      // Extract the path from the download URL
-      const imageRef = ref(storage, imageUrl);
-      await deleteObject(imageRef);
-      toast.success('Reference image deleted successfully!');
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Failed to delete image');
-      throw error;
-    }
+    // Not implemented for local storage yet
+    console.warn('Image deletion not implemented for local storage');
+    toast.info('Image deletion not available in this version');
   };
+
+  const deleteFile = deleteReferenceImage; // Alias for compatibility
 
   return {
     uploadReferenceImage,
     uploadFile,
+    uploadMediaToStorage,
     deleteReferenceImage,
+    deleteFile,
     uploading,
     uploadProgress
   };

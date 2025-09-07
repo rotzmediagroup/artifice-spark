@@ -1,0 +1,65 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build outputs
+dist
+build
+.vite
+.cache
+
+# Environment files
+.env*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Firebase files (not needed for PostgreSQL)
+.firebase
+firebase.json
+.firebaserc
+functions/
+
+# Logs
+logs
+*.log
+
+# Coverage directory
+coverage
+.nyc_output
+.coverage
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp
+temp
+
+# Docker files
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Backend folder (separate container)
+backend/node_modules
+backend/uploads
