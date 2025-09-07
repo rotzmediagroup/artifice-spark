@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import app from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useAdmin } from './useAdmin';
 
@@ -11,49 +9,21 @@ interface ExtendImageResponse {
   remainingExtensions: number | 'unlimited';
 }
 
+// Stub hook for PostgreSQL migration - image extension functionality not implemented yet
 export const useImageExtension = () => {
   const [extending, setExtending] = useState<string | null>(null);
   const { isAdmin } = useAdmin();
-  const functions = getFunctions(app);
 
   const extendImage = async (imageId: string): Promise<ExtendImageResponse | null> => {
     setExtending(imageId);
     
     try {
-      const extendImageExpiration = httpsCallable<
-        { imageId: string },
-        ExtendImageResponse
-      >(functions, 'extendImageExpiration');
-      
-      const result = await extendImageExpiration({ imageId });
-      
-      if (result.data.success) {
-        const newDate = new Date(result.data.newExpiresAt).toLocaleDateString();
-        const remaining = result.data.remainingExtensions;
-        
-        toast.success(
-          `Storage extended until ${newDate}. ${
-            remaining === 'unlimited' 
-              ? 'Unlimited extensions remaining (Admin)' 
-              : `${remaining} extension${remaining === 1 ? '' : 's'} remaining`
-          }`
-        );
-        
-        return result.data;
-      }
-      
+      // TODO: Implement image extension with PostgreSQL backend
+      toast.info('Image extension feature will be implemented in a future update.');
       return null;
     } catch (error: unknown) {
       console.error('Failed to extend image:', error);
-      
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied') {
-        toast.error('Maximum extensions reached. Please download your image to keep it permanently.');
-      } else if (error && typeof error === 'object' && 'code' in error && error.code === 'not-found') {
-        toast.error('Image not found.');
-      } else {
-        toast.error('Failed to extend image storage. Please try again.');
-      }
-      
+      toast.error('Image extension not available yet.');
       return null;
     } finally {
       setExtending(null);

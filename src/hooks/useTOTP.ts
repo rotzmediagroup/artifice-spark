@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
-  serverTimestamp,
-  runTransaction 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
@@ -35,7 +26,7 @@ export const useTOTP = () => {
   const [totpSettings, setTotpSettings] = useState<TOTPSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
 
-  // Load user's TOTP settings
+  // Load user's TOTP settings - stub for PostgreSQL migration
   useEffect(() => {
     if (!user) {
       setTotpSettings(null);
@@ -43,30 +34,9 @@ export const useTOTP = () => {
       return;
     }
 
-    const loadTOTPSettings = async () => {
-      try {
-        const settingsRef = doc(db, 'totpSettings', user.uid);
-        const settingsDoc = await getDoc(settingsRef);
-        
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          setTotpSettings({
-            ...data,
-            enrolledAt: data.enrolledAt?.toDate() || null,
-            lastUsed: data.lastUsed?.toDate() || null
-          } as TOTPSettings);
-        } else {
-          setTotpSettings(null);
-        }
-      } catch (error) {
-        console.error('Error loading TOTP settings:', error);
-        toast.error('Failed to load MFA settings');
-      } finally {
-        setSettingsLoading(false);
-      }
-    };
-
-    loadTOTPSettings();
+    // TODO: Implement TOTP settings loading with PostgreSQL backend
+    setTotpSettings(null);
+    setSettingsLoading(false);
   }, [user]);
 
   // Generate TOTP secret and QR code for setup
@@ -138,7 +108,7 @@ export const useTOTP = () => {
     return codes;
   };
 
-  // Enable TOTP MFA
+  // Enable TOTP MFA - stub for PostgreSQL migration
   const enableTOTP = async (secret: string, token: string): Promise<boolean> => {
     if (!user) {
       toast.error('User not authenticated');
@@ -153,47 +123,9 @@ export const useTOTP = () => {
 
     setLoading(true);
     try {
-      const backupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await runTransaction(db, async (transaction) => {
-        const settings: Omit<TOTPSettings, 'enrolledAt' | 'lastUsed'> & { 
-          enrolledAt: ReturnType<typeof serverTimestamp>; 
-          lastUsed: ReturnType<typeof serverTimestamp> | null; 
-        } = {
-          userId: user.uid,
-          enabled: true,
-          secret,
-          backupCodes,
-          enrolledAt: serverTimestamp(),
-          lastUsed: null,
-          recoveryEmail: user.email || ''
-        };
-        
-        transaction.set(settingsRef, settings);
-        
-        // Update user profile to indicate MFA is enabled
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: true,
-          mfaEnabledAt: serverTimestamp()
-        });
-      });
-
-      // Reload settings
-      const settingsDoc = await getDoc(settingsRef);
-      if (settingsDoc.exists()) {
-        const data = settingsDoc.data();
-        setTotpSettings({
-          ...data,
-          enrolledAt: data.enrolledAt?.toDate() || null,
-          lastUsed: data.lastUsed?.toDate() || null
-        } as TOTPSettings);
-      }
-
-      toast.success('Two-factor authentication enabled successfully!');
-      console.log(`[MFA] TOTP enabled for user: ${user.email}`);
-      return true;
+      // TODO: Implement TOTP enablement with PostgreSQL backend
+      toast.info('Two-factor authentication setup will be implemented in a future update.');
+      return false;
     } catch (error) {
       console.error('Error enabling TOTP:', error);
       toast.error('Failed to enable two-factor authentication');
@@ -203,7 +135,7 @@ export const useTOTP = () => {
     }
   };
 
-  // Disable TOTP MFA
+  // Disable TOTP MFA - stub for PostgreSQL migration
   const disableTOTP = async (token: string): Promise<boolean> => {
     if (!user || !totpSettings) {
       toast.error('No MFA settings found');
@@ -218,27 +150,9 @@ export const useTOTP = () => {
 
     setLoading(true);
     try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await runTransaction(db, async (transaction) => {
-        // Update TOTP settings to disabled
-        transaction.update(settingsRef, {
-          enabled: false,
-          secret: '', // Clear the secret
-          backupCodes: [] // Clear backup codes
-        });
-        
-        // Update user profile
-        const userProfileRef = doc(db, 'userProfiles', user.uid);
-        transaction.update(userProfileRef, {
-          mfaEnabled: false
-        });
-      });
-
-      setTotpSettings(prev => prev ? { ...prev, enabled: false, secret: '', backupCodes: [] } : null);
-      toast.success('Two-factor authentication disabled');
-      console.log(`[MFA] TOTP disabled for user: ${user.email}`);
-      return true;
+      // TODO: Implement TOTP disabling with PostgreSQL backend
+      toast.info('Two-factor authentication management will be implemented in a future update.');
+      return false;
     } catch (error) {
       console.error('Error disabling TOTP:', error);
       toast.error('Failed to disable two-factor authentication');
@@ -248,56 +162,21 @@ export const useTOTP = () => {
     }
   };
 
-  // Verify backup code
+  // Verify backup code - stub for PostgreSQL migration
   const verifyBackupCode = async (code: string): Promise<boolean> => {
     if (!user || !totpSettings) return false;
 
-    const upperCode = code.toUpperCase().replace(/\s/g, '');
-    if (!totpSettings.backupCodes.includes(upperCode)) {
-      return false;
-    }
-
-    try {
-      // Remove the used backup code
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      const updatedCodes = totpSettings.backupCodes.filter(c => c !== upperCode);
-      
-      await updateDoc(settingsRef, {
-        backupCodes: updatedCodes,
-        lastUsed: serverTimestamp()
-      });
-
-      setTotpSettings(prev => prev ? { 
-        ...prev, 
-        backupCodes: updatedCodes,
-        lastUsed: new Date()
-      } : null);
-
-      console.log(`[MFA] Backup code used for user: ${user.email}`);
-      return true;
-    } catch (error) {
-      console.error('Error using backup code:', error);
-      return false;
-    }
+    // TODO: Implement backup code verification with PostgreSQL backend
+    return false;
   };
 
-  // Update last used timestamp
+  // Update last used timestamp - stub for PostgreSQL migration
   const updateLastUsed = async (): Promise<void> => {
     if (!user || !totpSettings?.enabled) return;
-
-    try {
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      await updateDoc(settingsRef, {
-        lastUsed: serverTimestamp()
-      });
-
-      setTotpSettings(prev => prev ? { ...prev, lastUsed: new Date() } : null);
-    } catch (error) {
-      console.error('Error updating TOTP last used:', error);
-    }
+    // TODO: Implement last used timestamp update with PostgreSQL backend
   };
 
-  // Regenerate backup codes
+  // Regenerate backup codes - stub for PostgreSQL migration
   const regenerateBackupCodes = async (token: string): Promise<string[] | null> => {
     if (!user || !totpSettings?.enabled) return null;
 
@@ -308,17 +187,9 @@ export const useTOTP = () => {
 
     setLoading(true);
     try {
-      const newBackupCodes = generateBackupCodes();
-      const settingsRef = doc(db, 'totpSettings', user.uid);
-      
-      await updateDoc(settingsRef, {
-        backupCodes: newBackupCodes
-      });
-
-      setTotpSettings(prev => prev ? { ...prev, backupCodes: newBackupCodes } : null);
-      toast.success('New backup codes generated');
-      console.log(`[MFA] Backup codes regenerated for user: ${user.email}`);
-      return newBackupCodes;
+      // TODO: Implement backup code regeneration with PostgreSQL backend
+      toast.info('Backup code regeneration will be implemented in a future update.');
+      return null;
     } catch (error) {
       console.error('Error regenerating backup codes:', error);
       toast.error('Failed to generate new backup codes');
