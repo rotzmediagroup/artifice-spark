@@ -4,8 +4,9 @@
   "description": "Backend API for Rotz Image Generator",
   "main": "server-sqlite.js",
   "scripts": {
-    "start": "node server-sqlite.js",
-    "dev": "nodemon server-sqlite.js"
+    "start": "node server.js",
+    "dev": "node server-sqlite.js",
+    "start:sqlite": "node server-sqlite.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -16,6 +17,7 @@
     "google-auth-library": "^9.14.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.3",
     "sqlite3": "^5.1.7",
     "uuid": "^9.0.0"
   },
