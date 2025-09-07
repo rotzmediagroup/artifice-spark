@@ -21,15 +21,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install nginx, sqlite, and wget
-RUN apk add --no-cache nginx sqlite wget
+# Install nginx and wget (no sqlite needed for PostgreSQL setup)
+RUN apk add --no-cache nginx wget
 
 # Copy backend code
 COPY backend/package*.json ./
 RUN npm ci --only=production || npm install --production
 
 COPY backend/ ./
-COPY database/init-sqlite.sql ./database/
 
 # Copy built frontend to nginx directory
 COPY --from=builder /app/dist /var/www/html
