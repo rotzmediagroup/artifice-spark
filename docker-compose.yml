@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: rotz_image_generator
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -24,21 +24,22 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
+      NODE_ENV: production
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: rotz_image_generator
       DB_USER: postgres
-      DB_PASSWORD: postgres123
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
       PORT: 3001
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-      GOOGLE_CLIENT_ID: 1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com
-      GOOGLE_CLIENT_SECRET: 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
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-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}
     depends_on:
       - postgres
     volumes:
-      - ./backend/uploads:/app/uploads
+      - uploads_data:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,7 +52,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - api
     environment:
@@ -61,7 +62,7 @@ services:
 
 volumes:
   postgres_data:
-  uploads:
+  uploads_data:
 
 networks:
   app-network:
