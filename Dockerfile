@@ -1,4 +1,5 @@
-FROM node:18-alpine AS builder
+# Build stage for React frontend
+FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -16,37 +17,36 @@ ENV NODE_ENV=production
 ENV VITE_API_URL=/api
 RUN npm run build
 
-# Production stage
+# Production stage - Single unified server
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install nginx and wget (no sqlite needed for PostgreSQL setup)
-RUN apk add --no-cache nginx wget
+# Install PostgreSQL client and wget for health checks
+RUN apk add --no-cache postgresql-client wget
 
-# Copy backend code
-COPY backend/package*.json ./
-RUN npm ci --only=production || npm install --production
+# Copy unified server
+COPY server.cjs ./
+COPY package.json ./
 
-COPY backend/ ./
+# Install production dependencies (includes backend packages)
+RUN npm install --only=production pg cors bcrypt jsonwebtoken multer uuid express-rate-limit google-auth-library dotenv
 
-# Copy built frontend to nginx directory
-COPY --from=builder /app/dist /var/www/html
+# Copy built frontend from builder stage
+COPY --from=frontend-builder /app/dist ./dist
 
-# Copy configuration files
-COPY nginx-single.conf /etc/nginx/nginx.conf
-COPY start-single.sh /app/start.sh
+# Create upload directories
+RUN mkdir -p /app/uploads/reference-images /app/uploads/generated-content
 
-# Create directories and set permissions
-RUN mkdir -p /app/uploads/reference-images /app/uploads/generated-content /var/log/nginx /run/nginx && \
-    chmod +x /app/start.sh
+# Set proper permissions
+RUN chmod 755 /app/uploads /app/uploads/reference-images /app/uploads/generated-content
 
-# Expose port
+# Expose port 80
 EXPOSE 80
 
-# Health check
+# Health check - check the unified server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
-# Start both services
-CMD ["/app/start.sh"]
+# Start the unified server
+CMD ["node", "server.cjs"]
