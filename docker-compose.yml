@@ -14,10 +14,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rotz_image_generator"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   api:
     build:
@@ -37,8 +38,7 @@ services:
       GOOGLE_CLIENT_ID: 1035190682648-p60ao4phea2hbovo087bcao80741u10o.apps.googleusercontent.com
       GOOGLE_CLIENT_SECRET: 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
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     volumes:
       - ./backend/uploads:/app/uploads
     healthcheck:
