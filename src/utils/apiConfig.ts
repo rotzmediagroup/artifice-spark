@@ -1,21 +1,19 @@
 // API configuration for unified server architecture
 const getApiBaseUrl = (): string => {
-  // In production, use relative paths since API is served from same server
+  // In production, always use relative paths since API is served from same server
   if (process.env.NODE_ENV === 'production') {
     return '/api';
   }
   
-  // In development, check if we're running the unified server or separate backend
-  // For development with unified server, use same port as frontend
-  const isDevelopmentUnified = window.location.port === '5173' || window.location.port === '3000';
-  
-  if (isDevelopmentUnified) {
-    // Check if backend is running on 3001 (separate backend for dev)
-    return 'http://localhost:3001/api';
+  // In development, check if we have a custom backend URL
+  // Otherwise default to localhost:8888 for unified server
+  const devBackendUrl = import.meta.env.VITE_API_URL;
+  if (devBackendUrl) {
+    return devBackendUrl;
   }
   
-  // If running unified server in development, use relative path
-  return '/api';
+  // Default development URL for unified server
+  return 'http://localhost:8888/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
