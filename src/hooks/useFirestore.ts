@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL } from '@/utils/apiConfig';
 
 export interface GeneratedImageData {
   id: string;
@@ -52,8 +53,6 @@ export interface PresetData {
   customHeight?: number;
   useCustomDimensions?: boolean;
 }
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 export const useFirestore = () => {
   const { user } = useAuth();

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmin } from './useAdmin';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/utils/apiConfig';
 
 interface UserProfile {
   email: string;
@@ -14,8 +15,6 @@ interface UserProfile {
   totalCreditsGranted: number;
   totalCreditsUsed: number;
 }
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
 
 export const useCredits = () => {
   const { user } = useAuth();

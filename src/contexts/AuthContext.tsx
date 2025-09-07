@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/utils/apiConfig';
 
 interface User {
   uid: string;
@@ -40,8 +41,7 @@ export const useAuth = () => {
   return context;
 };
 
-// API base URL
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
+// API base URL is imported above
 
 // Token management
 const getToken = () => localStorage.getItem('authToken');

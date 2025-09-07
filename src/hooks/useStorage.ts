@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api';
+import { API_BASE_URL } from '@/utils/apiConfig';
 
 export const useStorage = () => {
   const { user } = useAuth();

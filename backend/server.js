@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { OAuth2Client } = require('google-auth-library');
@@ -23,13 +23,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Database connection
-const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'rotz_image_generator',
-  password: process.env.DB_PASSWORD || 'postgres',
-  port: process.env.DB_PORT || 5432,
-});
+const dbPath = path.join(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath);
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
