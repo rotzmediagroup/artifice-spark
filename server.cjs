@@ -163,8 +163,8 @@ app.get('/health', (req, res) => {
 // API ROUTES START HERE
 
 // Google OAuth endpoint
-app.post('/api/auth/google', requireDB, async (req, res) => {
-  const client = await pool.connect();
+app.post('/api/auth/google', async (req, res) => {
+  let client;
   try {
     const { credential } = req.body;
     
@@ -183,57 +183,88 @@ app.post('/api/auth/google', requireDB, async (req, res) => {
     // Special handling for jerome@rotz.host
     const isAdmin = email === 'jerome@rotz.host';
     
-    await client.query('BEGIN');
+    let userId, userData;
     
-    // Check if user exists
-    let userResult = await client.query(
-      'SELECT * FROM users WHERE email = $1 OR google_id = $2',
-      [email, googleId]
-    );
-    
-    let userId;
-    if (userResult.rows.length === 0) {
-      // Create new user
-      const insertUserResult = await client.query(
-        'INSERT INTO users (email, display_name, google_id, photo_url) VALUES ($1, $2, $3, $4) RETURNING id',
-        [email, name || email, googleId, picture]
-      );
-      userId = insertUserResult.rows[0].id;
-      
-      // Create user profile
-      await client.query(
-        `INSERT INTO user_profiles (user_id, is_admin, image_credits, video_credits) 
-         VALUES ($1, $2, $3, $4)`,
-        [userId, isAdmin, isAdmin ? 999999 : 5, isAdmin ? 999999 : 0]
-      );
-    } else {
-      userId = userResult.rows[0].id;
-      // Update last login and google_id if needed
-      await client.query(
-        'UPDATE users SET last_login = CURRENT_TIMESTAMP, google_id = $2 WHERE id = $1',
-        [userId, googleId]
-      );
+    // Try database operations if connected
+    if (dbConnected) {
+      try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+        
+        // Check if user exists
+        let userResult = await client.query(
+          'SELECT * FROM users WHERE email = $1 OR google_id = $2',
+          [email, googleId]
+        );
+        
+        if (userResult.rows.length === 0) {
+          // Create new user
+          const insertUserResult = await client.query(
+            'INSERT INTO users (email, display_name, google_id, photo_url) VALUES ($1, $2, $3, $4) RETURNING id',
+            [email, name || email, googleId, picture]
+          );
+          userId = insertUserResult.rows[0].id;
+          
+          // Create user profile
+          await client.query(
+            `INSERT INTO user_profiles (user_id, is_admin, image_credits, video_credits) 
+             VALUES ($1, $2, $3, $4)`,
+            [userId, isAdmin, isAdmin ? 999999 : 5, isAdmin ? 999999 : 0]
+          );
+        } else {
+          userId = userResult.rows[0].id;
+          // Update last login and google_id if needed
+          await client.query(
+            'UPDATE users SET last_login = CURRENT_TIMESTAMP, google_id = $2 WHERE id = $1',
+            [userId, googleId]
+          );
+        }
+        
+        // Get complete user data with profile
+        const userDataResult = await client.query(
+          `SELECT u.*, p.* FROM users u 
+           LEFT JOIN user_profiles p ON u.id = p.user_id 
+           WHERE u.id = $1`,
+          [userId]
+        );
+        userData = userDataResult.rows[0];
+        
+        await client.query('COMMIT');
+      } catch (dbError) {
+        console.error('Database error during auth:', dbError);
+        if (client) {
+          try { await client.query('ROLLBACK'); } catch (e) {}
+        }
+        // Fall back to in-memory user
+        dbConnected = false;
+      }
     }
     
-    // Get complete user data with profile
-    const userData = await client.query(
-      `SELECT u.*, p.* FROM users u 
-       LEFT JOIN user_profiles p ON u.id = p.user_id 
-       WHERE u.id = $1`,
-      [userId]
-    );
-    
-    await client.query('COMMIT');
-    
-    const user = userData.rows[0];
+    // Fallback: Create temporary user object without database
+    if (!userData) {
+      console.log('Creating temporary user session without database');
+      userId = googleId; // Use Google ID as temporary user ID
+      userData = {
+        id: userId,
+        email: email,
+        display_name: name || email,
+        google_id: googleId,
+        photo_url: picture,
+        is_admin: isAdmin,
+        image_credits: isAdmin ? 999999 : 5,
+        video_credits: isAdmin ? 999999 : 0,
+        created_at: new Date(),
+        last_login: new Date()
+      };
+    }
     
     // Generate JWT token
     const token = jwt.sign(
       { 
-        userId: user.id,
-        email: user.email,
-        displayName: user.display_name,
-        isAdmin: user.is_admin
+        userId: userData.id,
+        email: userData.email,
+        displayName: userData.display_name,
+        isAdmin: userData.is_admin
       },
       JWT_SECRET,
       { expiresIn: '30d' }
@@ -243,26 +274,30 @@ app.post('/api/auth/google', requireDB, async (req, res) => {
     res.json({
       token,
       user: {
-        uid: user.id, // Firebase compatibility
-        id: user.id,
-        email: user.email,
-        displayName: user.display_name,
-        photoURL: user.photo_url,
+        uid: userData.id, // Firebase compatibility
+        id: userData.id,
+        email: userData.email,
+        displayName: userData.display_name,
+        photoURL: userData.photo_url,
         profile: {
-          imageCredits: user.image_credits,
-          videoCredits: user.video_credits,
-          isAdmin: user.is_admin,
-          totalCreditsGranted: user.total_credits_granted,
-          totalCreditsUsed: user.total_credits_used
+          imageCredits: userData.image_credits,
+          videoCredits: userData.video_credits,
+          isAdmin: userData.is_admin,
+          totalCreditsGranted: userData.total_credits_granted || 0,
+          totalCreditsUsed: userData.total_credits_used || 0
         }
       }
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (e) {}
+    }
     console.error('Google auth error:', error);
     res.status(401).json({ error: 'Google authentication failed' });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 });
 
