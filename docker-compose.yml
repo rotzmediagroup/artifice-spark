@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -8,8 +6,6 @@ services:
       POSTGRES_DB: rotz_image_generator
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
-    ports:
-      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -19,14 +15,14 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    networks:
+      - app-network
 
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "${API_PORT:-3001}:3001"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -46,6 +42,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - app-network
 
   frontend:
     build:
@@ -53,12 +51,18 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-8888}:80"
+      - "80:80"
     depends_on:
       - api
     environment:
       - API_URL=http://api:3001
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
   uploads:
+
+networks:
+  app-network:
+    driver: bridge
