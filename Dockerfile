@@ -34,74 +34,13 @@ COPY database/init-sqlite.sql ./database/
 # Copy built frontend to nginx directory
 COPY --from=builder /app/dist /var/www/html
 
-# Create directories
-RUN mkdir -p /app/uploads/reference-images /app/uploads/generated-content /var/log/nginx /run/nginx
+# Copy configuration files
+COPY nginx-single.conf /etc/nginx/nginx.conf
+COPY start-single.sh /app/start.sh
 
-# Create nginx configuration for single container
-RUN cat > /etc/nginx/nginx.conf << 'EOF'
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
-    server {
-        listen 80;
-        server_name localhost;
-
-        root /var/www/html;
-        index index.html;
-
-        # Serve static files
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        # Proxy API requests to backend
-        location /api/ {
-            proxy_pass http://localhost:3001/api/;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            
-            proxy_connect_timeout 60s;
-            proxy_send_timeout 60s;
-            proxy_read_timeout 60s;
-            
-            client_max_body_size 50M;
-        }
-
-        # Proxy upload requests
-        location /uploads/ {
-            proxy_pass http://localhost:3001/uploads/;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-    }
-}
-EOF
-
-# Create startup script
-RUN cat > /app/start.sh << 'EOF'
-#!/bin/sh
-
-# Initialize SQLite database
-if [ ! -f /app/database.sqlite ]; then
-    echo "Initializing SQLite database..."
-    sqlite3 /app/database.sqlite < /app/database/init-sqlite.sql
-fi
-
-# Start nginx
-nginx
-
-# Start the API server
-exec node server-sqlite.js
-EOF
-
-RUN chmod +x /app/start.sh
+# Create directories and set permissions
+RUN mkdir -p /app/uploads/reference-images /app/uploads/generated-content /var/log/nginx /run/nginx && \
+    chmod +x /app/start.sh
 
 # Expose port
 EXPOSE 80
