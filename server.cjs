@@ -129,6 +129,29 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Admin authentication middleware
+const requireAdmin = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    // Check if user is admin
+    const result = await client.query(
+      'SELECT p.is_admin FROM user_profiles p WHERE p.user_id = $1',
+      [req.user.userId]
+    );
+    
+    if (result.rows.length === 0 || !result.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Admin check error:', error);
+    res.status(500).json({ error: 'Failed to verify admin status' });
+  } finally {
+    client.release();
+  }
+};
+
 // Health check endpoint (works without database)
 app.get('/health', (req, res) => {
   res.json({ 
@@ -388,6 +411,171 @@ app.post('/api/users/:userId/images', authenticateToken, requireDB, async (req, 
   }
 });
 
+// Update image metadata (like/unlike, etc.)
+app.patch('/api/users/:userId/images/:imageId', authenticateToken, requireDB, async (req, res) => {
+  const { userId, imageId } = req.params;
+  const { liked, ...updates } = req.body;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const client = await pool.connect();
+  try {
+    // Build update query dynamically based on provided fields
+    const updateFields = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (typeof liked === 'boolean') {
+      updateFields.push(`liked = $${paramCount++}`);
+      values.push(liked);
+    }
+    
+    // Add other updatable fields as needed
+    if (updates.title) {
+      updateFields.push(`title = $${paramCount++}`);
+      values.push(updates.title);
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    values.push(imageId);
+    values.push(userId);
+    
+    const result = await client.query(
+      `UPDATE image_history SET ${updateFields.join(', ')}, updated_at = NOW() 
+       WHERE id = $${paramCount} AND user_id = $${paramCount + 1} 
+       RETURNING *`,
+      values
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Image updated successfully',
+      image: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error updating image:', error);
+    res.status(500).json({ error: 'Failed to update image' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete image from history
+app.delete('/api/users/:userId/images/:imageId', authenticateToken, requireDB, async (req, res) => {
+  const { userId, imageId } = req.params;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'DELETE FROM image_history WHERE id = $1 AND user_id = $2 RETURNING url',
+      [imageId, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // TODO: Also delete the actual file from disk/storage if needed
+    // const imageUrl = result.rows[0].url;
+    // await deleteImageFile(imageUrl);
+    
+    res.json({ 
+      success: true, 
+      message: 'Image deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting image:', error);
+    res.status(500).json({ error: 'Failed to delete image' });
+  } finally {
+    client.release();
+  }
+});
+
+// Extend image expiration (admin or user with extension credits)
+app.post('/api/users/:userId/images/:imageId/extend', authenticateToken, requireDB, async (req, res) => {
+  const { userId, imageId } = req.params;
+  
+  if (req.user.userId !== userId && !req.user.isAdmin) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get current image info
+    const imageResult = await client.query(
+      'SELECT * FROM image_history WHERE id = $1 AND user_id = $2',
+      [imageId, userId]
+    );
+    
+    if (imageResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    const image = imageResult.rows[0];
+    const isAdmin = req.user.isAdmin;
+    const contentType = image.content_type || 'image';
+    
+    // Check extension limits
+    const currentExtensionCount = image.extension_count || 0;
+    const maxExtensions = contentType === 'video' ? 1 : 3;
+    
+    if (!isAdmin && currentExtensionCount >= maxExtensions) {
+      return res.status(400).json({ 
+        error: `Maximum extensions reached for ${contentType} (${maxExtensions})`,
+        remainingExtensions: 0
+      });
+    }
+    
+    // Extend expiration by 7 days
+    const newExpiresAt = new Date();
+    newExpiresAt.setDate(newExpiresAt.getDate() + 7);
+    const newExtensionCount = currentExtensionCount + 1;
+    
+    // Update image
+    const updateResult = await client.query(`
+      UPDATE image_history 
+      SET expires_at = $1, extension_count = $2, last_extended_at = NOW(), updated_at = NOW()
+      WHERE id = $3 AND user_id = $4
+      RETURNING *
+    `, [newExpiresAt, newExtensionCount, imageId, userId]);
+    
+    await client.query('COMMIT');
+    
+    const updatedImage = updateResult.rows[0];
+    const remainingExtensions = isAdmin ? 'unlimited' : Math.max(0, maxExtensions - newExtensionCount);
+    
+    res.json({
+      success: true,
+      newExpiresAt: newExpiresAt.toISOString(),
+      extensionCount: newExtensionCount,
+      remainingExtensions,
+      message: `${contentType} expiration extended by 7 days`
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error extending image:', error);
+    res.status(500).json({ error: 'Failed to extend image expiration' });
+  } finally {
+    client.release();
+  }
+});
+
 // Presets endpoints
 app.get('/api/users/:userId/presets', authenticateToken, requireDB, async (req, res) => {
   const { userId } = req.params;
@@ -598,6 +786,261 @@ app.post('/api/users/:userId/credits/deduct', authenticateToken, requireDB, asyn
     await client.query('ROLLBACK');
     console.error('Credit deduction error:', error);
     res.status(400).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ADMIN API ENDPOINTS
+
+// Get all users for admin dashboard
+app.get('/api/admin/users', authenticateToken, requireAdmin, requireDB, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+      SELECT 
+        u.id, u.email, u.display_name, u.photo_url, u.created_at, u.last_login,
+        p.is_admin, p.image_credits, p.video_credits, p.total_credits_granted, 
+        p.total_credits_used, p.is_active, p.is_suspended, p.settings
+      FROM users u 
+      LEFT JOIN user_profiles p ON u.id = p.user_id 
+      ORDER BY u.created_at DESC
+    `);
+    
+    const users = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      displayName: row.display_name,
+      photoURL: row.photo_url,
+      createdAt: row.created_at,
+      lastLogin: row.last_login,
+      isAdmin: row.is_admin,
+      imageCredits: row.image_credits || 0,
+      videoCredits: row.video_credits || 0,
+      totalCreditsGranted: row.total_credits_granted || 0,
+      totalCreditsUsed: row.total_credits_used || 0,
+      isActive: row.is_active !== false,
+      isSuspended: row.is_suspended || false
+    }));
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  } finally {
+    client.release();
+  }
+});
+
+// Grant/deduct credits for a user
+app.post('/api/admin/users/:userId/credits', authenticateToken, requireAdmin, requireDB, async (req, res) => {
+  const { userId } = req.params;
+  const { creditType, amount, action, reason } = req.body;
+  
+  if (!['image', 'video'].includes(creditType)) {
+    return res.status(400).json({ error: 'Invalid credit type. Must be "image" or "video"' });
+  }
+  
+  if (!['grant', 'deduct'].includes(action)) {
+    return res.status(400).json({ error: 'Invalid action. Must be "grant" or "deduct"' });
+  }
+  
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'Amount must be a positive number' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get current credits
+    const userResult = await client.query(
+      'SELECT image_credits, video_credits FROM user_profiles WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const currentImageCredits = userResult.rows[0].image_credits || 0;
+    const currentVideoCredits = userResult.rows[0].video_credits || 0;
+    const currentCredits = creditType === 'image' ? currentImageCredits : currentVideoCredits;
+    
+    // Calculate new credit amount
+    let newCredits;
+    if (action === 'grant') {
+      newCredits = currentCredits + amount;
+    } else {
+      newCredits = Math.max(0, currentCredits - amount);
+    }
+    
+    // Update credits
+    const updateField = creditType === 'image' ? 'image_credits' : 'video_credits';
+    await client.query(
+      `UPDATE user_profiles SET ${updateField} = $1 WHERE user_id = $2`,
+      [newCredits, userId]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      previousBalance: currentCredits,
+      newBalance: newCredits,
+      action,
+      amount,
+      creditType
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating credits:', error);
+    res.status(500).json({ error: 'Failed to update credits' });
+  } finally {
+    client.release();
+  }
+});
+
+// Suspend/unsuspend user
+app.put('/api/admin/users/:userId/status', authenticateToken, requireAdmin, requireDB, async (req, res) => {
+  const { userId } = req.params;
+  const { action, reason } = req.body;
+  
+  if (!['suspend', 'unsuspend', 'delete', 'reactivate'].includes(action)) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+  
+  if (userId === req.user.userId) {
+    return res.status(400).json({ error: 'Cannot modify your own account status' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Check if user exists and is not admin
+    const userCheck = await client.query(
+      'SELECT p.is_admin FROM user_profiles p WHERE p.user_id = $1',
+      [userId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userCheck.rows[0].is_admin) {
+      return res.status(400).json({ error: 'Cannot modify admin account status' });
+    }
+    
+    // Update user status based on action
+    let updateFields = {};
+    let logReason = reason;
+    
+    switch (action) {
+      case 'suspend':
+        updateFields = { is_suspended: true, is_active: true };
+        logReason = logReason || 'Account suspended by admin';
+        break;
+      case 'unsuspend':
+        updateFields = { is_suspended: false, is_active: true };
+        logReason = logReason || 'Account unsuspended by admin';
+        break;
+      case 'delete':
+        updateFields = { is_active: false, is_suspended: false };
+        logReason = logReason || 'Account deleted by admin';
+        break;
+      case 'reactivate':
+        updateFields = { is_active: true, is_suspended: false };
+        logReason = logReason || 'Account reactivated by admin';
+        break;
+    }
+    
+    // Build UPDATE query dynamically
+    const setClause = Object.keys(updateFields).map((key, index) => 
+      `${key} = $${index + 1}`).join(', ');
+    const values = Object.values(updateFields);
+    values.push(userId);
+    
+    await client.query(
+      `UPDATE user_profiles SET ${setClause} WHERE user_id = $${values.length}`,
+      values
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      action,
+      userId,
+      reason: logReason
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating user status:', error);
+    res.status(500).json({ error: 'Failed to update user status' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get system statistics
+app.get('/api/admin/stats', authenticateToken, requireAdmin, requireDB, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    // Get user counts and credit statistics
+    const stats = await client.query(`
+      SELECT 
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN p.is_active = true AND p.is_suspended = false THEN 1 END) as active_users,
+        COUNT(CASE WHEN p.is_suspended = true THEN 1 END) as suspended_users,
+        COUNT(CASE WHEN p.is_admin = true THEN 1 END) as admin_users,
+        SUM(CASE WHEN p.is_active = true THEN p.image_credits ELSE 0 END) as total_image_credits,
+        SUM(CASE WHEN p.is_active = true THEN p.video_credits ELSE 0 END) as total_video_credits,
+        SUM(CASE WHEN p.is_active = true THEN p.total_credits_granted ELSE 0 END) as total_credits_granted,
+        SUM(CASE WHEN p.is_active = true THEN p.total_credits_used ELSE 0 END) as total_credits_used
+      FROM users u
+      LEFT JOIN user_profiles p ON u.id = p.user_id
+    `);
+    
+    // Get image generation statistics
+    const imageStats = await client.query(`
+      SELECT 
+        COUNT(*) as total_images,
+        COUNT(CASE WHEN content_type = 'image' THEN 1 END) as images_generated,
+        COUNT(CASE WHEN content_type = 'video' THEN 1 END) as videos_generated
+      FROM image_history
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+    `);
+    
+    const statsData = stats.rows[0];
+    const imgStats = imageStats.rows[0];
+    
+    res.json({
+      users: {
+        total: parseInt(statsData.total_users) || 0,
+        active: parseInt(statsData.active_users) || 0,
+        suspended: parseInt(statsData.suspended_users) || 0,
+        admins: parseInt(statsData.admin_users) || 0
+      },
+      credits: {
+        totalImageCredits: parseInt(statsData.total_image_credits) || 0,
+        totalVideoCredits: parseInt(statsData.total_video_credits) || 0,
+        totalCreditsGranted: parseInt(statsData.total_credits_granted) || 0,
+        totalCreditsUsed: parseInt(statsData.total_credits_used) || 0,
+        totalCreditsInCirculation: (parseInt(statsData.total_image_credits) || 0) + (parseInt(statsData.total_video_credits) || 0)
+      },
+      content: {
+        totalGenerations: parseInt(imgStats.total_images) || 0,
+        imagesGenerated: parseInt(imgStats.images_generated) || 0,
+        videosGenerated: parseInt(imgStats.videos_generated) || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching system stats:', error);
+    res.status(500).json({ error: 'Failed to fetch system statistics' });
   } finally {
     client.release();
   }

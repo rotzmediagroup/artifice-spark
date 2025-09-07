@@ -196,15 +196,48 @@ export const useFirestore = () => {
   const updateImageInHistory = async (imageId: string, updates: Partial<GeneratedImageData>) => {
     if (!user) return;
     
-    // This would require a PATCH endpoint in our API
-    console.warn('updateImageInHistory not implemented for PostgreSQL yet');
+    try {
+      const response = await apiCall(`/users/${user.id}/images/${imageId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update image');
+      }
+
+      // Update local state optimistically
+      setImageHistory(prev => prev.map(img => 
+        img.id === imageId ? { ...img, ...updates } : img
+      ));
+
+      console.log('Image updated successfully');
+    } catch (error) {
+      console.error('Error updating image:', error);
+      throw error;
+    }
   };
 
   const deleteImageFromHistory = async (imageId: string) => {
     if (!user) return;
     
-    // This would require a DELETE endpoint in our API
-    console.warn('deleteImageFromHistory not implemented for PostgreSQL yet');
+    try {
+      const response = await apiCall(`/users/${user.id}/images/${imageId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+
+      // Remove from local state
+      setImageHistory(prev => prev.filter(img => img.id !== imageId));
+
+      console.log('Image deleted successfully');
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      throw error;
+    }
   };
 
   // Preset operations

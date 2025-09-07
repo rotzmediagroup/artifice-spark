@@ -9,21 +9,58 @@ interface ExtendImageResponse {
   remainingExtensions: number | 'unlimited';
 }
 
-// Stub hook for PostgreSQL migration - image extension functionality not implemented yet
+// Image extension hook with PostgreSQL backend
 export const useImageExtension = () => {
   const [extending, setExtending] = useState<string | null>(null);
   const { isAdmin } = useAdmin();
+  const { user } = useAuth();
+
+  // API call helper with auth token
+  const apiCall = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
+    const token = localStorage.getItem('authToken');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    return fetch(`${process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8888'}/api${endpoint}`, {
+      ...options,
+      headers,
+    });
+  };
 
   const extendImage = async (imageId: string): Promise<ExtendImageResponse | null> => {
+    if (!user) {
+      toast.error('User must be authenticated to extend images');
+      return null;
+    }
+
     setExtending(imageId);
     
     try {
-      // TODO: Implement image extension with PostgreSQL backend
-      toast.info('Image extension feature will be implemented in a future update.');
-      return null;
+      const response = await apiCall(`/users/${user.id}/images/${imageId}/extend`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(result.message || 'Image expiration extended successfully!');
+        
+        return {
+          success: true,
+          newExpiresAt: result.newExpiresAt,
+          extensionCount: result.extensionCount,
+          remainingExtensions: result.remainingExtensions
+        };
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to extend image');
+      }
     } catch (error: unknown) {
       console.error('Failed to extend image:', error);
-      toast.error('Image extension not available yet.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to extend image';
+      toast.error(errorMessage);
       return null;
     } finally {
       setExtending(null);
